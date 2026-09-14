@@ -30,7 +30,7 @@ button:active, .btn:active, .mobile-nav-item:active, .mobile-fab:active {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-top: 1px solid var(--color-stone-200);
-  z-index: 900;
+  z-index: var(--z-bottom-nav, 250);
   box-shadow: 0 -4px 20px rgba(28, 25, 23, 0.06);
   justify-content: space-around;
   align-items: center;
@@ -87,7 +87,7 @@ button:active, .btn:active, .mobile-nav-item:active, .mobile-fab:active {
   position: fixed;
   bottom: calc(72px + env(safe-area-inset-bottom, 8px));
   right: 18px;
-  z-index: 850;
+  z-index: var(--z-fab, 240);
   background: var(--color-stone-900);
   color: var(--color-white);
   border: none;
@@ -98,10 +98,19 @@ button:active, .btn:active, .mobile-nav-item:active, .mobile-fab:active {
   display: flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 8px 24px rgba(28, 25, 23, 0.28), 0 2px 6px rgba(28, 25, 23, 0.15);
+  box-shadow: 0 8px 24px rgba(28, 25, 23, 0.25);
   cursor: pointer;
-  letter-spacing: 0.2px;
-  animation: fabIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all var(--transition-fast);
+}
+
+/* Hide navigation and FAB when any drawer, modal or document preview is active */
+body.drawer-open .mobile-bottom-nav,
+body.drawer-open .mobile-fab,
+body.modal-open .mobile-bottom-nav,
+body.modal-open .mobile-fab,
+body.doc-modal-open .mobile-bottom-nav,
+body.doc-modal-open .mobile-fab {
+  display: none !important;
 }
 
 .mobile-fab-icon {
@@ -413,19 +422,41 @@ button:active, .btn:active, .mobile-nav-item:active, .mobile-fab:active {
     bottom: 0;
     background: var(--color-white);
     border-top: 1px solid var(--color-stone-200);
-    padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom, 0px)) var(--space-4);
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+    padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom, 12px)) var(--space-4);
+    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.09);
     display: flex;
+    flex-wrap: wrap;
     gap: var(--space-2);
-    z-index: 20;
+    z-index: 100;
   }
 
   .drawer-footer .btn {
-    flex: 1;
-    height: 46px;
-    font-size: 15px;
+    flex: 1 1 45%;
+    min-height: 46px;
+    font-size: 14px;
     font-weight: var(--font-semibold);
     justify-content: center;
+  }
+
+  .drawer-footer .btn-full-mobile {
+    flex: 1 0 100% !important;
+    order: -1;
+    min-height: 48px;
+    font-size: 15px;
+    font-weight: var(--font-bold);
+  }
+
+  /* Inline form actions box at bottom of presupuesto form */
+  .presupuesto-form-actions-box {
+    margin-top: var(--space-6);
+    margin-bottom: var(--space-6);
+    padding: var(--space-4);
+    background: var(--color-stone-50);
+    border: 1px solid var(--color-stone-200);
+    border-radius: var(--radius-xl);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
   }
 
   /* ── Mobile Cards for Data Tables ── */

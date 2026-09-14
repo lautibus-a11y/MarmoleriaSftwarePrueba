@@ -9,7 +9,7 @@ class DrawerManager {
     this.onCloseCallback = null;
   }
 
-  open({ title = '', content = '', size = '', onClose = null, footer = null } = {}) {
+  open({ title = '', content = '', size = '', onClose = null, footer = null, headerActions = null } = {}) {
     this.close();
     this.onCloseCallback = onClose;
 
@@ -25,9 +25,12 @@ class DrawerManager {
       <div class="drawer-handle" aria-hidden="true"></div>
       <div class="drawer-header">
         <h3 class="drawer-title">${title}</h3>
-        <button class="drawer-close" aria-label="Cerrar">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
+        <div class="drawer-header-actions" style="display:flex;align-items:center;gap:var(--space-2)">
+          ${headerActions || ''}
+          <button class="drawer-close" aria-label="Cerrar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
       </div>
       <div class="drawer-body">${typeof content === 'string' ? content : ''}</div>
       ${footer ? `<div class="drawer-footer">${footer}</div>` : ''}
@@ -35,6 +38,7 @@ class DrawerManager {
 
     document.body.appendChild(this.drawer);
     document.body.style.overflow = 'hidden';
+    document.body.classList.add('drawer-open');
 
     // If content is DOM element
     if (typeof content !== 'string' && content instanceof HTMLElement) {
@@ -75,6 +79,7 @@ class DrawerManager {
     }, 350);
 
     document.body.style.overflow = '';
+    document.body.classList.remove('drawer-open');
     if (this._keyHandler) {
       document.removeEventListener('keydown', this._keyHandler);
     }

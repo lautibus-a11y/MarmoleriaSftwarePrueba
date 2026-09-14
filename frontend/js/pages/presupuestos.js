@@ -6,6 +6,7 @@ import { DataService } from '../services/mockData.js';
 import { formatCurrency, formatDate, searchFilter, escapeHtml, debounce, generateAutoNumber } from '../utils/helpers.js';
 import { Icons, renderDataTable, renderSearchInput, renderBadge, renderEmptyState } from '../components/ui.js';
 import { Drawer } from '../components/drawer.js';
+import { Modal } from '../components/modal.js';
 import { Toast } from '../components/toast.js';
 import { confirmDialog } from '../components/confirmDialog.js';
 import { DocumentModal } from '../components/documentModal.js';
@@ -50,6 +51,7 @@ export function renderPresupuestos(container, actionsEl, path) {
       { label: 'Estado', render: (p) => renderBadge(PRESUPUESTO_ESTADO_LABELS[p.estado] || p.estado, PRESUPUESTO_ESTADO_COLORS[p.estado] || 'neutral') },
       { label: 'Total', align: 'right', render: (p) => `<span class="cell-currency">${formatCurrency(DataService.getPresupuestoTotal(p), p.moneda)}</span>` },
       { label: '', align: 'right', className: 'cell-actions', render: (p) => `
+        <button class="btn btn-ghost btn-icon btn-sm" data-action="share" data-id="${p.id}" title="Compartir (WhatsApp / PDF)" style="color:#25D366">${Icons.whatsapp}</button>
         <button class="btn btn-ghost btn-icon btn-sm" data-action="view" data-id="${p.id}" title="Ver">${Icons.eye}</button>
         <button class="btn btn-ghost btn-icon btn-sm" data-action="export" data-id="${p.id}" title="Exportar PDF / Word">${Icons.download}</button>
         <button class="btn btn-ghost btn-icon btn-sm" data-action="edit" data-id="${p.id}" title="Editar">${Icons.edit}</button>
@@ -89,6 +91,10 @@ export function renderPresupuestos(container, actionsEl, path) {
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
       const { action, id } = btn.dataset;
+      if (action === 'share') {
+        const pres = DataService.getById('presupuestos', id);
+        if (pres) openShareModal(pres);
+      }
       if (action === 'view') window.location.hash = `#/presupuestos/${id}`;
       if (action === 'export') {
         const pres = DataService.getById('presupuestos', id);
@@ -227,11 +233,34 @@ export function renderPresupuestos(container, actionsEl, path) {
             <label class="form-label">Condiciones comerciales</label>
             <textarea class="form-textarea" name="condiciones" rows="4">${escapeHtml(pres.condiciones || '')}</textarea>
           </div>
+
+          <!-- Acciones directas dentro del formulario (visibles sin scroll en mobile y desktop) -->
+          <div class="presupuesto-form-actions-box">
+            <div style="font-size:13px;font-weight:var(--font-bold);color:var(--color-stone-800);display:flex;align-items:center;gap:6px">
+              ${Icons.check} Acciones del presupuesto
+            </div>
+            <button type="button" class="btn btn-success btn-lg" id="btn-inline-save-share" style="width:100%;justify-content:center;background:#25D366;color:#fff;border-color:#25D366;font-weight:var(--font-bold);box-shadow:0 4px 12px rgba(37,211,102,0.25)">
+              ${Icons.whatsapp} Guardar y Compartir presupuesto
+            </button>
+            <div style="display:flex;gap:var(--space-2)">
+              <button type="button" class="btn btn-primary" id="btn-inline-save" style="flex:1;justify-content:center;font-weight:var(--font-semibold)">
+                ${Icons.check} Guardar
+              </button>
+              <button type="button" class="btn btn-secondary" id="btn-inline-preview" style="flex:1;justify-content:center">
+                ${Icons.eye} Vista previa
+              </button>
+            </div>
+          </div>
         </form>
       `,
+      headerActions: `
+        <button type="button" class="btn btn-primary btn-sm" id="drawer-header-save" style="font-weight:var(--font-semibold)">${Icons.check} Guardar</button>
+      `,
       footer: `
-        <button class="btn btn-secondary" id="drawer-cancel">Cancelar</button>
-        <button class="btn btn-primary" id="drawer-save">Guardar</button>
+        <button type="button" class="btn btn-secondary" id="drawer-cancel">Cancelar</button>
+        <button type="button" class="btn btn-secondary" id="drawer-preview-btn">${Icons.eye} Vista previa</button>
+        <button type="button" class="btn btn-primary" id="drawer-save">${Icons.check} Guardar</button>
+        <button type="button" class="btn btn-success btn-full-mobile" id="drawer-save-share" style="background:#25D366;color:#fff;border-color:#25D366;font-weight:var(--font-bold)">${Icons.whatsapp} Guardar y Compartir</button>
       `
     });
 
@@ -511,13 +540,46 @@ export function renderPresupuestos(container, actionsEl, path) {
 
     document.querySelectorAll('.calc-field').forEach(f => f.addEventListener('input', updateSummary));
 
-    document.getElementById('drawer-cancel')?.addEventListener('click', () => Drawer.close());
-    document.getElementById('drawer-save')?.addEventListener('click', () => {
+    function previewDraft() {
       const form = document.getElementById('pres-form');
+      if (!form) return;
+      const fd = new FormData(form);
+      const data = Object.fromEntries(fd);
+      const cli = clientes.find(c => c.id === data.clienteId) || { nombre: 'Cliente borrador', apellido: '' };
+      const adics = ['colocacion', 'manoDeObra', 'transporte', 'bacha', 'zocalos', 'extras'];
+      const adicionales = {};
+      adics.forEach(k => { adicionales[k] = parseFloat(data[`adic_${k}`]) || 0; });
+      const draftPres = {
+        ...pres,
+        ...data,
+        items,
+        adicionales,
+        descuento: parseFloat(data.descuento) || 0,
+        impuestos: parseFloat(data.impuestos) || 0
+      };
+      const draftTotal = DataService.getPresupuestoTotal(draftPres);
+      DocumentModal.open({
+        title: `Vista previa — ${draftPres.numero}`,
+        filename: `Borrador_${draftPres.numero}`,
+        htmlContent: generatePresupuestoHtml(draftPres, cli, draftTotal)
+      });
+    }
+
+    function savePresupuesto(andShare = false) {
+      const form = document.getElementById('pres-form');
+      if (!form) return;
       const fd = new FormData(form);
       const data = Object.fromEntries(fd);
 
-      if (!data.clienteId) { Toast.warning('Seleccioná un cliente'); return; }
+      if (!data.clienteId) {
+        Toast.warning('Seleccioná un cliente para el presupuesto');
+        return;
+      }
+
+      if (!items || items.length === 0) {
+        Toast.warning('Agregá al menos un ítem al presupuesto');
+        return;
+      }
 
       const adics = ['colocacion', 'manoDeObra', 'transporte', 'bacha', 'zocalos', 'extras'];
       const adicionales = {};
@@ -525,16 +587,156 @@ export function renderPresupuestos(container, actionsEl, path) {
 
       const record = { ...data, items, adicionales, descuento: parseFloat(data.descuento) || 0, impuestos: parseFloat(data.impuestos) || 0 };
 
+      let saved;
       if (editId) {
-        DataService.update('presupuestos', editId, record);
+        saved = DataService.update('presupuestos', editId, record);
         Toast.success('Presupuesto actualizado');
       } else {
-        DataService.create('presupuestos', record);
-        Toast.success('Presupuesto creado');
+        saved = DataService.create('presupuestos', record);
+        Toast.success('Presupuesto guardado con éxito');
       }
       Drawer.close();
       presupuestos = DataService.getAll('presupuestos');
       render();
+
+      if (andShare && saved) {
+        setTimeout(() => {
+          openShareModal(saved);
+        }, 360);
+      }
+    }
+
+    document.getElementById('drawer-cancel')?.addEventListener('click', () => Drawer.close());
+    document.getElementById('drawer-save')?.addEventListener('click', () => savePresupuesto(false));
+    document.getElementById('drawer-header-save')?.addEventListener('click', () => savePresupuesto(false));
+    document.getElementById('btn-inline-save')?.addEventListener('click', () => savePresupuesto(false));
+
+    document.getElementById('drawer-save-share')?.addEventListener('click', () => savePresupuesto(true));
+    document.getElementById('btn-inline-save-share')?.addEventListener('click', () => savePresupuesto(true));
+
+    document.getElementById('drawer-preview-btn')?.addEventListener('click', previewDraft);
+    document.getElementById('btn-inline-preview')?.addEventListener('click', previewDraft);
+  }
+
+  function openShareModal(pres) {
+    if (!pres) return;
+    const cliente = DataService.getById('clientes', pres.clienteId);
+    const total = DataService.getPresupuestoTotal(pres);
+    const getDocHtml = () => generatePresupuestoHtml(pres, cliente, total);
+    const docFilename = `Presupuesto_${pres.numero}`;
+
+    const cliName = cliente ? `${cliente.nombre} ${cliente.apellido || ''}`.trim() : 'Cliente';
+    const cliPhone = cliente?.whatsapp || cliente?.telefono || '';
+    const cleanPhone = cliPhone.replace(/\D/g, '');
+
+    const shareMsg = `Hola ${cliName}! Te adjunto el presupuesto *${pres.numero}* de Marmolería Benjamin.\n\n*Detalle:* ${pres.descripcion || 'Trabajo a medida en marmolería'}\n*Total:* ${formatCurrency(total, pres.moneda)}\n\nCualquier consulta estamos a disposición.`;
+
+    Modal.open({
+      title: `Compartir ${pres.numero}`,
+      size: 'md',
+      content: `
+        <div style="text-align:center;margin-bottom:var(--space-4);padding-bottom:var(--space-3);border-bottom:1px solid var(--color-stone-200)">
+          <div style="font-size:var(--text-lg);font-weight:var(--font-bold);color:var(--color-stone-900)">${pres.numero}</div>
+          <div class="text-muted" style="font-size:var(--text-sm);margin-top:2px">
+            ${escapeHtml(cliName)} · Total: <strong style="color:var(--color-stone-900)">${formatCurrency(total, pres.moneda)}</strong>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+          <!-- WhatsApp -->
+          <div class="card" style="border:1.5px solid #25D366;background:rgba(37,211,102,0.06);padding:var(--space-3);border-radius:var(--radius-lg)">
+            <div style="font-size:var(--text-xs);font-weight:var(--font-bold);color:#128C7E;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px">
+              ${Icons.whatsapp} Enviar por WhatsApp
+            </div>
+            <div class="form-group mb-2">
+              <label class="form-label-sm" style="font-size:12px">Teléfono / WhatsApp de destino</label>
+              <div style="display:flex;gap:6px">
+                <input type="text" class="form-input" id="share-modal-phone" value="${escapeHtml(cleanPhone)}" placeholder="Ej: 5491145678901">
+                <button type="button" class="btn btn-success" id="share-modal-wa-btn" style="background:#25D366;color:#fff;border-color:#25D366;white-space:nowrap;font-weight:var(--font-bold)">
+                  ${Icons.whatsapp} Abrir chat
+                </button>
+              </div>
+              <span class="text-muted" style="font-size:11px;display:block;margin-top:4px">Abre WhatsApp con el mensaje oficial listo para enviar</span>
+            </div>
+          </div>
+
+          <!-- Descargas directas -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2)">
+            <button type="button" class="btn btn-pdf" id="share-modal-pdf-btn" style="justify-content:center;height:44px">
+              ${Icons['file-pdf']} Descargar PDF
+            </button>
+            <button type="button" class="btn btn-word" id="share-modal-word-btn" style="justify-content:center;height:44px">
+              ${Icons['file-word']} Descargar Word
+            </button>
+          </div>
+
+          <!-- Vista previa & Copiar -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2)">
+            <button type="button" class="btn btn-secondary" id="share-modal-preview-btn" style="justify-content:center;height:42px">
+              ${Icons.eye} Vista previa
+            </button>
+            <button type="button" class="btn btn-secondary" id="share-modal-copy-btn" style="justify-content:center;height:42px">
+              ${Icons.copy} Copiar texto
+            </button>
+          </div>
+
+          <a href="#/presupuestos/${pres.id}" class="btn btn-ghost" id="share-modal-detail-link" style="justify-content:center;margin-top:var(--space-2);color:var(--color-stone-600)">
+            Ver detalle completo del presupuesto →
+          </a>
+        </div>
+      `,
+      footer: `
+        <button type="button" class="btn btn-secondary w-full" id="share-modal-close" style="width:100%;justify-content:center">Cerrar</button>
+      `
+    });
+
+    document.getElementById('share-modal-close')?.addEventListener('click', () => Modal.close());
+    document.getElementById('share-modal-detail-link')?.addEventListener('click', () => Modal.close());
+
+    document.getElementById('share-modal-wa-btn')?.addEventListener('click', () => {
+      const phoneInput = document.getElementById('share-modal-phone');
+      const phone = phoneInput ? phoneInput.value.replace(/\D/g, '') : cleanPhone;
+      if (phone) {
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(shareMsg)}`, '_blank');
+      } else {
+        window.open(`https://wa.me/?text=${encodeURIComponent(shareMsg)}`, '_blank');
+      }
+    });
+
+    document.getElementById('share-modal-pdf-btn')?.addEventListener('click', async () => {
+      Toast.info('Generando PDF', 'Preparando documento...');
+      const ok = await exportToPdf(getDocHtml(), docFilename);
+      if (ok) Toast.success('PDF descargado con éxito');
+    });
+
+    document.getElementById('share-modal-word-btn')?.addEventListener('click', () => {
+      try {
+        exportToWord(getDocHtml(), docFilename);
+        Toast.success('Documento Word descargado');
+      } catch (e) {
+        Toast.error('Error al exportar a Word');
+      }
+    });
+
+    document.getElementById('share-modal-preview-btn')?.addEventListener('click', () => {
+      Modal.close();
+      DocumentModal.open({
+        title: `Presupuesto ${pres.numero}`,
+        filename: docFilename,
+        htmlContent: getDocHtml()
+      });
+    });
+
+    document.getElementById('share-modal-copy-btn')?.addEventListener('click', () => {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(shareMsg).then(() => {
+          Toast.success('Texto copiado al portapapeles');
+        }).catch(() => {
+          Toast.info('Mensaje', shareMsg);
+        });
+      } else {
+        Toast.info('Mensaje', shareMsg);
+      }
     });
   }
 
@@ -582,10 +784,10 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
     <!-- Action buttons bar -->
     <div class="card mb-4">
       <div class="card-body" style="display:flex;gap:var(--space-2);flex-wrap:wrap">
+        <button class="btn btn-success" id="btn-share-modal" style="flex:1;min-width:130px;justify-content:center;background:#25D366;color:#fff;border-color:#25D366;font-weight:var(--font-bold)">${Icons.whatsapp} Compartir</button>
         <button class="btn btn-pdf" id="btn-pdf" style="flex:1;min-width:130px;justify-content:center">${Icons['file-pdf']} Descargar PDF</button>
         <button class="btn btn-word" id="btn-word" style="flex:1;min-width:130px;justify-content:center">${Icons['file-word']} Descargar Word</button>
         <button class="btn btn-secondary" id="btn-preview" style="flex:1;min-width:130px;justify-content:center">${Icons.eye} Vista previa</button>
-        ${cliente?.whatsapp ? `<button class="btn btn-secondary" id="btn-whatsapp" style="flex:1;min-width:130px;justify-content:center">${Icons.whatsapp} WhatsApp</button>` : ''}
         ${pres.estado === 'borrador' || pres.estado === 'enviado' ? `<button class="btn btn-success" id="btn-aprobar" style="flex:1;min-width:130px;justify-content:center">${Icons.check} Aprobar</button>` : ''}
         ${pres.estado === 'aprobado' && !pres.obraId ? `<button class="btn btn-primary" id="btn-crear-obra" style="flex:1;min-width:130px;justify-content:center">${Icons['hard-hat']} Crear obra</button>` : ''}
       </div>
@@ -717,6 +919,7 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
   document.getElementById('btn-pdf')?.addEventListener('click', handlePdf);
   document.getElementById('btn-header-word')?.addEventListener('click', handleWord);
   document.getElementById('btn-word')?.addEventListener('click', handleWord);
+  document.getElementById('btn-share-modal')?.addEventListener('click', () => openShareModal(pres));
 
   // WhatsApp
   document.getElementById('btn-whatsapp')?.addEventListener('click', () => {

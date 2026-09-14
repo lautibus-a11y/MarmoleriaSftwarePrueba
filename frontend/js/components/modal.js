@@ -32,6 +32,7 @@ class ModalManager {
 
     document.body.appendChild(this.overlay);
     document.body.style.overflow = 'hidden';
+    document.body.classList.add('modal-open');
 
     // If content is a DOM element, append it
     if (typeof content !== 'string' && content instanceof HTMLElement) {
@@ -74,6 +75,7 @@ class ModalManager {
     }, 200);
 
     document.body.style.overflow = '';
+    document.body.classList.remove('modal-open');
     if (this._keyHandler) {
       document.removeEventListener('keydown', this._keyHandler);
     }

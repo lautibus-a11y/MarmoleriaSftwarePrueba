@@ -50,6 +50,7 @@ export const DocumentModal = {
     `;
 
     document.body.appendChild(modalEl);
+    document.body.classList.add('doc-modal-open');
 
     // Fade in
     requestAnimationFrame(() => {
@@ -106,6 +107,7 @@ export const DocumentModal = {
   close() {
     if (modalEl && modalEl.parentNode) {
       modalEl.classList.remove('active');
+      document.body.classList.remove('doc-modal-open');
       window.removeEventListener('keydown', this._handleKeyDown);
       setTimeout(() => {
         if (modalEl && modalEl.parentNode) {

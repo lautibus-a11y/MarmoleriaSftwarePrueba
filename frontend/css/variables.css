@@ -120,11 +120,13 @@
   --z-base: 0;
   --z-dropdown: 100;
   --z-sticky: 200;
-  --z-drawer: 300;
-  --z-modal: 400;
-  --z-overlay: 500;
-  --z-toast: 600;
-  --z-tooltip: 700;
+  --z-bottom-nav: 250;
+  --z-fab: 260;
+  --z-overlay: 990;
+  --z-drawer: 1000;
+  --z-modal: 1100;
+  --z-toast: 1300;
+  --z-tooltip: 1400;
 
   /* ── Layout ── */
   --sidebar-width: 260px;
