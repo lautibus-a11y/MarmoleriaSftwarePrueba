@@ -1,0 +1,136 @@
+/* ========================================
+   MARMOLERÍA BENJAMIN — Design Tokens
+   ======================================== */
+
+:root {
+  /* ── Color Palette ── */
+  /* Stone / Marble inspired */
+  --color-white: #FFFFFF;
+  --color-stone-50: #FAFAF9;
+  --color-stone-100: #F5F5F4;
+  --color-stone-200: #E7E5E4;
+  --color-stone-300: #D6D3D1;
+  --color-stone-400: #A8A29E;
+  --color-stone-500: #78716C;
+  --color-stone-600: #57534E;
+  --color-stone-700: #44403C;
+  --color-stone-800: #292524;
+  --color-stone-900: #1C1917;
+
+  /* Warm neutrals */
+  --color-warm-50: #FAF9F7;
+  --color-warm-100: #F3F1EE;
+  --color-warm-200: #E8E4DF;
+
+  /* Accent — very subtle warm gold */
+  --color-accent: #B8A088;
+  --color-accent-light: #D4C4B0;
+  --color-accent-dark: #8C7A66;
+  --color-accent-bg: rgba(184, 160, 136, 0.08);
+  --color-accent-bg-hover: rgba(184, 160, 136, 0.14);
+
+  /* Semantic colors */
+  --color-success: #4A9D6E;
+  --color-success-light: #E8F5EE;
+  --color-success-dark: #357A52;
+  
+  --color-warning: #C4922A;
+  --color-warning-light: #FFF8E7;
+  --color-warning-dark: #9A7320;
+  
+  --color-error: #C45B5B;
+  --color-error-light: #FDEAEA;
+  --color-error-dark: #9A3E3E;
+  
+  --color-info: #5B8FC4;
+  --color-info-light: #EAF1FD;
+  --color-info-dark: #3E6F9A;
+
+  /* ── Typography ── */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  
+  /* Font sizes */
+  --text-xs: 0.6875rem;     /* 11px */
+  --text-sm: 0.8125rem;     /* 13px */
+  --text-base: 0.875rem;    /* 14px */
+  --text-md: 0.9375rem;     /* 15px */
+  --text-lg: 1.0625rem;     /* 17px */
+  --text-xl: 1.25rem;       /* 20px */
+  --text-2xl: 1.5rem;       /* 24px */
+  --text-3xl: 1.875rem;     /* 30px */
+  --text-4xl: 2.25rem;      /* 36px */
+  
+  /* Font weights */
+  --font-light: 300;
+  --font-regular: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  
+  /* Line heights */
+  --leading-tight: 1.2;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65;
+  
+  /* Letter spacing */
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.02em;
+  --tracking-wider: 0.05em;
+
+  /* ── Spacing Scale (4px base) ── */
+  --space-0: 0;
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-10: 2.5rem;   /* 40px */
+  --space-12: 3rem;     /* 48px */
+  --space-16: 4rem;     /* 64px */
+  --space-20: 5rem;     /* 80px */
+
+  /* ── Border Radius ── */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+
+  /* ── Shadows ── */
+  --shadow-xs: 0 1px 2px rgba(28, 25, 23, 0.04);
+  --shadow-sm: 0 1px 3px rgba(28, 25, 23, 0.06), 0 1px 2px rgba(28, 25, 23, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(28, 25, 23, 0.06), 0 2px 4px -1px rgba(28, 25, 23, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(28, 25, 23, 0.06), 0 4px 6px -2px rgba(28, 25, 23, 0.03);
+  --shadow-xl: 0 20px 25px -5px rgba(28, 25, 23, 0.08), 0 10px 10px -5px rgba(28, 25, 23, 0.03);
+  --shadow-inner: inset 0 2px 4px 0 rgba(28, 25, 23, 0.04);
+  --shadow-focus: 0 0 0 3px rgba(184, 160, 136, 0.2);
+
+  /* ── Transitions ── */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
+  --transition-drawer: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Z-Index Scale ── */
+  --z-base: 0;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-drawer: 300;
+  --z-modal: 400;
+  --z-overlay: 500;
+  --z-toast: 600;
+  --z-tooltip: 700;
+
+  /* ── Layout ── */
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 72px;
+  --header-height: 60px;
+  --content-max-width: 1400px;
+  --content-padding: var(--space-8);
+  --table-row-height: 52px;
+}

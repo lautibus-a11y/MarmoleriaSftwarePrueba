@@ -1,0 +1,444 @@
+/* ========================================
+   MARMOLERÍA BENJAMIN — Documents & Print Styles
+   ======================================== */
+
+/* ── Document Preview Modal ── */
+.doc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 25, 23, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: var(--space-4);
+  overflow-y: auto;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--transition-normal), visibility var(--transition-normal);
+}
+
+.doc-modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.doc-modal-container {
+  width: 100%;
+  max-width: 880px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: auto;
+}
+
+.doc-modal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  position: sticky;
+  top: var(--space-2);
+  z-index: 10;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.doc-modal-toolbar-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--font-semibold);
+  font-size: var(--text-base);
+  color: var(--color-stone-800);
+}
+
+.doc-modal-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.btn-pdf {
+  background-color: #DC2626 !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+.btn-pdf:hover {
+  background-color: #B91C1C !important;
+}
+
+.btn-word {
+  background-color: #2563EB !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+.btn-word:hover {
+  background-color: #1D4ED8 !important;
+}
+
+/* ── Printable Paper Sheet (A4 format) ── */
+.doc-sheet-wrapper {
+  background: #525659;
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  overflow-x: auto;
+}
+
+.doc-sheet {
+  background: #ffffff;
+  width: 100%;
+  max-width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 16mm 18mm;
+  box-sizing: border-box;
+  color: #1C1917;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 11pt;
+  line-height: 1.45;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+  position: relative;
+}
+
+/* ── Document Inner Elements ── */
+.doc-header-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 18px;
+  border-bottom: 2px solid #1C1917;
+  padding-bottom: 14px;
+}
+
+.doc-header-table td {
+  vertical-align: middle;
+  padding: 0;
+}
+
+.doc-brand-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  background: #1C1917;
+  color: #B8A088;
+  font-weight: 800;
+  font-size: 18pt;
+  border-radius: 8px;
+  margin-right: 12px;
+  vertical-align: middle;
+}
+
+.doc-brand-title {
+  font-size: 17pt;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #1C1917;
+  margin: 0 0 2px 0;
+  line-height: 1.1;
+}
+
+.doc-brand-subtitle {
+  font-size: 8.5pt;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #78716C;
+  margin: 0;
+  font-weight: 600;
+}
+
+.doc-header-meta {
+  text-align: right;
+  font-size: 8.5pt;
+  color: #44403C;
+  line-height: 1.4;
+}
+
+.doc-header-meta strong {
+  color: #1C1917;
+}
+
+/* Document Title Bar */
+.doc-title-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #F5F5F4;
+  border-left: 4px solid #B8A088;
+  padding: 10px 14px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.doc-title-main {
+  font-size: 13pt;
+  font-weight: 700;
+  color: #1C1917;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.doc-title-number {
+  font-size: 13pt;
+  font-weight: 700;
+  color: #8C7A66;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Info Grid (Client & Project) */
+.doc-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.doc-info-card {
+  background: #FAFAF9;
+  border: 1px solid #E7E5E4;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 9pt;
+}
+
+.doc-info-card-title {
+  font-size: 8pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #78716C;
+  margin: 0 0 6px 0;
+  border-bottom: 1px solid #E7E5E4;
+  padding-bottom: 4px;
+}
+
+.doc-info-row {
+  display: flex;
+  margin-bottom: 3px;
+  line-height: 1.35;
+}
+
+.doc-info-label {
+  width: 80px;
+  color: #78716C;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.doc-info-val {
+  color: #1C1917;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+/* Items Table */
+.doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  font-size: 8.5pt;
+}
+
+.doc-table th {
+  background: #1C1917;
+  color: #ffffff;
+  padding: 7px 8px;
+  font-weight: 600;
+  text-align: left;
+  font-size: 8pt;
+  letter-spacing: 0.3px;
+  border: 1px solid #1C1917;
+}
+
+.doc-table th.num {
+  text-align: right;
+}
+
+.doc-table td {
+  padding: 7px 8px;
+  border: 1px solid #E7E5E4;
+  color: #292524;
+  vertical-align: top;
+}
+
+.doc-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.doc-table tbody tr:nth-child(even) td {
+  background-color: #FAFAF9;
+}
+
+/* Summary & Totals */
+.doc-financials {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 18px;
+}
+
+.doc-totals-box {
+  width: 260px;
+  font-size: 9pt;
+}
+
+.doc-total-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  color: #57534E;
+}
+
+.doc-total-row.strong {
+  font-weight: 600;
+  color: #1C1917;
+}
+
+.doc-grand-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #1C1917;
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-top: 6px;
+}
+
+.doc-grand-total-label {
+  font-size: 10pt;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.doc-grand-total-amount {
+  font-size: 13pt;
+  font-weight: 800;
+  color: #D4C4B0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Conditions & Notes */
+.doc-conditions-block {
+  background: #FAFAF9;
+  border: 1px solid #E7E5E4;
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin-bottom: 22px;
+  font-size: 8pt;
+  line-height: 1.45;
+  color: #57534E;
+}
+
+.doc-conditions-title {
+  font-size: 8pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #1C1917;
+  margin: 0 0 5px 0;
+}
+
+.doc-conditions-content {
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+/* Signatures */
+.doc-signatures-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-top: 30px;
+  padding-top: 10px;
+}
+
+.doc-signature-line {
+  border-top: 1px solid #A8A29E;
+  text-align: center;
+  padding-top: 6px;
+  font-size: 8pt;
+  color: #78716C;
+}
+
+.doc-signature-name {
+  font-weight: 600;
+  color: #1C1917;
+  display: block;
+}
+
+/* Document Footer */
+.doc-footer {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 7.5pt;
+  color: #A8A29E;
+  border-top: 1px dashed #E7E5E4;
+  padding-top: 8px;
+}
+
+/* ── Print Styles ── */
+@media print {
+  /* Reset document for clean printing */
+  html, body {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  .sidebar,
+  .sidebar-toggle,
+  .main-header,
+  .page-header,
+  .page-content,
+  .toast-container,
+  .modal-overlay,
+  .drawer-overlay,
+  .doc-modal-toolbar,
+  .doc-modal-overlay > *:not(.doc-modal-container),
+  .doc-sheet-wrapper {
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+
+  body > *:not(#print-container) {
+    display: none !important;
+  }
+
+  #print-container {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  #print-container .doc-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    min-height: auto !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm 12mm 15mm;
+  }
+}

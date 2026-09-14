@@ -1,0 +1,385 @@
+/* ========================================
+   MARMOLERÍA BENJAMIN — Page-Specific Styles
+   ======================================== */
+
+/* ── Dashboard ── */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+}
+
+.dashboard-alerts {
+  margin-bottom: var(--space-6);
+}
+
+.dashboard-alert-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-warning-light);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--color-warning-dark);
+  margin-bottom: var(--space-2);
+}
+
+.dashboard-alert-item.error {
+  background: var(--color-error-light);
+  color: var(--color-error-dark);
+}
+
+/* ── Client Detail / Provider Detail ── */
+.detail-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-5);
+  margin-bottom: var(--space-6);
+}
+
+.detail-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-xl);
+  background: var(--color-stone-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--color-stone-400);
+  flex-shrink: 0;
+}
+
+.detail-header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.detail-header-name {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--color-stone-900);
+  margin-bottom: var(--space-1);
+}
+
+.detail-header-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.detail-header-meta-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-stone-500);
+}
+
+.detail-header-meta-item svg {
+  width: 14px;
+  height: 14px;
+}
+
+.detail-stats-row {
+  display: flex;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.detail-stat-mini {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-stone-50);
+  border: 1px solid var(--color-stone-200);
+  border-radius: var(--radius-lg);
+  min-width: 140px;
+}
+
+.detail-stat-mini-label {
+  font-size: var(--text-xs);
+  color: var(--color-stone-500);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+}
+
+.detail-stat-mini-value {
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  color: var(--color-stone-900);
+}
+
+/* ── Presupuesto Form ── */
+.presupuesto-form-section {
+  margin-bottom: var(--space-6);
+}
+
+.presupuesto-form-section-title {
+  font-size: var(--text-md);
+  font-weight: var(--font-semibold);
+  color: var(--color-stone-800);
+  margin-bottom: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.presupuesto-items-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--color-stone-200);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-4);
+}
+
+.presupuesto-adicionales {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+.presupuesto-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-stone-50);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-stone-200);
+  margin-top: var(--space-6);
+  flex-wrap: wrap;
+}
+
+/* ── Obra Timeline ── */
+.obra-timeline {
+  position: relative;
+  padding-left: var(--space-8);
+}
+
+.obra-timeline::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: var(--color-stone-200);
+}
+
+.obra-timeline-item {
+  position: relative;
+  padding-bottom: var(--space-5);
+}
+
+.obra-timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+.obra-timeline-dot {
+  position: absolute;
+  left: calc(-1 * var(--space-8) + 4px);
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-white);
+  border: 2px solid var(--color-stone-300);
+}
+
+.obra-timeline-dot.active {
+  background: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.obra-timeline-dot.current {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.obra-timeline-date {
+  font-size: var(--text-xs);
+  color: var(--color-stone-400);
+  margin-bottom: var(--space-1);
+}
+
+.obra-timeline-text {
+  font-size: var(--text-sm);
+  color: var(--color-stone-700);
+}
+
+/* ── Stock Alerts ── */
+.stock-alert-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-stone-100);
+}
+
+.stock-alert-item:last-child {
+  border-bottom: none;
+}
+
+.stock-alert-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--color-error-light);
+  color: var(--color-error);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stock-alert-name {
+  flex: 1;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-stone-800);
+}
+
+.stock-alert-value {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--color-error);
+}
+
+/* ── Cuenta Corriente ── */
+.cuenta-corriente-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.cc-summary-item {
+  padding: var(--space-4);
+  background: var(--color-white);
+  border: 1px solid var(--color-stone-200);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+
+.cc-summary-label {
+  font-size: var(--text-xs);
+  color: var(--color-stone-500);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  margin-bottom: var(--space-1);
+}
+
+.cc-summary-value {
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  color: var(--color-stone-900);
+  font-family: var(--font-mono);
+}
+
+.cc-summary-value.positive {
+  color: var(--color-success);
+}
+
+.cc-summary-value.negative {
+  color: var(--color-error);
+}
+
+/* ── Vencimientos ── */
+.vencimiento-group {
+  margin-bottom: var(--space-6);
+}
+
+.vencimiento-group-title {
+  font-size: var(--text-md);
+  font-weight: var(--font-semibold);
+  color: var(--color-stone-800);
+  margin-bottom: var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.vencimiento-count {
+  background: var(--color-stone-200);
+  color: var(--color-stone-600);
+  font-size: var(--text-xs);
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+}
+
+/* ── Configuracion ── */
+.config-section {
+  background: var(--color-white);
+  border: 1px solid var(--color-stone-200);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-4);
+}
+
+.config-section-header {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-stone-100);
+}
+
+.config-section-title {
+  font-size: var(--text-md);
+  font-weight: var(--font-semibold);
+  color: var(--color-stone-800);
+}
+
+.config-section-body {
+  padding: var(--space-5);
+}
+
+/* ── Responsive Dashboard ── */
+@media (max-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-stats-row {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 768px) {
+  .detail-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .cuenta-corriente-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .presupuesto-adicionales {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .detail-stats-row {
+    flex-direction: column;
+  }
+
+  .detail-stat-mini {
+    min-width: auto;
+  }
+
+  .cuenta-corriente-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .presupuesto-actions-bar {
+    flex-direction: column;
+  }
+
+  .presupuesto-actions-bar .btn {
+    width: 100%;
+  }
+}
