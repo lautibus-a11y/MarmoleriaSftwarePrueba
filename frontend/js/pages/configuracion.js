@@ -4,7 +4,6 @@
 
 import { Icons } from '../components/ui.js';
 import { Toast } from '../components/toast.js';
-import { Auth } from '../services/auth.js';
 import { CONDICIONES_COMERCIALES_DEFAULT } from '../utils/constants.js';
 import { escapeHtml } from '../utils/helpers.js';
 
@@ -79,14 +78,6 @@ export function renderConfiguracion(container, actionsEl) {
         <p class="form-hint mt-2">La descarga incluye todos los datos en formato JSON. Los archivos adjuntos no se incluyen.</p>
       </div>
     </div>
-
-    <div class="config-section">
-      <div class="config-section-header"><h3 class="config-section-title" style="color:var(--color-error)">${Icons['log-out']} Sesión</h3></div>
-      <div class="config-section-body">
-        <p style="color:var(--color-stone-600);margin-bottom:var(--space-4)">Usuario actual: <strong>${escapeHtml(Auth.getUser()?.name || 'Admin')}</strong></p>
-        <button class="btn btn-danger" id="btn-logout-config">${Icons['log-out']} Cerrar sesión</button>
-      </div>
-    </div>
   `;
 
   // Save empresa
@@ -149,12 +140,5 @@ export function renderConfiguracion(container, actionsEl) {
     } catch (err) {
       Toast.error('Error al generar backup');
     }
-  });
-
-  // Logout
-  document.getElementById('btn-logout-config').addEventListener('click', () => {
-    Auth.logout();
-    window.location.hash = '';
-    window.location.reload();
   });
 }

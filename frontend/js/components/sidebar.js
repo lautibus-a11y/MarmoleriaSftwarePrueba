@@ -42,9 +42,6 @@ export function renderSidebar(activePath = '/dashboard') {
             <div class="sidebar-user-name">Administrador</div>
             <div class="sidebar-user-role">Admin</div>
           </div>
-          <button class="sidebar-logout-btn" id="btn-logout" title="Cerrar sesión">
-            ${Icons['log-out']}
-          </button>
         </div>
       </div>
     </aside>

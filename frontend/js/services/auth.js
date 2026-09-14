@@ -4,17 +4,15 @@
 
 const AUTH_KEY = 'mb_auth';
 
-// Mock credentials for Phase 1
-const MOCK_USER = {
+const DEFAULT_USER = {
   username: 'admin',
-  password: 'admin123',
   name: 'Administrador',
   role: 'admin'
 };
 
 class AuthService {
   constructor() {
-    this.user = null;
+    this.user = DEFAULT_USER;
     this.loadSession();
   }
 
@@ -23,39 +21,30 @@ class AuthService {
       const data = localStorage.getItem(AUTH_KEY);
       if (data) {
         this.user = JSON.parse(data);
+      } else {
+        this.user = DEFAULT_USER;
       }
     } catch (e) {
-      this.user = null;
+      this.user = DEFAULT_USER;
     }
   }
 
   isAuthenticated() {
-    return !!this.user;
+    return true;
   }
 
   getUser() {
-    return this.user;
+    return this.user || DEFAULT_USER;
   }
 
   login(username, password) {
-    // Phase 1: mock auth
-    if (username === MOCK_USER.username && password === MOCK_USER.password) {
-      this.user = {
-        username: MOCK_USER.username,
-        name: MOCK_USER.name,
-        role: MOCK_USER.role,
-        loginAt: new Date().toISOString()
-      };
-      localStorage.setItem(AUTH_KEY, JSON.stringify(this.user));
-      return { success: true, user: this.user };
-    }
-    return { success: false, error: 'Usuario o contraseña incorrectos' };
+    return { success: true, user: this.user };
   }
 
   logout() {
-    this.user = null;
-    localStorage.removeItem(AUTH_KEY);
+    this.user = DEFAULT_USER;
   }
 }
 
 export const Auth = new AuthService();
+

@@ -12,13 +12,6 @@ Aplicación web administrativa completa para la gestión integral de marmolería
 
 ---
 
-## 🔑 Credenciales de Acceso (Demo MVP)
-
-* **Usuario:** `admin`
-* **Contraseña:** `admin123`
-
----
-
 ## 🚀 Despliegue en Vercel
 
 El proyecto incluye el archivo `vercel.json` configurado para servir automáticamente la carpeta `frontend/`.
