@@ -31,48 +31,49 @@ function initMockData() {
     { id: 'cli-008', nombre: 'Diego', apellido: 'Sánchez', telefono: '11-0123-4567', whatsapp: '5491101234567', email: 'diego.s@email.com', direccion: 'Belgrano 780, Avellaneda', cuit: '20-29876543-1', observaciones: '', createdAt: '2026-08-10T13:00:00' }
   ];
 
-  // === MATERIALES (Con precios por m² configurados como unidad estándar de marmolería) ===
+  // === MATERIALES (La gran mayoría en m² como estándar de marmolería, más placas y accesorios) ===
   store.materiales = [
-    { id: 'mat-001', nombre: 'Granito Negro Absoluto', categoria: 'granito', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 110000, precioVenta: 185000, stockMinimo: 10, proveedor: 'prov-001', observaciones: 'Origen: India. Pulido espejo. Cotizado por m².' },
-    { id: 'mat-002', nombre: 'Granito Gris Mara', categoria: 'granito', tipo: 'Nacional', espesor: '2cm', unidad: 'm2', costo: 55000, precioVenta: 85000, stockMinimo: 15, proveedor: 'prov-001', observaciones: 'Nacional tradicional, alto tránsito. Cotizado por m².' },
-    { id: 'mat-003', nombre: 'Mármol Carrara', categoria: 'marmol', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 160000, precioVenta: 260000, stockMinimo: 8, proveedor: 'prov-002', observaciones: 'Origen: Italia. Veteado clásico blanco. Cotizado por m².' },
-    { id: 'mat-004', nombre: 'Mármol Travertino Romano', categoria: 'travertino', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 115000, precioVenta: 175000, stockMinimo: 8, proveedor: 'prov-002', observaciones: 'Tono beige cálido resinado. Cotizado por m².' },
-    { id: 'mat-005', nombre: 'Silestone Blanco Zeus', categoria: 'silestone', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 210000, precioVenta: 320000, stockMinimo: 6, proveedor: 'prov-003', observaciones: 'Superficie de cuarzo compacta premium antibacteriana. Cotizado por m².' },
-    { id: 'mat-006', nombre: 'Silestone Gris Expo', categoria: 'silestone', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 185000, precioVenta: 280000, stockMinimo: 6, proveedor: 'prov-003', observaciones: 'Cuarzo de alta resistencia uniforme. Cotizado por m².' },
-    { id: 'mat-007', nombre: 'Cuarzo Blanco Stellar', categoria: 'cuarzo', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 145000, precioVenta: 220000, stockMinimo: 8, proveedor: 'prov-003', observaciones: 'Superficie con micro-destellos espejados. Cotizado por m².' },
-    { id: 'mat-008', nombre: 'Granito Marrón Báltico', categoria: 'granito', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 95000, precioVenta: 145000, stockMinimo: 8, proveedor: 'prov-001', observaciones: 'Estructura circular granítica clásica. Cotizado por m².' },
-    { id: 'mat-009', nombre: 'Mármol Botticino', categoria: 'marmol', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 140000, precioVenta: 210000, stockMinimo: 6, proveedor: 'prov-002', observaciones: 'Mármol italiano compacto beige. Cotizado por m².' },
-    { id: 'mat-010', nombre: 'Porcelanato Gran Formato', categoria: 'porcelanato', tipo: 'Nacional', espesor: '1cm', unidad: 'm2', costo: 42000, precioVenta: 65000, stockMinimo: 20, proveedor: 'prov-004', observaciones: 'Placas 120x60cm. Cotizado por m².' },
-    { id: 'mat-011', nombre: 'Bacha Simple Acero Johnson', categoria: 'otro', tipo: 'Nacional', espesor: '-', unidad: 'unidades', costo: 45000, precioVenta: 72000, stockMinimo: 5, proveedor: 'prov-004', observaciones: 'Para embutir bajo mesada. Precio por unidad.' },
-    { id: 'mat-012', nombre: 'Bacha Doble Acero Johnson', categoria: 'otro', tipo: 'Nacional', espesor: '-', unidad: 'unidades', costo: 68000, precioVenta: 105000, stockMinimo: 3, proveedor: 'prov-004', observaciones: 'Doble cuba cocina. Precio por unidad.' },
-    { id: 'mat-013', nombre: 'Zócalo Granito Negro', categoria: 'granito', tipo: 'Nacional', espesor: '2cm', unidad: 'metros', costo: 15000, precioVenta: 25000, stockMinimo: 15, proveedor: 'prov-001', observaciones: 'h=10cm. Cotizado por metro lineal.' },
-    { id: 'mat-014', nombre: 'Pegamento Especial Mármol', categoria: 'otro', tipo: 'Nacional', espesor: '-', unidad: 'unidades', costo: 12000, precioVenta: 18000, stockMinimo: 10, proveedor: 'prov-005', observaciones: 'Balde 25kg bi-componente. Precio por unidad.' },
-    { id: 'mat-015', nombre: 'Ónix Miel', categoria: 'onix', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 290000, precioVenta: 450000, stockMinimo: 4, proveedor: 'prov-002', observaciones: 'Material translúcido para retroiluminar. Cotizado por m².' }
+    { id: 'mat-001', nombre: 'Granito Negro Absoluto', categoria: 'granito', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 110000, precioVenta: 185000, stockMinimo: 15, proveedor: 'prov-001', observaciones: 'Origen: India. Pulido espejo. Cotizado por m².' },
+    { id: 'mat-002', nombre: 'Granito Gris Mara', categoria: 'granito', tipo: 'Nacional', espesor: '2cm', unidad: 'm2', costo: 55000, precioVenta: 85000, stockMinimo: 20, proveedor: 'prov-001', observaciones: 'Nacional tradicional, alto tránsito. Cotizado por m².' },
+    { id: 'mat-003', nombre: 'Mármol Carrara', categoria: 'marmol', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 160000, precioVenta: 260000, stockMinimo: 12, proveedor: 'prov-002', observaciones: 'Origen: Italia. Veteado clásico blanco. Cotizado por m².' },
+    { id: 'mat-004', nombre: 'Mármol Travertino Romano', categoria: 'travertino', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 115000, precioVenta: 175000, stockMinimo: 10, proveedor: 'prov-002', observaciones: 'Tono beige cálido resinado. Cotizado por m².' },
+    { id: 'mat-005', nombre: 'Silestone Blanco Zeus', categoria: 'silestone', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 210000, precioVenta: 320000, stockMinimo: 10, proveedor: 'prov-003', observaciones: 'Superficie de cuarzo compacta premium antibacteriana. Cotizado por m².' },
+    { id: 'mat-006', nombre: 'Silestone Gris Expo', categoria: 'silestone', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 185000, precioVenta: 280000, stockMinimo: 8, proveedor: 'prov-003', observaciones: 'Cuarzo de alta resistencia uniforme. Cotizado por m².' },
+    { id: 'mat-007', nombre: 'Cuarzo Blanco Stellar', categoria: 'cuarzo', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 145000, precioVenta: 220000, stockMinimo: 10, proveedor: 'prov-003', observaciones: 'Superficie con micro-destellos espejados. Cotizado por m².' },
+    { id: 'mat-008', nombre: 'Granito Marrón Báltico', categoria: 'granito', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 95000, precioVenta: 145000, stockMinimo: 10, proveedor: 'prov-001', observaciones: 'Estructura circular granítica clásica. Cotizado por m².' },
+    { id: 'mat-009', nombre: 'Mármol Botticino', categoria: 'marmol', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 140000, precioVenta: 210000, stockMinimo: 8, proveedor: 'prov-002', observaciones: 'Mármol italiano compacto beige. Cotizado por m².' },
+    { id: 'mat-010', nombre: 'Porcelanato Gran Formato', categoria: 'porcelanato', tipo: 'Nacional', espesor: '1cm', unidad: 'm2', costo: 42000, precioVenta: 65000, stockMinimo: 25, proveedor: 'prov-004', observaciones: 'Placas 120x60cm. Cotizado por m².' },
+    { id: 'mat-011', nombre: 'Ónix Miel (Placa Entera)', categoria: 'onix', tipo: 'Importado', espesor: '2cm', unidad: 'placas', costo: 750000, precioVenta: 1200000, stockMinimo: 2, proveedor: 'prov-002', observaciones: 'Placa entera translúcida para retroiluminar.' },
+    { id: 'mat-012', nombre: 'Granito Exótico Patagonia (Placa)', categoria: 'granito', tipo: 'Importado', espesor: '2cm', unidad: 'placas', costo: 620000, precioVenta: 950000, stockMinimo: 2, proveedor: 'prov-001', observaciones: 'Placa entera seleccionada con cuarzo cristalino.' },
+    { id: 'mat-013', nombre: 'Zócalo Granito Negro', categoria: 'granito', tipo: 'Nacional', espesor: '2cm', unidad: 'metros', costo: 15000, precioVenta: 25000, stockMinimo: 20, proveedor: 'prov-001', observaciones: 'h=10cm. Cotizado por metro lineal.' },
+    { id: 'mat-014', nombre: 'Bacha Simple Acero Johnson', categoria: 'otro', tipo: 'Nacional', espesor: '-', unidad: 'unidades', costo: 45000, precioVenta: 72000, stockMinimo: 5, proveedor: 'prov-004', observaciones: 'Para embutir bajo mesada. Precio por unidad.' },
+    { id: 'mat-015', nombre: 'Bacha Doble Acero Johnson', categoria: 'otro', tipo: 'Nacional', espesor: '-', unidad: 'unidades', costo: 68000, precioVenta: 105000, stockMinimo: 3, proveedor: 'prov-004', observaciones: 'Doble cuba cocina. Precio por unidad.' },
+    { id: 'mat-016', nombre: 'Pegamento Especial Mármol', categoria: 'otro', tipo: 'Nacional', espesor: '-', unidad: 'unidades', costo: 12000, precioVenta: 18000, stockMinimo: 10, proveedor: 'prov-005', observaciones: 'Balde 25kg bi-componente. Precio por unidad.' }
   ];
 
-  // === STOCK MOVIMIENTOS ===
+  // === STOCK MOVIMIENTOS (cantidades en m², placas o unidades según corresponda) ===
   store.stockMovimientos = [
-    { id: 'mov-001', materialId: 'mat-001', tipo: 'entrada', cantidad: 10, fecha: '2026-01-20', referencia: 'Compra inicial', createdAt: '2026-01-20T09:00:00' },
-    { id: 'mov-002', materialId: 'mat-001', tipo: 'salida', cantidad: 3, fecha: '2026-03-15', referencia: 'Obra cli-001', createdAt: '2026-03-15T10:00:00' },
-    { id: 'mov-003', materialId: 'mat-001', tipo: 'salida', cantidad: 2, fecha: '2026-06-10', referencia: 'Obra cli-003', createdAt: '2026-06-10T11:00:00' },
-    { id: 'mov-004', materialId: 'mat-002', tipo: 'entrada', cantidad: 15, fecha: '2026-01-20', referencia: 'Compra inicial', createdAt: '2026-01-20T09:00:00' },
-    { id: 'mov-005', materialId: 'mat-002', tipo: 'salida', cantidad: 4, fecha: '2026-04-20', referencia: 'Obra cli-002', createdAt: '2026-04-20T10:00:00' },
-    { id: 'mov-006', materialId: 'mat-002', tipo: 'salida', cantidad: 6, fecha: '2026-07-25', referencia: 'Obra cli-006', createdAt: '2026-07-25T10:00:00' },
-    { id: 'mov-007', materialId: 'mat-003', tipo: 'entrada', cantidad: 5, fecha: '2026-02-10', referencia: 'Compra Italia', createdAt: '2026-02-10T09:00:00' },
-    { id: 'mov-008', materialId: 'mat-003', tipo: 'salida', cantidad: 3, fecha: '2026-05-18', referencia: 'Obra cli-005', createdAt: '2026-05-18T10:00:00' },
-    { id: 'mov-009', materialId: 'mat-005', tipo: 'entrada', cantidad: 6, fecha: '2026-03-01', referencia: 'Compra Cosentino', createdAt: '2026-03-01T09:00:00' },
-    { id: 'mov-010', materialId: 'mat-005', tipo: 'salida', cantidad: 4, fecha: '2026-06-20', referencia: 'Obras varias', createdAt: '2026-06-20T10:00:00' },
-    { id: 'mov-011', materialId: 'mat-005', tipo: 'salida', cantidad: 1, fecha: '2026-08-15', referencia: 'Obra cli-007', createdAt: '2026-08-15T10:00:00' },
-    { id: 'mov-012', materialId: 'mat-010', tipo: 'entrada', cantidad: 50, fecha: '2026-01-25', referencia: 'Compra inicial', createdAt: '2026-01-25T09:00:00' },
-    { id: 'mov-013', materialId: 'mat-010', tipo: 'salida', cantidad: 35, fecha: '2026-08-01', referencia: 'Obras varias', createdAt: '2026-08-01T10:00:00' },
-    { id: 'mov-014', materialId: 'mat-011', tipo: 'entrada', cantidad: 10, fecha: '2026-02-15', referencia: 'Compra inicial', createdAt: '2026-02-15T09:00:00' },
-    { id: 'mov-015', materialId: 'mat-011', tipo: 'salida', cantidad: 7, fecha: '2026-07-30', referencia: 'Obras varias', createdAt: '2026-07-30T10:00:00' },
-    { id: 'mov-016', materialId: 'mat-014', tipo: 'entrada', cantidad: 20, fecha: '2026-01-20', referencia: 'Compra inicial', createdAt: '2026-01-20T09:00:00' },
-    { id: 'mov-017', materialId: 'mat-014', tipo: 'salida', cantidad: 14, fecha: '2026-08-20', referencia: 'Uso general', createdAt: '2026-08-20T10:00:00' },
-    { id: 'mov-018', materialId: 'mat-007', tipo: 'entrada', cantidad: 8, fecha: '2026-04-10', referencia: 'Compra', createdAt: '2026-04-10T09:00:00' },
-    { id: 'mov-019', materialId: 'mat-007', tipo: 'salida', cantidad: 5, fecha: '2026-08-25', referencia: 'Obras varias', createdAt: '2026-08-25T10:00:00' },
-    { id: 'mov-020', materialId: 'mat-015', tipo: 'entrada', cantidad: 2, fecha: '2026-05-01', referencia: 'Compra especial', createdAt: '2026-05-01T09:00:00' },
-    { id: 'mov-021', materialId: 'mat-015', tipo: 'salida', cantidad: 1, fecha: '2026-08-10', referencia: 'Obra cli-006', createdAt: '2026-08-10T10:00:00' }
+    { id: 'mov-001', materialId: 'mat-001', tipo: 'entrada', cantidad: 50, fecha: '2026-01-20', referencia: 'Compra importación 50 m²', createdAt: '2026-01-20T09:00:00' },
+    { id: 'mov-002', materialId: 'mat-001', tipo: 'salida', cantidad: 12, fecha: '2026-03-15', referencia: 'Obra cli-001 (12 m²)', createdAt: '2026-03-15T10:00:00' },
+    { id: 'mov-003', materialId: 'mat-001', tipo: 'salida', cantidad: 8, fecha: '2026-06-10', referencia: 'Obra cli-003 (8 m²)', createdAt: '2026-06-10T11:00:00' },
+    { id: 'mov-004', materialId: 'mat-002', tipo: 'entrada', cantidad: 75, fecha: '2026-01-20', referencia: 'Compra cantera 75 m²', createdAt: '2026-01-20T09:00:00' },
+    { id: 'mov-005', materialId: 'mat-002', tipo: 'salida', cantidad: 18, fecha: '2026-04-20', referencia: 'Obra cli-002 (18 m²)', createdAt: '2026-04-20T10:00:00' },
+    { id: 'mov-006', materialId: 'mat-002', tipo: 'salida', cantidad: 25, fecha: '2026-07-25', referencia: 'Obra cli-006 (25 m²)', createdAt: '2026-07-25T10:00:00' },
+    { id: 'mov-007', materialId: 'mat-003', tipo: 'entrada', cantidad: 35, fecha: '2026-02-10', referencia: 'Importación Italia 35 m²', createdAt: '2026-02-10T09:00:00' },
+    { id: 'mov-008', materialId: 'mat-003', tipo: 'salida', cantidad: 14, fecha: '2026-05-18', referencia: 'Obra cli-005 (14 m²)', createdAt: '2026-05-18T10:00:00' },
+    { id: 'mov-009', materialId: 'mat-005', tipo: 'entrada', cantidad: 30, fecha: '2026-03-01', referencia: 'Compra Cosentino 30 m²', createdAt: '2026-03-01T09:00:00' },
+    { id: 'mov-010', materialId: 'mat-005', tipo: 'salida', cantidad: 16, fecha: '2026-06-20', referencia: 'Obras varias (16 m²)', createdAt: '2026-06-20T10:00:00' },
+    { id: 'mov-011', materialId: 'mat-005', tipo: 'salida', cantidad: 5, fecha: '2026-08-15', referencia: 'Obra cli-007 (5 m²)', createdAt: '2026-08-15T10:00:00' },
+    { id: 'mov-012', materialId: 'mat-010', tipo: 'entrada', cantidad: 100, fecha: '2026-01-25', referencia: 'Compra inicial 100 m²', createdAt: '2026-01-25T09:00:00' },
+    { id: 'mov-013', materialId: 'mat-010', tipo: 'salida', cantidad: 65, fecha: '2026-08-01', referencia: 'Obras varias (65 m²)', createdAt: '2026-08-01T10:00:00' },
+    { id: 'mov-014', materialId: 'mat-011', tipo: 'entrada', cantidad: 4, fecha: '2026-05-01', referencia: 'Compra 4 placas enteras Ónix', createdAt: '2026-05-01T09:00:00' },
+    { id: 'mov-015', materialId: 'mat-011', tipo: 'salida', cantidad: 2, fecha: '2026-08-10', referencia: 'Obra cli-006 (2 placas)', createdAt: '2026-08-10T10:00:00' },
+    { id: 'mov-016', materialId: 'mat-012', tipo: 'entrada', cantidad: 3, fecha: '2026-06-01', referencia: 'Compra 3 placas Patagonia', createdAt: '2026-06-01T09:00:00' },
+    { id: 'mov-017', materialId: 'mat-012', tipo: 'salida', cantidad: 1, fecha: '2026-08-20', referencia: 'Isla de cocina (1 placa)', createdAt: '2026-08-20T10:00:00' },
+    { id: 'mov-018', materialId: 'mat-013', tipo: 'entrada', cantidad: 60, fecha: '2026-02-15', referencia: 'Entrada 60 metros lineales', createdAt: '2026-02-15T09:00:00' },
+    { id: 'mov-019', materialId: 'mat-013', tipo: 'salida', cantidad: 28, fecha: '2026-07-30', referencia: 'Obras varias (28 ml)', createdAt: '2026-07-30T10:00:00' },
+    { id: 'mov-020', materialId: 'mat-014', tipo: 'entrada', cantidad: 12, fecha: '2026-02-15', referencia: 'Entrada 12 bachas simples', createdAt: '2026-02-15T09:00:00' },
+    { id: 'mov-021', materialId: 'mat-014', tipo: 'salida', cantidad: 8, fecha: '2026-07-30', referencia: 'Instaladas en obras (8 un)', createdAt: '2026-07-30T10:00:00' }
   ];
 
   // === PROVEEDORES ===

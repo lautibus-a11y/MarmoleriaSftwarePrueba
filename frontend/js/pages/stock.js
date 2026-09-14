@@ -28,12 +28,18 @@ export function renderStock(container, actionsEl) {
     const columns = [
       { label: 'Material', render: (m) => `<span class="cell-primary">${escapeHtml(m.nombre)}</span><br><span class="cell-secondary" style="font-size:var(--text-xs)">${escapeHtml(m.tipo)} · ${escapeHtml(m.espesor)}</span>` },
       { label: 'Categoría', render: (m) => { const cat = MATERIAL_CATEGORIAS.find(c=>c.value===m.categoria); return renderBadge(cat?.label||m.categoria, 'neutral'); }},
-      { label: 'Unidad', render: (m) => escapeHtml(m.unidad) },
+      { label: 'Unidad', render: (m) => {
+        const u = m.unidad || 'm2';
+        const label = u === 'm2' ? 'm²' : (u === 'metros' ? 'ml' : (u === 'unidades' ? 'un' : (u === 'placas' ? 'placa' : u)));
+        const color = u === 'm2' ? 'accent' : (u === 'placas' ? 'warning' : 'neutral');
+        return renderBadge(label, color);
+      }},
       { label: 'Stock', render: (m) => {
         const actual = DataService.getStockActual(m.id);
         const isBajo = actual <= m.stockMinimo;
-        return `<span style="font-weight:var(--font-semibold);color:${isBajo?'var(--color-error)':'var(--color-stone-800)'}">${actual}</span>
-          <span class="cell-secondary" style="font-size:var(--text-xs)"> / mín: ${m.stockMinimo}</span>
+        const unitSuffix = m.unidad === 'm2' ? ' m²' : (m.unidad === 'metros' ? ' ml' : (m.unidad === 'unidades' ? ' un' : (m.unidad === 'placas' ? ' pl' : '')));
+        return `<span style="font-weight:var(--font-semibold);color:${isBajo?'var(--color-error)':'var(--color-stone-800)'}">${actual}${unitSuffix}</span>
+          <span class="cell-secondary" style="font-size:var(--text-xs)"> / mín: ${m.stockMinimo}${unitSuffix}</span>
           ${isBajo ? `<span style="margin-left:4px">${Icons['alert-triangle']}</span>` : ''}`;
       }},
       { label: 'Costo', align: 'right', render: (m) => `<span class="cell-currency cell-secondary">${formatCurrency(m.costo)}</span>` },
@@ -150,10 +156,19 @@ export function renderStock(container, actionsEl) {
     const mats=DataService.getAll('materiales');
     Modal.open({title:'Nuevo movimiento de stock',size:'md',
       content:`<form id="mov-form">
-        <div class="form-group"><label class="form-label">Material <span class="required">*</span></label><select class="form-select" name="materialId"><option value="">Seleccionar...</option>${mats.map(m=>`<option value="${m.id}">${m.nombre}</option>`).join('')}</select></div>
+        <div class="form-group">
+          <label class="form-label">Material <span class="required">*</span></label>
+          <select class="form-select" name="materialId" id="mov-material-select">
+            <option value="">Seleccionar material...</option>
+            ${mats.map(m=>`<option value="${m.id}">${m.nombre} (${m.unidad === 'm2' ? 'm²' : (m.unidad === 'metros' ? 'ml' : (m.unidad === 'unidades' ? 'un' : m.unidad))})</option>`).join('')}
+          </select>
+        </div>
         <div class="form-row-2">
           <div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="tipo"><option value="entrada">Entrada</option><option value="salida">Salida</option><option value="ajuste">Ajuste</option><option value="devolucion">Devolución</option></select></div>
-          <div class="form-group"><label class="form-label">Cantidad</label><input type="number" class="form-input" name="cantidad" value="1" min="1"></div>
+          <div class="form-group">
+            <label class="form-label">Cantidad <span id="mov-unit-hint" class="text-muted" style="font-size:11px;font-weight:normal">(m²)</span></label>
+            <input type="number" step="any" class="form-input" name="cantidad" value="1" min="0.01" required>
+          </div>
         </div>
         <div class="form-group"><label class="form-label">Fecha</label><input type="date" class="form-input" name="fecha" value="${new Date().toISOString().split('T')[0]}"></div>
         <div class="form-group"><label class="form-label">Referencia</label><input type="text" class="form-input" name="referencia" placeholder="Ej: Compra proveedor, Obra X..."></div>
@@ -161,11 +176,25 @@ export function renderStock(container, actionsEl) {
       footer:`<button class="btn btn-secondary" id="modal-cancel">Cancelar</button><button class="btn btn-primary" id="modal-save">Registrar</button>`
     });
 
+    const matSel = document.getElementById('mov-material-select');
+    const unitHint = document.getElementById('mov-unit-hint');
+    matSel?.addEventListener('change', (e) => {
+      const selected = mats.find(m => m.id === e.target.value);
+      if (unitHint) {
+        if (selected) {
+          const uText = selected.unidad === 'm2' ? 'm²' : (selected.unidad === 'metros' ? 'ml' : (selected.unidad === 'unidades' ? 'un' : selected.unidad));
+          unitHint.textContent = `(${uText})`;
+        } else {
+          unitHint.textContent = '';
+        }
+      }
+    });
+
     document.getElementById('modal-cancel').addEventListener('click',()=>Modal.close());
     document.getElementById('modal-save').addEventListener('click',()=>{
       const fd=new FormData(document.getElementById('mov-form'));const data=Object.fromEntries(fd);
       if(!data.materialId){Toast.warning('Seleccioná un material');return;}
-      data.cantidad=parseInt(data.cantidad)||0;
+      data.cantidad=parseFloat(data.cantidad)||0;
       if(data.cantidad<=0){Toast.warning('La cantidad debe ser mayor a 0');return;}
       DataService.create('stockMovimientos',data);
       Toast.success('Movimiento registrado');Modal.close();render();
@@ -176,12 +205,13 @@ export function renderStock(container, actionsEl) {
     const mat=DataService.getById('materiales',materialId);
     const movs=DataService.getAll('stockMovimientos').filter(m=>m.materialId===materialId).sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
     const actual=DataService.getStockActual(materialId);
+    const uText = mat.unidad === 'm2' ? 'm²' : (mat.unidad === 'metros' ? 'ml' : (mat.unidad === 'unidades' ? 'un' : mat.unidad));
 
     Modal.open({title:`Historial — ${mat.nombre}`,size:'lg',
       content:`
-        <p style="margin-bottom:var(--space-4)">Stock actual: <strong>${actual} ${mat.unidad}</strong></p>
+        <p style="margin-bottom:var(--space-4)">Stock actual: <strong>${actual} ${uText}</strong></p>
         ${movs.length > 0 ? `<table class="data-table"><thead><tr><th>Fecha</th><th>Tipo</th><th style="text-align:right">Cantidad</th><th>Referencia</th></tr></thead><tbody>
-        ${movs.map(m=>`<tr><td>${formatDate(m.fecha)}</td><td>${renderBadge(MOVIMIENTO_TIPO_LABELS[m.tipo],MOVIMIENTO_TIPO_COLORS[m.tipo])}</td><td style="text-align:right;font-weight:var(--font-semibold);color:${m.tipo==='entrada'||m.tipo==='devolucion'?'var(--color-success)':'var(--color-error)'}">${m.tipo==='salida'?'-':''}${m.cantidad}</td><td class="cell-secondary">${escapeHtml(m.referencia||'-')}</td></tr>`).join('')}
+        ${movs.map(m=>`<tr><td>${formatDate(m.fecha)}</td><td>${renderBadge(MOVIMIENTO_TIPO_LABELS[m.tipo],MOVIMIENTO_TIPO_COLORS[m.tipo])}</td><td style="text-align:right;font-weight:var(--font-semibold);color:${m.tipo==='entrada'||m.tipo==='devolucion'?'var(--color-success)':'var(--color-error)'}">${m.tipo==='salida'?'-':''}${m.cantidad} ${uText}</td><td class="cell-secondary">${escapeHtml(m.referencia||'-')}</td></tr>`).join('')}
         </tbody></table>` : '<p class="text-muted">Sin movimientos registrados</p>'}`
     });
   }
