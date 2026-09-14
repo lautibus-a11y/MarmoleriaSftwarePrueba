@@ -158,12 +158,12 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
             <tr>
               <th style="text-align:center;width:28px">#</th>
               <th>Descripción del ítem</th>
-              <th>Material / Acabado</th>
+              <th>Material especificado</th>
               <th class="num">Cant.</th>
               <th class="num">Largo</th>
               <th class="num">Ancho</th>
-              <th class="num">Sup. m²</th>
-              <th class="num">P. Unitario</th>
+              <th class="num">Superficie (m²)</th>
+              <th class="num">Precio / m²</th>
               <th class="num">Subtotal</th>
             </tr>
           </thead>

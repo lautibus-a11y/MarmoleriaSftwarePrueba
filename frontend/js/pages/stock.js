@@ -37,7 +37,13 @@ export function renderStock(container, actionsEl) {
           ${isBajo ? `<span style="margin-left:4px">${Icons['alert-triangle']}</span>` : ''}`;
       }},
       { label: 'Costo', align: 'right', render: (m) => `<span class="cell-currency cell-secondary">${formatCurrency(m.costo)}</span>` },
-      { label: 'P. Venta', align: 'right', render: (m) => `<span class="cell-currency">${formatCurrency(m.precioVenta)}</span>` },
+      {
+        label: 'P. Venta', align: 'right',
+        render: (m) => {
+          const unit = m.unidad === 'm2' ? ' / m²' : (m.unidad === 'metros' ? ' / ml' : (m.unidad === 'unidades' ? ' / un' : (m.unidad ? ` / ${m.unidad}` : '')));
+          return `<span class="cell-currency" style="font-weight:var(--font-bold)">${formatCurrency(m.precioVenta)}<span class="cell-secondary" style="font-size:11px;font-weight:normal">${unit}</span></span>`;
+        }
+      },
       { label: '', align: 'right', className: 'cell-actions', render: (m) => `
         <button class="btn btn-ghost btn-icon btn-sm" data-action="history" data-id="${m.id}" title="Historial">${Icons.clock}</button>
         <button class="btn btn-ghost btn-icon btn-sm" data-action="edit" data-id="${m.id}" title="Editar">${Icons.edit}</button>
@@ -75,26 +81,57 @@ export function renderStock(container, actionsEl) {
     const isEdit=!!editId;
     const proveedores=DataService.getAll('proveedores');
 
+    const unitConfigs = {
+      m2: { label: 'Precio por m² ($)', placeholder: 'Ej: $85.000 / m²', help: 'Configurado una sola vez. Se aplicará automáticamente al cotizar en presupuestos.' },
+      metros: { label: 'Precio por metro lineal ($)', placeholder: 'Ej: $25.000 / ml', help: 'Precio por metro lineal que se cargará automáticamente en presupuestos.' },
+      unidades: { label: 'Precio por unidad ($)', placeholder: 'Ej: $72.000 / un', help: 'Precio por unidad que se cargará automáticamente en presupuestos.' },
+      kg: { label: 'Precio por kg ($)', placeholder: 'Ej: $15.000 / kg', help: 'Precio por kilogramo que se cargará automáticamente en presupuestos.' },
+      placas: { label: 'Precio por placa ($)', placeholder: 'Ej: $250.000 / placa', help: 'Precio por placa entera que se cargará automáticamente en presupuestos.' }
+    };
+    const initialUnit = mat.unidad || 'm2';
+    const currentCfg = unitConfigs[initialUnit] || unitConfigs.m2;
+
     Drawer.open({title:isEdit?'Editar material':'Nuevo material',
       content:`<form id="mat-form">
-        <div class="form-group"><label class="form-label">Nombre <span class="required">*</span></label><input type="text" class="form-input" name="nombre" value="${escapeHtml(mat.nombre||'')}" required></div>
+        <div class="form-group"><label class="form-label">Nombre del material <span class="required">*</span></label><input type="text" class="form-input" name="nombre" value="${escapeHtml(mat.nombre||'')}" placeholder="Ej: Granito Negro Brasil, Mármol Carrara..." required></div>
         <div class="form-row-2">
           <div class="form-group"><label class="form-label">Categoría</label><select class="form-select" name="categoria">${MATERIAL_CATEGORIAS.map(c=>`<option value="${c.value}" ${mat.categoria===c.value?'selected':''}>${c.label}</option>`).join('')}</select></div>
-          <div class="form-group"><label class="form-label">Tipo</label><input type="text" class="form-input" name="tipo" value="${escapeHtml(mat.tipo||'')}" placeholder="Nacional, Importado..."></div>
+          <div class="form-group"><label class="form-label">Tipo / Procedencia</label><input type="text" class="form-input" name="tipo" value="${escapeHtml(mat.tipo||'Nacional')}" placeholder="Nacional, Importado..."></div>
         </div>
         <div class="form-row-3">
-          <div class="form-group"><label class="form-label">Espesor</label><input type="text" class="form-input" name="espesor" value="${escapeHtml(mat.espesor||'')}" placeholder="2cm"></div>
-          <div class="form-group"><label class="form-label">Unidad</label><select class="form-select" name="unidad">${UNIDADES.map(u=>`<option value="${u.value}" ${mat.unidad===u.value?'selected':''}>${u.label}</option>`).join('')}</select></div>
-          <div class="form-group"><label class="form-label">Stock mínimo</label><input type="number" class="form-input" name="stockMinimo" value="${mat.stockMinimo||0}" min="0"></div>
+          <div class="form-group"><label class="form-label">Unidad de medida <span class="required">*</span></label>
+            <select class="form-select" name="unidad" id="mat-form-unidad">
+              ${UNIDADES.map(u=>`<option value="${u.value}" ${(mat.unidad||'m2')===u.value?'selected':''}>${u.label}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">Espesor</label><input type="text" class="form-input" name="espesor" value="${escapeHtml(mat.espesor||'2cm')}" placeholder="2cm"></div>
+          <div class="form-group"><label class="form-label">Stock mínimo</label><input type="number" class="form-input" name="stockMinimo" value="${mat.stockMinimo||5}" min="0"></div>
         </div>
         <div class="form-row-2">
-          <div class="form-group"><label class="form-label">Costo</label><input type="number" class="form-input" name="costo" value="${mat.costo||0}" min="0"></div>
-          <div class="form-group"><label class="form-label">Precio de venta</label><input type="number" class="form-input" name="precioVenta" value="${mat.precioVenta||0}" min="0"></div>
+          <div class="form-group"><label class="form-label">Costo unitario ($)</label><input type="number" class="form-input" name="costo" value="${mat.costo||0}" min="0" placeholder="Ej: 55000"></div>
+          <div class="form-group">
+            <label class="form-label" id="mat-precio-label">${currentCfg.label} <span class="required">*</span></label>
+            <input type="number" class="form-input" name="precioVenta" id="mat-precio-input" value="${mat.precioVenta||''}" min="0" placeholder="${currentCfg.placeholder}" required>
+            <span class="text-muted" id="mat-precio-help" style="font-size:11px;display:block;margin-top:3px">${currentCfg.help}</span>
+          </div>
         </div>
-        <div class="form-group"><label class="form-label">Proveedor</label><select class="form-select" name="proveedor"><option value="">-</option>${proveedores.map(p=>`<option value="${p.id}" ${mat.proveedor===p.id?'selected':''}>${p.nombre}</option>`).join('')}</select></div>
-        <div class="form-group"><label class="form-label">Observaciones</label><textarea class="form-textarea" name="observaciones" rows="2">${escapeHtml(mat.observaciones||'')}</textarea></div>
+        <div class="form-group"><label class="form-label">Proveedor habitual</label><select class="form-select" name="proveedor"><option value="">-</option>${proveedores.map(p=>`<option value="${p.id}" ${mat.proveedor===p.id?'selected':''}>${p.nombre}</option>`).join('')}</select></div>
+        <div class="form-group"><label class="form-label">Observaciones</label><textarea class="form-textarea" name="observaciones" rows="2" placeholder="Terminación, pulido, detalles...">${escapeHtml(mat.observaciones||'')}</textarea></div>
       </form>`,
-      footer:`<button class="btn btn-secondary" id="drawer-cancel">Cancelar</button><button class="btn btn-primary" id="drawer-save">${isEdit?'Guardar':'Crear material'}</button>`
+      footer:`<button class="btn btn-secondary" id="drawer-cancel">Cancelar</button><button class="btn btn-primary" id="drawer-save">${isEdit?'Guardar cambios':'Crear material'}</button>`
+    });
+
+    // Dynamic label update when changing unit
+    const unidadSelect = document.getElementById('mat-form-unidad');
+    unidadSelect?.addEventListener('change', (e) => {
+      const u = e.target.value;
+      const cfg = unitConfigs[u] || unitConfigs.m2;
+      const lbl = document.getElementById('mat-precio-label');
+      const inp = document.getElementById('mat-precio-input');
+      const hlp = document.getElementById('mat-precio-help');
+      if (lbl) lbl.innerHTML = `${cfg.label} <span class="required">*</span>`;
+      if (inp) inp.placeholder = cfg.placeholder;
+      if (hlp) hlp.textContent = cfg.help;
     });
 
     document.getElementById('drawer-cancel').addEventListener('click',()=>Drawer.close());
@@ -102,6 +139,7 @@ export function renderStock(container, actionsEl) {
       const fd=new FormData(document.getElementById('mat-form'));const data=Object.fromEntries(fd);
       if(!data.nombre?.trim()){Toast.warning('El nombre es obligatorio');return;}
       data.costo=parseFloat(data.costo)||0;data.precioVenta=parseFloat(data.precioVenta)||0;data.stockMinimo=parseInt(data.stockMinimo)||0;
+      data.unidad=data.unidad || 'm2';
       if(isEdit){DataService.update('materiales',editId,data);Toast.success('Material actualizado');}
       else{DataService.create('materiales',data);Toast.success('Material creado');}
       Drawer.close();materiales=DataService.getAll('materiales');render();

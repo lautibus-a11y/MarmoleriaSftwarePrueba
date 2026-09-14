@@ -151,12 +151,13 @@ export const MONEDAS = [
 
 export const MONEDA_DEFAULT = 'ARS';
 
-// ── Stock Units ──
+// ── Stock Units (m² is default for marble and stone work) ──
 export const UNIDADES = [
-  { value: 'placas', label: 'Placas' },
-  { value: 'm2', label: 'm²' },
-  { value: 'metros', label: 'Metros lineales' },
-  { value: 'unidades', label: 'Unidades' }
+  { value: 'm2', label: 'Metro cuadrado (m²)' },
+  { value: 'metros', label: 'Metro lineal (ml)' },
+  { value: 'unidades', label: 'Unidad (un)' },
+  { value: 'kg', label: 'Kilogramos (kg)' },
+  { value: 'placas', label: 'Placas enteras' }
 ];
 
 // ── Stock Movement Types ──
