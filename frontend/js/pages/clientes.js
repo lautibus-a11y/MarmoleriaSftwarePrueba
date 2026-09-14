@@ -218,7 +218,7 @@ function renderClienteDetail(container, actionsEl, clienteId) {
   const obras = DataService.getAll('obras').filter(o => o.clienteId === clienteId);
   const cobros = DataService.getAll('cobros').filter(c => c.clienteId === clienteId);
 
-  // Header
+  // Header actions - clean Volver button only to avoid top bar overflow
   actionsEl.innerHTML = `
     <a href="#/clientes" class="btn btn-secondary">${Icons['chevron-left']} Volver</a>
   `;
@@ -226,19 +226,36 @@ function renderClienteDetail(container, actionsEl, clienteId) {
   const initials = (cliente.nombre?.[0] || '') + (cliente.apellido?.[0] || '');
 
   container.innerHTML = `
-    <div class="detail-header">
-      <div class="detail-avatar">${initials.toUpperCase()}</div>
-      <div class="detail-header-info">
-        <h2 class="detail-header-name">${escapeHtml(cliente.nombre)} ${escapeHtml(cliente.apellido || '')}</h2>
-        <div class="detail-header-meta">
-          ${cliente.telefono ? `<span class="detail-header-meta-item">${Icons.phone} ${escapeHtml(cliente.telefono)}</span>` : ''}
-          ${cliente.email ? `<span class="detail-header-meta-item">${Icons.mail} ${escapeHtml(cliente.email)}</span>` : ''}
-          ${cliente.direccion ? `<span class="detail-header-meta-item">${Icons['map-pin']} ${escapeHtml(cliente.direccion)}</span>` : ''}
+    <!-- Action buttons bar -->
+    <div class="card mb-4">
+      <div class="card-body" style="display:flex;gap:var(--space-2);flex-wrap:wrap">
+        <button class="btn btn-primary" id="btn-cliente-new-pres" style="flex:1;min-width:140px;justify-content:center">${Icons.plus} Presupuesto</button>
+        ${cliente.whatsapp ? `<a href="https://wa.me/${cliente.whatsapp}" target="_blank" class="btn btn-secondary" style="flex:1;min-width:130px;justify-content:center">${Icons.whatsapp} WhatsApp</a>` : ''}
+        ${cliente.telefono ? `<a href="tel:${cliente.telefono}" class="btn btn-secondary" style="flex:1;min-width:110px;justify-content:center">${Icons.phone} Llamar</a>` : ''}
+        <button class="btn btn-secondary" id="btn-cliente-edit" style="flex:1;min-width:110px;justify-content:center">${Icons.edit} Editar</button>
+      </div>
+    </div>
+
+    <!-- Client profile card -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="detail-header" style="margin-bottom:var(--space-3)">
+          <div class="detail-avatar">${initials.toUpperCase()}</div>
+          <div class="detail-header-info">
+            <h2 class="detail-header-name">${escapeHtml(cliente.nombre)} ${escapeHtml(cliente.apellido || '')}</h2>
+            <div class="detail-header-meta">
+              ${cliente.telefono ? `<span class="detail-header-meta-item">${Icons.phone} ${escapeHtml(cliente.telefono)}</span>` : ''}
+              ${cliente.email ? `<span class="detail-header-meta-item">${Icons.mail} ${escapeHtml(cliente.email)}</span>` : ''}
+              ${cliente.direccion ? `<span class="detail-header-meta-item">${Icons['map-pin']} ${escapeHtml(cliente.direccion)}</span>` : ''}
+              ${cliente.cuit ? `<span class="detail-header-meta-item">CUIT: ${escapeHtml(cliente.cuit)}</span>` : ''}
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="detail-stats-row">
+    <!-- Stats row 2x2 grid -->
+    <div class="detail-stats-row mb-4">
       <div class="detail-stat-mini">
         <span class="detail-stat-mini-label">Total obras</span>
         <span class="detail-stat-mini-value">${formatCurrency(saldo.totalObras)}</span>
@@ -248,7 +265,7 @@ function renderClienteDetail(container, actionsEl, clienteId) {
         <span class="detail-stat-mini-value" style="color: var(--color-success)">${formatCurrency(saldo.totalCobrado)}</span>
       </div>
       <div class="detail-stat-mini">
-        <span class="detail-stat-mini-label">Pendiente</span>
+        <span class="detail-stat-mini-label">Saldo pendiente</span>
         <span class="detail-stat-mini-value" style="color: ${saldo.saldo > 0 ? 'var(--color-warning)' : 'var(--color-stone-500)'}">${formatCurrency(saldo.saldo)}</span>
       </div>
       <div class="detail-stat-mini">
@@ -262,34 +279,42 @@ function renderClienteDetail(container, actionsEl, clienteId) {
         <button class="tab-btn active" data-tab="presupuestos">Presupuestos (${presupuestos.length})</button>
         <button class="tab-btn" data-tab="obras">Obras (${obras.length})</button>
         <button class="tab-btn" data-tab="cobros">Cobros (${cobros.length})</button>
-        <button class="tab-btn" data-tab="datos">Datos</button>
+        <button class="tab-btn" data-tab="datos">Ficha de datos</button>
       </div>
 
       <div class="tab-content active" id="tab-presupuestos">
         ${presupuestos.length > 0 ? renderDataTable({
           columns: [
-            { label: 'Número', render: (p) => `<span class="cell-mono">${p.numero}</span>` },
+            { label: 'Número', render: (p) => `<a href="#/presupuestos/${p.id}" class="cell-mono" style="font-weight:var(--font-bold);color:var(--color-stone-900)">${p.numero}</a>` },
             { label: 'Fecha', render: (p) => formatDate(p.fecha) },
             { label: 'Descripción', render: (p) => escapeHtml(p.descripcion) },
             { label: 'Estado', render: (p) => renderBadge(p.estado.charAt(0).toUpperCase() + p.estado.slice(1), { borrador: 'neutral', enviado: 'info', aprobado: 'success', rechazado: 'error', vencido: 'warning' }[p.estado]) },
-            { label: 'Total', align: 'right', render: (p) => `<span class="cell-currency">${formatCurrency(DataService.getPresupuestoTotal(p))}</span>` }
+            { label: 'Total', align: 'right', render: (p) => `<span class="cell-currency">${formatCurrency(DataService.getPresupuestoTotal(p))}</span>` },
+            {
+              label: '', field: 'actions', align: 'right', className: 'cell-actions',
+              render: (p) => `<a href="#/presupuestos/${p.id}" class="btn btn-ghost btn-icon btn-sm" title="Ver">${Icons.eye}</a>`
+            }
           ],
           data: presupuestos,
           id: 'pres-table'
-        }) : '<p class="text-muted" style="padding: var(--space-6)">No hay presupuestos</p>'}
+        }) : '<div class="card"><div class="card-body text-center text-muted" style="padding:var(--space-8)">No hay presupuestos registrados para este cliente</div></div>'}
       </div>
 
       <div class="tab-content" id="tab-obras">
         ${obras.length > 0 ? renderDataTable({
           columns: [
-            { label: 'Dirección', render: (o) => escapeHtml(o.direccion) },
+            { label: 'Dirección', render: (o) => `<a href="#/obras/${o.id}" style="font-weight:var(--font-semibold);color:var(--color-stone-900)">${escapeHtml(o.direccion)}</a>` },
             { label: 'Material', render: (o) => escapeHtml(o.material || '-') },
             { label: 'Estado', render: (o) => renderBadge(o.estado.replace('_', ' '), { pendiente: 'neutral', en_preparacion: 'info', en_proceso: 'warning', colocacion: 'accent', finalizada: 'success', cancelada: 'error' }[o.estado]) },
-            { label: 'Cobrado', align: 'right', render: (o) => `<span class="cell-currency">${formatCurrency(DataService.getObraCobrado(o.id))}</span>` }
+            { label: 'Cobrado', align: 'right', render: (o) => `<span class="cell-currency">${formatCurrency(DataService.getObraCobrado(o.id))}</span>` },
+            {
+              label: '', field: 'actions', align: 'right', className: 'cell-actions',
+              render: (o) => `<a href="#/obras/${o.id}" class="btn btn-ghost btn-icon btn-sm" title="Ver">${Icons.eye}</a>`
+            }
           ],
           data: obras,
           id: 'obras-table'
-        }) : '<p class="text-muted" style="padding: var(--space-6)">No hay obras</p>'}
+        }) : '<div class="card"><div class="card-body text-center text-muted" style="padding:var(--space-8)">No hay obras registradas para este cliente</div></div>'}
       </div>
 
       <div class="tab-content" id="tab-cobros">
@@ -302,27 +327,41 @@ function renderClienteDetail(container, actionsEl, clienteId) {
           ],
           data: cobros,
           id: 'cobros-table'
-        }) : '<p class="text-muted" style="padding: var(--space-6)">No hay cobros registrados</p>'}
+        }) : '<div class="card"><div class="card-body text-center text-muted" style="padding:var(--space-8)">No hay cobros registrados para este cliente</div></div>'}
       </div>
 
       <div class="tab-content" id="tab-datos">
         <div class="card">
           <div class="card-body">
             <div class="detail-list">
-              <span class="detail-label">Nombre</span>
-              <span class="detail-value">${escapeHtml(cliente.nombre)} ${escapeHtml(cliente.apellido || '')}</span>
-              <span class="detail-label">Teléfono</span>
-              <span class="detail-value">${escapeHtml(cliente.telefono || '-')}</span>
-              <span class="detail-label">WhatsApp</span>
-              <span class="detail-value">${escapeHtml(cliente.whatsapp || '-')}</span>
-              <span class="detail-label">Email</span>
-              <span class="detail-value">${escapeHtml(cliente.email || '-')}</span>
-              <span class="detail-label">Dirección</span>
-              <span class="detail-value">${escapeHtml(cliente.direccion || '-')}</span>
-              <span class="detail-label">CUIT</span>
-              <span class="detail-value">${escapeHtml(cliente.cuit || '-')}</span>
-              <span class="detail-label">Observaciones</span>
-              <span class="detail-value">${escapeHtml(cliente.observaciones || '-')}</span>
+              <div class="detail-item">
+                <span class="detail-label">Nombre completo</span>
+                <span class="detail-value">${escapeHtml(cliente.nombre)} ${escapeHtml(cliente.apellido || '')}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Teléfono</span>
+                <span class="detail-value">${escapeHtml(cliente.telefono || '-')}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">WhatsApp</span>
+                <span class="detail-value">${escapeHtml(cliente.whatsapp || '-')}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Email</span>
+                <span class="detail-value">${escapeHtml(cliente.email || '-')}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Dirección</span>
+                <span class="detail-value">${escapeHtml(cliente.direccion || '-')}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">CUIT / DNI</span>
+                <span class="detail-value">${escapeHtml(cliente.cuit || '-')}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Observaciones</span>
+                <span class="detail-value">${escapeHtml(cliente.observaciones || '-')}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -330,13 +369,37 @@ function renderClienteDetail(container, actionsEl, clienteId) {
     </div>
   `;
 
+  // Edit button
+  document.getElementById('btn-cliente-edit')?.addEventListener('click', () => {
+    // Navigate back to clients and trigger edit
+    window.location.hash = '#/clientes';
+    setTimeout(() => {
+      document.querySelector(`[data-action="edit"][data-id="${clienteId}"]`)?.click();
+    }, 150);
+  });
+
+  // New presupuesto button
+  document.getElementById('btn-cliente-new-pres')?.addEventListener('click', () => {
+    window.location.hash = '#/presupuestos';
+    setTimeout(() => {
+      document.getElementById('btn-new-pres')?.click();
+      setTimeout(() => {
+        const sel = document.querySelector('select[name="clienteId"]');
+        if (sel) {
+          sel.value = clienteId;
+          sel.dispatchEvent(new Event('change'));
+        }
+      }, 100);
+    }, 150);
+  });
+
   // Tabs logic
   container.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       container.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       btn.classList.add('active');
-      container.querySelector(`#tab-${btn.dataset.tab}`).classList.add('active');
+      container.querySelector(`#tab-${btn.dataset.tab}`)?.classList.add('active');
     });
   });
 }

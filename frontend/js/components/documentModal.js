@@ -19,22 +19,24 @@ export const DocumentModal = {
     modalEl.innerHTML = `
       <div class="doc-modal-container">
         <div class="doc-modal-toolbar">
-          <div class="doc-modal-toolbar-title">
-            ${Icons['file-text']}
-            <span>${title}</span>
+          <div class="doc-modal-toolbar-top">
+            <div class="doc-modal-toolbar-title">
+              ${Icons['file-text']}
+              <span>${title}</span>
+            </div>
+            <button class="btn btn-ghost btn-icon btn-sm" id="btn-doc-modal-close" title="Cerrar vista previa" aria-label="Cerrar">
+              ${Icons.x}
+            </button>
           </div>
           <div class="doc-modal-toolbar-actions">
             <button class="btn btn-pdf btn-sm" id="btn-doc-modal-pdf">
-              ${Icons['file-pdf']} Descargar PDF
+              ${Icons['file-pdf']} <span>PDF</span>
             </button>
             <button class="btn btn-word btn-sm" id="btn-doc-modal-word">
-              ${Icons['file-word']} Descargar Word (.doc)
+              ${Icons['file-word']} <span>Word (.doc)</span>
             </button>
             <button class="btn btn-secondary btn-sm" id="btn-doc-modal-print">
-              ${Icons.printer} Imprimir
-            </button>
-            <button class="btn btn-ghost btn-icon btn-sm" id="btn-doc-modal-close" title="Cerrar">
-              ${Icons.x}
+              ${Icons.printer} <span>Imprimir</span>
             </button>
           </div>
         </div>

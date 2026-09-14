@@ -152,24 +152,26 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
       </div>
 
       <!-- Tabla de Ítems -->
-      <table class="doc-table">
-        <thead>
-          <tr>
-            <th style="text-align:center;width:28px">#</th>
-            <th>Descripción del ítem</th>
-            <th>Material / Acabado</th>
-            <th class="num">Cant.</th>
-            <th class="num">Largo</th>
-            <th class="num">Ancho</th>
-            <th class="num">Sup. m²</th>
-            <th class="num">P. Unitario</th>
-            <th class="num">Subtotal</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${itemsRowsHtml || '<tr><td colspan="9" style="text-align:center;color:#78716C">Sin ítems detallados</td></tr>'}
-        </tbody>
-      </table>
+      <div class="doc-table-scroll">
+        <table class="doc-table">
+          <thead>
+            <tr>
+              <th style="text-align:center;width:28px">#</th>
+              <th>Descripción del ítem</th>
+              <th>Material / Acabado</th>
+              <th class="num">Cant.</th>
+              <th class="num">Largo</th>
+              <th class="num">Ancho</th>
+              <th class="num">Sup. m²</th>
+              <th class="num">P. Unitario</th>
+              <th class="num">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsRowsHtml || '<tr><td colspan="9" style="text-align:center;color:#78716C">Sin ítems detallados</td></tr>'}
+          </tbody>
+        </table>
+      </div>
 
       <!-- Resumen Económico -->
       <div class="doc-financials">
@@ -313,22 +315,24 @@ export function generateObraHtml(obra, cliente = null, pres = null, cobros = [])
       </div>
 
       ${itemsHtml ? `
-        <table class="doc-table">
-          <thead>
-            <tr>
-              <th style="text-align:center;width:28px">#</th>
-              <th>Pieza / Ítem a fabricar</th>
-              <th>Material especificado</th>
-              <th class="num">Cant.</th>
-              <th class="num">Largo</th>
-              <th class="num">Ancho</th>
-              <th class="num">Superficie</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${itemsHtml}
-          </tbody>
-        </table>
+        <div class="doc-table-scroll">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th style="text-align:center;width:28px">#</th>
+                <th>Pieza / Ítem a fabricar</th>
+                <th>Material especificado</th>
+                <th class="num">Cant.</th>
+                <th class="num">Largo</th>
+                <th class="num">Ancho</th>
+                <th class="num">Superficie</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+        </div>
       ` : ''}
 
       <!-- Estado Financiero -->

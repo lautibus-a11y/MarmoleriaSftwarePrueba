@@ -139,50 +139,109 @@ function renderObraDetail(container, actionsEl, obraId) {
 
   actionsEl.innerHTML = `
     <a href="#/obras" class="btn btn-secondary">${Icons['chevron-left']} Volver</a>
-    <button class="btn btn-secondary" id="btn-obra-preview">${Icons.eye} Vista previa</button>
-    <button class="btn btn-pdf" id="btn-obra-pdf">${Icons['file-pdf']} Ficha PDF</button>
-    <button class="btn btn-word" id="btn-obra-word">${Icons['file-word']} Ficha Word</button>
   `;
 
   container.innerHTML = `
-    <div class="card mb-6"><div class="card-body">
-      <div class="flex justify-between items-start mb-4">
-        <div><h2 style="font-size:var(--text-xl);font-weight:var(--font-bold)">${escapeHtml(obra.descripcion)}</h2>
-          <p class="text-muted">${escapeHtml(obra.direccion)}</p></div>
-        ${renderBadge(OBRA_ESTADO_LABELS[obra.estado], OBRA_ESTADO_COLORS[obra.estado])}
+    <!-- Action buttons bar -->
+    <div class="card mb-4">
+      <div class="card-body" style="display:flex;gap:var(--space-2);flex-wrap:wrap">
+        <button class="btn btn-pdf" id="btn-obra-pdf" style="flex:1;min-width:130px;justify-content:center">${Icons['file-pdf']} Ficha PDF</button>
+        <button class="btn btn-word" id="btn-obra-word" style="flex:1;min-width:130px;justify-content:center">${Icons['file-word']} Ficha Word</button>
+        <button class="btn btn-secondary" id="btn-obra-preview" style="flex:1;min-width:130px;justify-content:center">${Icons.eye} Vista previa</button>
+        ${cliente?.whatsapp ? `<button class="btn btn-secondary" id="btn-obra-whatsapp" style="flex:1;min-width:130px;justify-content:center">${Icons.whatsapp} WhatsApp</button>` : ''}
       </div>
-      <div class="detail-list" style="max-width:500px">
-        <span class="detail-label">Cliente</span><span class="detail-value">${cliente?`${cliente.nombre} ${cliente.apellido||''}`:'-'}</span>
-        <span class="detail-label">Material</span><span class="detail-value">${escapeHtml(obra.material||'-')}</span>
-        <span class="detail-label">Fecha inicio</span><span class="detail-value">${formatDate(obra.fechaInicio)}</span>
-        <span class="detail-label">Fecha estimada</span><span class="detail-value">${formatDate(obra.fechaEstimada)}</span>
-        <span class="detail-label">Responsable</span><span class="detail-value">${escapeHtml(obra.responsable||'-')}</span>
-        ${pres?`<span class="detail-label">Presupuesto</span><span class="detail-value"><a href="#/presupuestos/${pres.id}">${pres.numero}</a></span>`:''}
-      </div>
-    </div></div>
-
-    <div class="detail-stats-row">
-      <div class="detail-stat-mini"><span class="detail-stat-mini-label">Valor total</span><span class="detail-stat-mini-value">${formatCurrency(total)}</span></div>
-      <div class="detail-stat-mini"><span class="detail-stat-mini-label">Cobrado</span><span class="detail-stat-mini-value" style="color:var(--color-success)">${formatCurrency(cobrado)}</span></div>
-      <div class="detail-stat-mini"><span class="detail-stat-mini-label">Pendiente</span><span class="detail-stat-mini-value" style="color:var(--color-warning)">${formatCurrency(total-cobrado)}</span></div>
     </div>
 
-    ${total > 0 ? `<div style="margin-bottom:var(--space-6)">${renderProgressBar(cobrado, total)}<p style="font-size:var(--text-sm);color:var(--color-stone-500);margin-top:var(--space-1)">${Math.round(cobrado/total*100)}% cobrado</p></div>` : ''}
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <h2 style="font-size:var(--text-xl);font-weight:var(--font-bold)">${escapeHtml(obra.descripcion)}</h2>
+            <p class="text-muted">${escapeHtml(obra.direccion)}</p>
+          </div>
+          ${renderBadge(OBRA_ESTADO_LABELS[obra.estado], OBRA_ESTADO_COLORS[obra.estado])}
+        </div>
+        <div class="detail-list">
+          <div class="detail-item">
+            <span class="detail-label">Cliente</span>
+            <span class="detail-value">${cliente ? `<a href="#/clientes/${cliente.id}">${escapeHtml(cliente.nombre)} ${escapeHtml(cliente.apellido || '')}</a>` : '-'}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Material</span>
+            <span class="detail-value">${escapeHtml(obra.material || '-')}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Fecha inicio</span>
+            <span class="detail-value">${formatDate(obra.fechaInicio)}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Fecha estimada</span>
+            <span class="detail-value">${formatDate(obra.fechaEstimada)}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Responsable</span>
+            <span class="detail-value">${escapeHtml(obra.responsable || '-')}</span>
+          </div>
+          ${pres ? `
+          <div class="detail-item">
+            <span class="detail-label">Presupuesto</span>
+            <span class="detail-value"><a href="#/presupuestos/${pres.id}">${pres.numero}</a></span>
+          </div>` : ''}
+        </div>
+      </div>
+    </div>
 
-    <div class="card"><div class="card-header"><h3 class="card-title">Cobros asociados (${cobros.length})</h3></div>
-    ${cobros.length > 0 ? renderDataTable({ columns: [
-      {label:'Fecha',render:c=>formatDate(c.fecha)},
-      {label:'Importe',align:'right',render:c=>`<span class="cell-currency">${formatCurrency(c.importe)}</span>`},
-      {label:'Método',render:c=>escapeHtml(c.metodoPago)},
-      {label:'Observaciones',render:c=>escapeHtml(c.observaciones||'-'),className:'cell-secondary'}
-    ], data: cobros }) : '<p class="text-muted" style="padding:var(--space-6)">No hay cobros registrados</p>'}</div>
+    <div class="detail-stats-row mb-4">
+      <div class="detail-stat-mini">
+        <span class="detail-stat-mini-label">Valor total</span>
+        <span class="detail-stat-mini-value">${formatCurrency(total)}</span>
+      </div>
+      <div class="detail-stat-mini">
+        <span class="detail-stat-mini-label">Cobrado</span>
+        <span class="detail-stat-mini-value" style="color:var(--color-success)">${formatCurrency(cobrado)}</span>
+      </div>
+      <div class="detail-stat-mini">
+        <span class="detail-stat-mini-label">Pendiente</span>
+        <span class="detail-stat-mini-value" style="color:var(--color-warning)">${formatCurrency(total - cobrado)}</span>
+      </div>
+    </div>
 
-    ${obra.observaciones ? `<div class="card mt-6"><div class="card-header"><h3 class="card-title">Observaciones</h3></div><div class="card-body"><p style="color:var(--color-stone-600)">${escapeHtml(obra.observaciones)}</p></div></div>` : ''}
+    ${total > 0 ? `
+    <div class="card mb-4">
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-2)">
+          <span class="text-muted" style="font-size:var(--text-sm)">Avance de cobranza</span>
+          <span style="font-weight:var(--font-bold);font-size:var(--text-sm)">${Math.round(cobrado / total * 100)}%</span>
+        </div>
+        ${renderProgressBar(cobrado, total)}
+      </div>
+    </div>` : ''}
+
+    <div class="card mb-4">
+      <div class="card-header"><h3 class="card-title">Cobros asociados (${cobros.length})</h3></div>
+      ${cobros.length > 0 ? renderDataTable({ columns: [
+        { label: 'Fecha', render: c => formatDate(c.fecha) },
+        { label: 'Importe', align: 'right', render: c => `<span class="cell-currency">${formatCurrency(c.importe)}</span>` },
+        { label: 'Método', render: c => escapeHtml(c.metodoPago) },
+        { label: 'Observaciones', render: c => escapeHtml(c.observaciones || '-'), className: 'cell-secondary' }
+      ], data: cobros }) : '<div class="card-body text-center text-muted" style="padding:var(--space-6)">No hay cobros registrados</div>'}
+    </div>
+
+    ${obra.observaciones ? `
+    <div class="card mb-4">
+      <div class="card-header"><h3 class="card-title">Observaciones</h3></div>
+      <div class="card-body"><p style="color:var(--color-stone-600);white-space:pre-wrap">${escapeHtml(obra.observaciones)}</p></div>
+    </div>` : ''}
   `;
 
   // Export handlers
   const getDocHtml = () => generateObraHtml(obra, cliente, pres, cobros);
   const docFilename = `Ficha_Obra_${obra.id}`;
+
+  document.getElementById('btn-obra-whatsapp')?.addEventListener('click', () => {
+    const msg = `Hola! Te envío la información de tu obra #${obra.id} de Marmolería Benjamin.\n${obra.descripcion}\nDirección: ${obra.direccion}\nEstado: ${obra.estado}\n\n¡Saludos!`;
+    window.open(`https://wa.me/${cliente.whatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
+  });
 
   document.getElementById('btn-obra-preview')?.addEventListener('click', () => {
     DocumentModal.open({

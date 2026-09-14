@@ -169,26 +169,11 @@ export function renderPresupuestos(container, actionsEl, path) {
           </div>
 
           <div class="presupuesto-form-section">
-            <h4 class="presupuesto-form-section-title">${Icons.package} Ítems</h4>
-            <div class="presupuesto-items-wrapper">
-              <table class="items-table" id="items-table">
-                <thead>
-                  <tr>
-                    <th>Descripción</th>
-                    <th style="width:130px">Material</th>
-                    <th style="width:60px">Cant.</th>
-                    <th style="width:70px">Largo cm</th>
-                    <th style="width:70px">Ancho cm</th>
-                    <th style="width:60px">m²</th>
-                    <th style="width:100px">P. Unit.</th>
-                    <th style="width:100px">Subtotal</th>
-                    <th style="width:30px"></th>
-                  </tr>
-                </thead>
-                <tbody id="items-body"></tbody>
-              </table>
+            <div class="flex justify-between items-center mb-3">
+              <h4 class="presupuesto-form-section-title mb-0">${Icons.package} Ítems del presupuesto</h4>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-add-item">${Icons.plus} Agregar ítem</button>
             </div>
-            <button type="button" class="btn btn-secondary btn-sm" id="btn-add-item">${Icons.plus} Agregar ítem</button>
+            <div class="presupuesto-items-list" id="items-body"></div>
           </div>
 
           <div class="presupuesto-form-section">
@@ -256,27 +241,69 @@ export function renderPresupuestos(container, actionsEl, path) {
 
     function renderItems() {
       itemsBody.innerHTML = items.map((item, idx) => `
-        <tr data-idx="${idx}">
-          <td><input type="text" class="form-input item-field" data-field="descripcion" value="${escapeHtml(item.descripcion || '')}"></td>
-          <td><select class="form-select item-field" data-field="material">
-            <option value="">-</option>
-            ${materiales.map(m => `<option value="${m.nombre}" ${item.material === m.nombre ? 'selected' : ''}>${m.nombre}</option>`).join('')}
-          </select></td>
-          <td><input type="number" class="form-input item-field" data-field="cantidad" value="${item.cantidad || 1}" min="1"></td>
-          <td><input type="number" class="form-input item-field" data-field="largo" value="${item.largo || 0}" min="0"></td>
-          <td><input type="number" class="form-input item-field" data-field="ancho" value="${item.ancho || 0}" min="0"></td>
-          <td><span class="item-m2" style="font-size:var(--text-sm);color:var(--color-stone-500)">${(item.m2 || 0).toFixed(2)}</span></td>
-          <td><input type="number" class="form-input item-field" data-field="precioUnitario" value="${item.precioUnitario || 0}" min="0"></td>
-          <td><span class="item-subtotal" style="font-weight:var(--font-medium);font-size:var(--text-sm)">${formatCurrency(item.subtotal || 0)}</span></td>
-          <td><button type="button" class="btn btn-ghost btn-icon btn-sm row-remove" data-idx="${idx}">${Icons.x}</button></td>
-        </tr>
+        <div class="pres-item-card" data-idx="${idx}">
+          <div class="pres-item-header">
+            <div class="pres-item-title-wrap">
+              <span class="pres-item-badge">Ítem #${idx + 1}</span>
+              <span class="pres-item-title">${escapeHtml(item.descripcion || 'Nuevo ítem')}</span>
+            </div>
+            ${items.length > 1 ? `
+              <button type="button" class="btn btn-ghost btn-sm row-remove" data-idx="${idx}" title="Eliminar ítem" style="color:var(--color-error)">
+                ${Icons.trash} <span style="font-size:12px;margin-left:4px">Quitar</span>
+              </button>
+            ` : ''}
+          </div>
+          <div class="pres-item-body">
+            <div class="form-row-2" style="margin-bottom:var(--space-3)">
+              <div class="form-group mb-0">
+                <label class="form-label-sm">Descripción del trabajo <span class="required">*</span></label>
+                <input type="text" class="form-input item-field" data-field="descripcion" value="${escapeHtml(item.descripcion || '')}" placeholder="Ej: Mesada con trasforo, Isla, Bacha...">
+              </div>
+              <div class="form-group mb-0">
+                <label class="form-label-sm">Material / Terminación</label>
+                <select class="form-select item-field" data-field="material">
+                  <option value="">Seleccionar material...</option>
+                  ${materiales.map(m => `<option value="${m.nombre}" ${item.material === m.nombre ? 'selected' : ''}>${m.nombre}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+
+            <div class="pres-item-metrics-grid">
+              <div class="form-group mb-0">
+                <label class="form-label-sm">Cantidad</label>
+                <input type="number" class="form-input item-field" data-field="cantidad" value="${item.cantidad || 1}" min="1">
+              </div>
+              <div class="form-group mb-0">
+                <label class="form-label-sm">Largo (cm)</label>
+                <input type="number" class="form-input item-field" data-field="largo" value="${item.largo || 0}" min="0" placeholder="cm">
+              </div>
+              <div class="form-group mb-0">
+                <label class="form-label-sm">Ancho (cm)</label>
+                <input type="number" class="form-input item-field" data-field="ancho" value="${item.ancho || 0}" min="0" placeholder="cm">
+              </div>
+              <div class="form-group mb-0">
+                <label class="form-label-sm">Superficie</label>
+                <div class="item-m2-pill"><span class="item-m2">${(item.m2 || 0).toFixed(2)}</span>&nbsp;m²</div>
+              </div>
+              <div class="form-group mb-0">
+                <label class="form-label-sm">Precio Unitario ($)</label>
+                <input type="number" class="form-input item-field" data-field="precioUnitario" value="${item.precioUnitario || 0}" min="0" placeholder="$">
+              </div>
+            </div>
+
+            <div class="pres-item-footer-bar">
+              <span class="pres-item-footer-label">Subtotal ítem:</span>
+              <span class="item-subtotal pres-item-footer-value">${formatCurrency(item.subtotal || 0)}</span>
+            </div>
+          </div>
+        </div>
       `).join('');
 
       // Item field events
       itemsBody.querySelectorAll('.item-field').forEach(input => {
         input.addEventListener('input', () => {
-          const row = input.closest('tr');
-          const idx = parseInt(row.dataset.idx);
+          const card = input.closest('.pres-item-card');
+          const idx = parseInt(card.dataset.idx);
           const field = input.dataset.field;
           let val = input.value;
           if (['cantidad', 'largo', 'ancho', 'precioUnitario'].includes(field)) val = parseFloat(val) || 0;
@@ -284,17 +311,22 @@ export function renderPresupuestos(container, actionsEl, path) {
           items[idx].m2 = (items[idx].largo * items[idx].ancho) / 10000;
           items[idx].subtotal = items[idx].cantidad * items[idx].precioUnitario;
           if (items[idx].m2 > 0) items[idx].subtotal = items[idx].m2 * items[idx].precioUnitario;
-          row.querySelector('.item-m2').textContent = items[idx].m2.toFixed(2);
-          row.querySelector('.item-subtotal').textContent = formatCurrency(items[idx].subtotal);
+
+          card.querySelector('.item-m2').textContent = items[idx].m2.toFixed(2);
+          card.querySelector('.item-subtotal').textContent = formatCurrency(items[idx].subtotal);
+          if (field === 'descripcion') {
+            card.querySelector('.pres-item-title').textContent = val || 'Nuevo ítem';
+          }
           updateSummary();
         });
       });
 
-      // Remove rows
+      // Remove item
       itemsBody.querySelectorAll('.row-remove').forEach(btn => {
         btn.addEventListener('click', () => {
           if (items.length <= 1) return;
-          items.splice(parseInt(btn.dataset.idx), 1);
+          const idx = parseInt(btn.dataset.idx);
+          items.splice(idx, 1);
           renderItems();
           updateSummary();
         });
@@ -394,63 +426,82 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
 
   actionsEl.innerHTML = `
     <a href="#/presupuestos" class="btn btn-secondary">${Icons['chevron-left']} Volver</a>
-    <button class="btn btn-secondary" id="btn-header-preview">${Icons.eye} Vista previa</button>
-    <button class="btn btn-pdf" id="btn-header-pdf">${Icons['file-pdf']} Descargar PDF</button>
-    <button class="btn btn-word" id="btn-header-word">${Icons['file-word']} Descargar Word</button>
-    ${pres.estado === 'borrador' || pres.estado === 'enviado' ? `<button class="btn btn-success" id="btn-aprobar">${Icons.check} Aprobar</button>` : ''}
-    ${pres.estado === 'aprobado' && !pres.obraId ? `<button class="btn btn-primary" id="btn-crear-obra">${Icons['hard-hat']} Crear obra</button>` : ''}
   `;
-
-  const itemsHtml = (pres.items || []).map(item => `
-    <tr>
-      <td>${escapeHtml(item.descripcion)}</td>
-      <td>${escapeHtml(item.material || '-')}</td>
-      <td class="text-center">${item.cantidad}</td>
-      <td class="text-right">${item.largo || '-'}</td>
-      <td class="text-right">${item.ancho || '-'}</td>
-      <td class="text-right">${(item.m2 || 0).toFixed(2)}</td>
-      <td class="text-right">${formatCurrency(item.precioUnitario)}</td>
-      <td class="text-right" style="font-weight:var(--font-semibold)">${formatCurrency(item.subtotal)}</td>
-    </tr>
-  `).join('');
 
   const adic = pres.adicionales || {};
   const adicEntries = Object.entries({ Colocación: adic.colocacion, 'Mano de obra': adic.manoDeObra, Transporte: adic.transporte, Bacha: adic.bacha, Zócalos: adic.zocalos, Extras: adic.extras }).filter(([, v]) => v > 0);
 
   container.innerHTML = `
-    <div class="card mb-6">
+    <!-- Action buttons bar -->
+    <div class="card mb-4">
+      <div class="card-body" style="display:flex;gap:var(--space-2);flex-wrap:wrap">
+        <button class="btn btn-pdf" id="btn-pdf" style="flex:1;min-width:130px;justify-content:center">${Icons['file-pdf']} Descargar PDF</button>
+        <button class="btn btn-word" id="btn-word" style="flex:1;min-width:130px;justify-content:center">${Icons['file-word']} Descargar Word</button>
+        <button class="btn btn-secondary" id="btn-preview" style="flex:1;min-width:130px;justify-content:center">${Icons.eye} Vista previa</button>
+        ${cliente?.whatsapp ? `<button class="btn btn-secondary" id="btn-whatsapp" style="flex:1;min-width:130px;justify-content:center">${Icons.whatsapp} WhatsApp</button>` : ''}
+        ${pres.estado === 'borrador' || pres.estado === 'enviado' ? `<button class="btn btn-success" id="btn-aprobar" style="flex:1;min-width:130px;justify-content:center">${Icons.check} Aprobar</button>` : ''}
+        ${pres.estado === 'aprobado' && !pres.obraId ? `<button class="btn btn-primary" id="btn-crear-obra" style="flex:1;min-width:130px;justify-content:center">${Icons['hard-hat']} Crear obra</button>` : ''}
+      </div>
+    </div>
+
+    <div class="card mb-4">
       <div class="card-body">
         <div class="flex justify-between items-start" style="margin-bottom:var(--space-4)">
           <div>
-            <h2 style="font-size:var(--text-2xl);font-weight:var(--font-bold)">${pres.numero}</h2>
+            <h2 style="font-size:var(--text-xl);font-weight:var(--font-bold)">${pres.numero}</h2>
             <p class="text-muted">${escapeHtml(pres.descripcion || '')}</p>
           </div>
           ${renderBadge(PRESUPUESTO_ESTADO_LABELS[pres.estado], PRESUPUESTO_ESTADO_COLORS[pres.estado])}
         </div>
-        <div class="detail-list" style="max-width:500px">
-          <span class="detail-label">Cliente</span>
-          <span class="detail-value">${cliente ? `${cliente.nombre} ${cliente.apellido || ''}` : '-'}</span>
-          <span class="detail-label">Fecha</span>
-          <span class="detail-value">${formatDate(pres.fecha)}</span>
-          <span class="detail-label">Dirección</span>
-          <span class="detail-value">${escapeHtml(pres.direccion || '-')}</span>
-          <span class="detail-label">Moneda</span>
-          <span class="detail-value">${pres.moneda}${pres.cotizacionDolar ? ` (TC: $${pres.cotizacionDolar})` : ''}</span>
+        <div class="detail-list">
+          <div class="detail-item">
+            <span class="detail-label">Cliente</span>
+            <span class="detail-value">${cliente ? `${cliente.nombre} ${cliente.apellido || ''}` : '-'}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Fecha</span>
+            <span class="detail-value">${formatDate(pres.fecha)}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Dirección</span>
+            <span class="detail-value">${escapeHtml(pres.direccion || '-')}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Moneda</span>
+            <span class="detail-value">${pres.moneda}${pres.cotizacionDolar ? ` (TC: $${pres.cotizacionDolar})` : ''}</span>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="card mb-6">
-      <div class="card-header"><h3 class="card-title">Ítems</h3></div>
-      <div class="table-wrapper">
-        <table class="data-table">
-          <thead><tr><th>Descripción</th><th>Material</th><th style="text-align:center">Cant.</th><th style="text-align:right">Largo</th><th style="text-align:right">Ancho</th><th style="text-align:right">m²</th><th style="text-align:right">P. Unit.</th><th style="text-align:right">Subtotal</th></tr></thead>
-          <tbody>${itemsHtml}</tbody>
-        </table>
+    <!-- Items section as responsive cards -->
+    <div class="card mb-4">
+      <div class="card-header"><h3 class="card-title">Ítems (${(pres.items || []).length})</h3></div>
+      <div class="card-body">
+        <div class="detail-items-list">
+          ${(pres.items || []).map((item, idx) => `
+            <div class="detail-item-card">
+              <div class="detail-item-card-top">
+                <span class="detail-item-card-desc"><strong>#${idx + 1}</strong> — ${escapeHtml(item.descripcion)}</span>
+                <span class="badge badge-neutral">${escapeHtml(item.material || 'Piedra')}</span>
+              </div>
+              <div class="detail-item-card-grid">
+                <div><span class="text-muted">Cantidad:</span> <strong>${item.cantidad}</strong></div>
+                <div><span class="text-muted">Medidas:</span> <strong>${item.largo || '-'} × ${item.ancho || '-'} cm</strong></div>
+                <div><span class="text-muted">Superficie:</span> <strong>${(item.m2 || 0).toFixed(2)} m²</strong></div>
+                <div><span class="text-muted">P. Unitario:</span> <strong>${formatCurrency(item.precioUnitario)}</strong></div>
+              </div>
+              <div class="detail-item-card-subtotal">
+                <span class="text-muted">Subtotal ítem:</span>
+                <strong>${formatCurrency(item.subtotal)}</strong>
+              </div>
+            </div>
+          `).join('')}
+        </div>
       </div>
     </div>
 
-    <div class="summary-box mb-6">
+    <div class="summary-box mb-4">
       <div class="summary-row"><span class="summary-row-label">Subtotal ítems</span><span class="summary-row-value">${formatCurrency(pres.items.reduce((s, i) => s + (i.subtotal || 0), 0))}</span></div>
       ${adicEntries.map(([k, v]) => `<div class="summary-row"><span class="summary-row-label">${k}</span><span class="summary-row-value">${formatCurrency(v)}</span></div>`).join('')}
       ${pres.descuento > 0 ? `<div class="summary-row"><span class="summary-row-label">Descuento (${pres.descuento}%)</span><span class="summary-row-value" style="color:var(--color-error)">-${formatCurrency(DataService.getPresupuestoTotal({ ...pres, descuento: 0, impuestos: 0 }) * pres.descuento / 100)}</span></div>` : ''}
@@ -458,17 +509,10 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
     </div>
 
     ${pres.condiciones ? `
-    <div class="card mb-6">
+    <div class="card mb-4">
       <div class="card-header"><h3 class="card-title">Condiciones comerciales</h3></div>
       <div class="card-body"><pre style="white-space:pre-wrap;font-family:inherit;font-size:var(--text-sm);color:var(--color-stone-600);line-height:1.6">${escapeHtml(pres.condiciones)}</pre></div>
     </div>` : ''}
-
-    <div class="presupuesto-actions-bar" style="display:flex;gap:var(--space-2);flex-wrap:wrap">
-      <button class="btn btn-secondary" id="btn-preview">${Icons.eye} Vista previa e Imprimir</button>
-      <button class="btn btn-pdf" id="btn-pdf">${Icons['file-pdf']} Descargar PDF</button>
-      <button class="btn btn-word" id="btn-word">${Icons['file-word']} Descargar Word (.doc)</button>
-      ${cliente?.whatsapp ? `<button class="btn btn-secondary" id="btn-whatsapp">${Icons.whatsapp} Enviar por WhatsApp</button>` : ''}
-    </div>
   `;
 
   // Approve action
