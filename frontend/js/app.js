@@ -62,7 +62,6 @@ class App {
   }
 
   navigate() {
-    const path = this.getCurrentPath();
     if (!window.location.hash || window.location.hash === '#/login' || window.location.hash === '#/') {
       window.location.hash = '#/dashboard';
       return;
