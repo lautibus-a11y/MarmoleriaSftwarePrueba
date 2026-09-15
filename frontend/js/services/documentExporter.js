@@ -46,6 +46,7 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
   const adicRows = [
     { label: 'Colocación en obra', val: adic.colocacion },
     { label: 'Mano de obra especializada', val: adic.manoDeObra },
+    { label: 'Inglete – Mano de obra', val: adic.inglete },
     { label: 'Flete / Transporte', val: adic.transporte },
     { label: 'Provisión e instalación de bacha', val: adic.bacha },
     { label: 'Zócalos perimetrales', val: adic.zocalos },
@@ -100,8 +101,8 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
       <!-- Barra de Identificación del Presupuesto -->
       <div class="doc-title-bar">
         <div>
-          <span class="doc-title-main">PRESUPUESTO FORMAL</span>
-          <span style="font-size:9pt;color:#78716C;margin-left:8px">Validez: 15 días corridos</span>
+          <div class="doc-title-main" style="font-size:16pt;font-weight:700;letter-spacing:-0.5px">Presupuesto</div>
+          <div style="font-size:9.5pt;color:#78716C;margin-top:2px;font-weight:500">${formatDate(pres.fecha)}</div>
         </div>
         <div>
           <span class="doc-title-number">${escapeHtml(pres.numero)}</span>
@@ -114,39 +115,33 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
           <div class="doc-info-card-title">Datos del Cliente</div>
           <div class="doc-info-row">
             <span class="doc-info-label">Nombre:</span>
-            <span class="doc-info-val">${cliente ? escapeHtml(`${cliente.nombre} ${cliente.apellido || ''}`) : 'Consumidor Final'}</span>
+            <span class="doc-info-val">${cliente ? escapeHtml(`${cliente.nombre} ${cliente.apellido || ''}`.trim()) : escapeHtml(pres.clienteNombre || 'Consumidor Final')}</span>
           </div>
-          <div class="doc-info-row">
-            <span class="doc-info-label">DNI / CUIT:</span>
-            <span class="doc-info-val">${escapeHtml(cliente?.cuit || cliente?.dni || '-')}</span>
-          </div>
-          <div class="doc-info-row">
-            <span class="doc-info-label">Teléfono:</span>
-            <span class="doc-info-val">${escapeHtml(cliente?.telefono || cliente?.whatsapp || '-')}</span>
-          </div>
-          <div class="doc-info-row">
-            <span class="doc-info-label">Email:</span>
-            <span class="doc-info-val">${escapeHtml(cliente?.email || '-')}</span>
-          </div>
+          ${cliente?.cuit || cliente?.dni ? `
+            <div class="doc-info-row">
+              <span class="doc-info-label">DNI / CUIT:</span>
+              <span class="doc-info-val">${escapeHtml(cliente.cuit || cliente.dni)}</span>
+            </div>
+          ` : ''}
+          ${cliente?.telefono || cliente?.whatsapp ? `
+            <div class="doc-info-row">
+              <span class="doc-info-label">Teléfono:</span>
+              <span class="doc-info-val">${escapeHtml(cliente.telefono || cliente.whatsapp)}</span>
+            </div>
+          ` : ''}
+          ${cliente?.email ? `
+            <div class="doc-info-row">
+              <span class="doc-info-label">Email:</span>
+              <span class="doc-info-val">${escapeHtml(cliente.email)}</span>
+            </div>
+          ` : ''}
         </div>
 
         <div class="doc-info-card">
-          <div class="doc-info-card-title">Datos del Proyecto / Obra</div>
-          <div class="doc-info-row">
-            <span class="doc-info-label">Fecha emisión:</span>
-            <span class="doc-info-val">${formatDate(pres.fecha)}</span>
-          </div>
+          <div class="doc-info-card-title">Datos del Proyecto</div>
           <div class="doc-info-row">
             <span class="doc-info-label">Dirección:</span>
             <span class="doc-info-val">${escapeHtml(pres.direccion || cliente?.direccion || 'A coordinar')}</span>
-          </div>
-          <div class="doc-info-row">
-            <span class="doc-info-label">Moneda:</span>
-            <span class="doc-info-val">${pres.moneda || 'ARS'} ${pres.cotizacionDolar ? `(Cotiz. USD: $${pres.cotizacionDolar})` : ''}</span>
-          </div>
-          <div class="doc-info-row">
-            <span class="doc-info-label">Trabajo:</span>
-            <span class="doc-info-val">${escapeHtml(pres.descripcion || 'Trabajo de marmolería a medida')}</span>
           </div>
         </div>
       </div>

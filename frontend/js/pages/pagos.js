@@ -24,14 +24,21 @@ export function renderPagos(container, actionsEl) {
       const provs = DataService.getAll('proveedores');
       filtered = filtered.filter(p => {
         const prov = provs.find(pr => pr.id === p.proveedorId);
-        return `${prov?.nombre||''} ${p.concepto||''}`.toLowerCase().includes(searchTerm.toLowerCase());
+        const combined = `${p.destinatarioConcepto || ''} ${p.concepto || ''} ${prov?.nombre || ''}`.toLowerCase();
+        return combined.includes(searchTerm.toLowerCase());
       });
     }
 
     const proveedores = DataService.getAll('proveedores');
     const columns = [
-      { label: 'Proveedor', render: (p) => { const pr=proveedores.find(x=>x.id===p.proveedorId); return `<span class="cell-primary">${escapeHtml(pr?.nombre||'-')}</span>`; }},
-      { label: 'Concepto', render: (p) => `<span class="text-truncate" style="max-width:200px;display:inline-block">${escapeHtml(p.concepto)}</span>` },
+      {
+        label: 'Destinatario / Concepto',
+        render: (p) => {
+          const pr = proveedores.find(x => x.id === p.proveedorId);
+          const text = p.destinatarioConcepto || p.concepto || pr?.nombre || '-';
+          return `<span class="cell-primary">${escapeHtml(text)}</span>`;
+        }
+      },
       { label: 'Fecha', render: (p) => formatDate(p.fecha), className: 'cell-secondary' },
       { label: 'Método', render: (p) => { const m=METODOS_PAGO.find(x=>x.value===p.metodoPago); return escapeHtml(m?.label||p.metodoPago); }},
       { label: 'Importe', align: 'right', render: (p) => `<span class="cell-currency">${formatCurrency(p.importe)}</span>` },
@@ -45,7 +52,7 @@ export function renderPagos(container, actionsEl) {
     container.innerHTML = `<div class="table-container">
       <div class="table-toolbar">
         <div class="table-toolbar-left">
-          ${renderSearchInput('Buscar pago...')}
+          ${renderSearchInput('Buscar por destinatario o concepto...')}
           <select class="filter-select" id="filter-estado"><option value="">Todos los estados</option>${Object.entries(PAGO_ESTADO_LABELS).map(([k,v])=>`<option value="${k}" ${filterEstado===k?'selected':''}>${v}</option>`).join('')}</select>
           <select class="filter-select" id="filter-metodo"><option value="">Todos los métodos</option>${METODOS_PAGO.map(m=>`<option value="${m.value}" ${filterMetodo===m.value?'selected':''}>${m.label}</option>`).join('')}</select>
         </div>
@@ -70,17 +77,25 @@ export function renderPagos(container, actionsEl) {
     const proveedores=DataService.getAll('proveedores');
     const facturasDisp=DataService.getAll('facturas').filter(f=>f.tipo==='factura'&&(f.estado==='pendiente'||f.estado==='parcial'));
 
+    const existingDest = pago.destinatarioConcepto || pago.concepto || (proveedores.find(p=>p.id===pago.proveedorId)?.nombre || '');
+
     Drawer.open({title:isEdit?'Editar pago':'Nuevo pago',
       content:`<form id="pago-form">
-        <div class="form-group"><label class="form-label">Proveedor <span class="required">*</span></label><select class="form-select" name="proveedorId"><option value="">Seleccionar...</option>${proveedores.map(p=>`<option value="${p.id}" ${pago.proveedorId===p.id?'selected':''}>${p.nombre}</option>`).join('')}</select></div>
-        <div class="form-group"><label class="form-label">Factura asociada</label><select class="form-select" name="facturaId"><option value="">Sin asociar</option>${facturasDisp.map(f=>{const prov=proveedores.find(p=>p.id===f.proveedorId);return`<option value="${f.id}" ${pago.facturaId===f.id?'selected':''}>${f.numero} - ${prov?.nombre||''} (${formatCurrency(f.importe)})</option>`;}).join('')}</select></div>
-        <div class="form-group"><label class="form-label">Concepto <span class="required">*</span></label><input type="text" class="form-input" name="concepto" value="${escapeHtml(pago.concepto||'')}"></div>
+        <div class="form-group">
+          <label class="form-label">Destinatario / Concepto <span class="required">*</span></label>
+          <input type="text" class="form-input" name="destinatarioConcepto" id="pago-destinatario-concepto" list="destinatarios-sugeridos" value="${escapeHtml(existingDest)}" placeholder="Ej: Cantera San Luis, Flete, Servicios, Sueldos..." required>
+          <datalist id="destinatarios-sugeridos">
+            ${proveedores.map(p => `<option value="${escapeHtml(p.nombre)}">${escapeHtml(p.razonSocial || p.nombre)}</option>`).join('')}
+          </datalist>
+          <span class="text-muted" style="font-size:11px;display:block;margin-top:4px">Podés escribir cualquier destinatario/concepto o seleccionar un proveedor habitual.</span>
+        </div>
+        <div class="form-group"><label class="form-label">Factura asociada (opcional)</label><select class="form-select" name="facturaId"><option value="">Sin asociar</option>${facturasDisp.map(f=>{const prov=proveedores.find(p=>p.id===f.proveedorId);return`<option value="${f.id}" ${pago.facturaId===f.id?'selected':''}>${f.numero} - ${prov?.nombre||''} (${formatCurrency(f.importe)})</option>`;}).join('')}</select></div>
         <div class="form-row-2">
-          <div class="form-group"><label class="form-label">Importe <span class="required">*</span></label><input type="number" class="form-input" name="importe" value="${pago.importe||''}" min="0" step="0.01"></div>
+          <div class="form-group"><label class="form-label">Importe <span class="required">*</span></label><input type="number" class="form-input" name="importe" value="${pago.importe||''}" min="0" step="0.01" required></div>
           <div class="form-group"><label class="form-label">Fecha</label><input type="date" class="form-input" name="fecha" value="${pago.fecha||new Date().toISOString().split('T')[0]}"></div>
         </div>
         <div class="form-row-2">
-          <div class="form-group"><label class="form-label">Método de pago</label><select class="form-select" name="metodoPago">${METODOS_PAGO.map(m=>`<option value="${m.value}" ${pago.metodoPago===m.value?'selected':''}>${m.label}</option>`).join('')}</select></div>
+          <div class="form-group"><label class="form-label">Método de pago</label><select class="form-select" name="metodoPago">${METODOS_PAGO.map(m=>`<option value="${m.value}" ${(pago.metodoPago||'transferencia')===m.value?'selected':''}>${m.label}</option>`).join('')}</select></div>
           <div class="form-group"><label class="form-label">Estado</label><select class="form-select" name="estado">${Object.entries(PAGO_ESTADO_LABELS).map(([k,v])=>`<option value="${k}" ${(pago.estado||'pagado')===k?'selected':''}>${v}</option>`).join('')}</select></div>
         </div>
         <div class="form-group"><label class="form-label">Observaciones</label><textarea class="form-textarea" name="observaciones" rows="2">${escapeHtml(pago.observaciones||'')}</textarea></div>
@@ -95,7 +110,12 @@ export function renderPagos(container, actionsEl) {
     document.getElementById('drawer-cancel').addEventListener('click',()=>Drawer.close());
     document.getElementById('drawer-save').addEventListener('click',()=>{
       const data=Object.fromEntries(new FormData(document.getElementById('pago-form')));
-      if(!data.proveedorId||!data.concepto||!data.importe){Toast.warning('Completá los campos obligatorios');return;}
+      const dest = (data.destinatarioConcepto || '').trim();
+      if(!dest || !data.importe){Toast.warning('Completá el destinatario/concepto y el importe');return;}
+      data.destinatarioConcepto = dest;
+      data.concepto = dest;
+      const matched = proveedores.find(p => p.nombre.toLowerCase() === dest.toLowerCase());
+      data.proveedorId = matched ? matched.id : (pago.proveedorId || null);
       data.importe=parseFloat(data.importe);data.comprobanteKey=null;
       if(isEdit){DataService.update('pagos',editId,data);Toast.success('Pago actualizado');}
       else{DataService.create('pagos',data);Toast.success('Pago registrado');}

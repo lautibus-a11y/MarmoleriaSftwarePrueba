@@ -31,25 +31,33 @@ function initMockData() {
     { id: 'cli-008', nombre: 'Diego', apellido: 'Sánchez', telefono: '11-0123-4567', whatsapp: '5491101234567', email: 'diego.s@email.com', direccion: 'Belgrano 780, Avellaneda', cuit: '20-29876543-1', observaciones: '', createdAt: '2026-08-10T13:00:00' }
   ];
 
-  // === MATERIALES (La gran mayoría en m² como estándar de marmolería, más placas y accesorios) ===
-  store.materiales = [
-    { id: 'mat-001', nombre: 'Granito Negro Absoluto', categoria: 'granito', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 110000, precioVenta: 185000, stockMinimo: 15, proveedor: 'prov-001', observaciones: 'Origen: India. Pulido espejo. Cotizado por m².' },
-    { id: 'mat-002', nombre: 'Granito Gris Mara', categoria: 'granito', tipo: 'Nacional', espesor: '2cm', unidad: 'm2', costo: 55000, precioVenta: 85000, stockMinimo: 20, proveedor: 'prov-001', observaciones: 'Nacional tradicional, alto tránsito. Cotizado por m².' },
-    { id: 'mat-003', nombre: 'Mármol Carrara', categoria: 'marmol', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 160000, precioVenta: 260000, stockMinimo: 12, proveedor: 'prov-002', observaciones: 'Origen: Italia. Veteado clásico blanco. Cotizado por m².' },
-    { id: 'mat-004', nombre: 'Mármol Travertino Romano', categoria: 'travertino', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 115000, precioVenta: 175000, stockMinimo: 10, proveedor: 'prov-002', observaciones: 'Tono beige cálido resinado. Cotizado por m².' },
-    { id: 'mat-005', nombre: 'Silestone Blanco Zeus', categoria: 'silestone', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 210000, precioVenta: 320000, stockMinimo: 10, proveedor: 'prov-003', observaciones: 'Superficie de cuarzo compacta premium antibacteriana. Cotizado por m².' },
-    { id: 'mat-006', nombre: 'Silestone Gris Expo', categoria: 'silestone', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 185000, precioVenta: 280000, stockMinimo: 8, proveedor: 'prov-003', observaciones: 'Cuarzo de alta resistencia uniforme. Cotizado por m².' },
-    { id: 'mat-007', nombre: 'Cuarzo Blanco Stellar', categoria: 'cuarzo', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 145000, precioVenta: 220000, stockMinimo: 10, proveedor: 'prov-003', observaciones: 'Superficie con micro-destellos espejados. Cotizado por m².' },
-    { id: 'mat-008', nombre: 'Granito Marrón Báltico', categoria: 'granito', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 95000, precioVenta: 145000, stockMinimo: 10, proveedor: 'prov-001', observaciones: 'Estructura circular granítica clásica. Cotizado por m².' },
-    { id: 'mat-009', nombre: 'Mármol Botticino', categoria: 'marmol', tipo: 'Importado', espesor: '2cm', unidad: 'm2', costo: 140000, precioVenta: 210000, stockMinimo: 8, proveedor: 'prov-002', observaciones: 'Mármol italiano compacto beige. Cotizado por m².' },
-    { id: 'mat-010', nombre: 'Porcelanato Gran Formato', categoria: 'porcelanato', tipo: 'Nacional', espesor: '1cm', unidad: 'm2', costo: 42000, precioVenta: 65000, stockMinimo: 25, proveedor: 'prov-004', observaciones: 'Placas 120x60cm. Cotizado por m².' },
-    { id: 'mat-011', nombre: 'Ónix Miel (Placa Entera)', categoria: 'onix', tipo: 'Importado', espesor: '2cm', unidad: 'placas', costo: 750000, precioVenta: 1200000, stockMinimo: 2, proveedor: 'prov-002', observaciones: 'Placa entera translúcida para retroiluminar.' },
-    { id: 'mat-012', nombre: 'Granito Exótico Patagonia (Placa)', categoria: 'granito', tipo: 'Importado', espesor: '2cm', unidad: 'placas', costo: 620000, precioVenta: 950000, stockMinimo: 2, proveedor: 'prov-001', observaciones: 'Placa entera seleccionada con cuarzo cristalino.' },
-    { id: 'mat-013', nombre: 'Zócalo Granito Negro', categoria: 'granito', tipo: 'Nacional', espesor: '2cm', unidad: 'metros', costo: 15000, precioVenta: 25000, stockMinimo: 20, proveedor: 'prov-001', observaciones: 'h=10cm. Cotizado por metro lineal.' },
-    { id: 'mat-014', nombre: 'Bacha Simple Acero Johnson', categoria: 'otro', tipo: 'Nacional', espesor: '-', unidad: 'unidades', costo: 45000, precioVenta: 72000, stockMinimo: 5, proveedor: 'prov-004', observaciones: 'Para embutir bajo mesada. Precio por unidad.' },
-    { id: 'mat-015', nombre: 'Bacha Doble Acero Johnson', categoria: 'otro', tipo: 'Nacional', espesor: '-', unidad: 'unidades', costo: 68000, precioVenta: 105000, stockMinimo: 3, proveedor: 'prov-004', observaciones: 'Doble cuba cocina. Precio por unidad.' },
-    { id: 'mat-016', nombre: 'Pegamento Especial Mármol', categoria: 'otro', tipo: 'Nacional', espesor: '-', unidad: 'unidades', costo: 12000, precioVenta: 18000, stockMinimo: 10, proveedor: 'prov-005', observaciones: 'Balde 25kg bi-componente. Precio por unidad.' }
+  // === MATERIALES (Con precio por m² de referencia para presupuestos) ===
+  const initialMateriales = [
+    { id: 'mat-000', nombre: 'Negro Brasil', categoria: 'granito', tipo: 'Importado', largo: 300, ancho: 180, espesor: '20 mm', unidad: 'm2', precioM2: 50000, precioVenta: 50000, stockMinimo: 10, proveedor: 'prov-001', observaciones: 'Granito Negro Brasil clásico. Origen: Brasil.' },
+    { id: 'mat-001', nombre: 'Granito Negro Absoluto', categoria: 'granito', tipo: 'Importado', largo: 290, ancho: 175, espesor: '20 mm', unidad: 'm2', precioM2: 185000, precioVenta: 185000, stockMinimo: 15, proveedor: 'prov-001', observaciones: 'Origen: India. Pulido espejo.' },
+    { id: 'mat-002', nombre: 'Granito Gris Mara', categoria: 'granito', tipo: 'Nacional', largo: 260, ancho: 160, espesor: '20 mm', unidad: 'm2', precioM2: 85000, precioVenta: 85000, stockMinimo: 20, proveedor: 'prov-001', observaciones: 'Nacional tradicional, alto tránsito.' },
+    { id: 'mat-003', nombre: 'Mármol Carrara', categoria: 'marmol', tipo: 'Importado', largo: 280, ancho: 150, espesor: '20 mm', unidad: 'm2', precioM2: 260000, precioVenta: 260000, stockMinimo: 12, proveedor: 'prov-002', observaciones: 'Origen: Italia. Veteado clásico blanco.' },
+    { id: 'mat-004', nombre: 'Mármol Travertino Romano', categoria: 'travertino', tipo: 'Importado', largo: 250, ancho: 140, espesor: '20 mm', unidad: 'm2', precioM2: 175000, precioVenta: 175000, stockMinimo: 10, proveedor: 'prov-002', observaciones: 'Tono beige cálido resinado.' },
+    { id: 'mat-005', nombre: 'Silestone Blanco Zeus', categoria: 'silestone', tipo: 'Importado', largo: 305, ancho: 140, espesor: '20 mm', unidad: 'm2', precioM2: 320000, precioVenta: 320000, stockMinimo: 10, proveedor: 'prov-003', observaciones: 'Superficie de cuarzo compacta premium antibacteriana.' },
+    { id: 'mat-006', nombre: 'Silestone Gris Expo', categoria: 'silestone', tipo: 'Importado', largo: 305, ancho: 140, espesor: '20 mm', unidad: 'm2', precioM2: 280000, precioVenta: 280000, stockMinimo: 8, proveedor: 'prov-003', observaciones: 'Cuarzo de alta resistencia uniforme.' },
+    { id: 'mat-007', nombre: 'Cuarzo Blanco Stellar', categoria: 'cuarzo', tipo: 'Importado', largo: 300, ancho: 140, espesor: '20 mm', unidad: 'm2', precioM2: 220000, precioVenta: 220000, stockMinimo: 10, proveedor: 'prov-003', observaciones: 'Superficie con micro-destellos espejados.' },
+    { id: 'mat-008', nombre: 'Granito Marrón Báltico', categoria: 'granito', tipo: 'Importado', largo: 270, ancho: 160, espesor: '20 mm', unidad: 'm2', precioM2: 145000, precioVenta: 145000, stockMinimo: 10, proveedor: 'prov-001', observaciones: 'Estructura circular granítica clásica.' },
+    { id: 'mat-009', nombre: 'Mármol Botticino', categoria: 'marmol', tipo: 'Importado', largo: 260, ancho: 150, espesor: '20 mm', unidad: 'm2', precioM2: 210000, precioVenta: 210000, stockMinimo: 8, proveedor: 'prov-002', observaciones: 'Mármol italiano compacto beige.' },
+    { id: 'mat-010', nombre: 'Porcelanato Gran Formato', categoria: 'porcelanato', tipo: 'Nacional', largo: 120, ancho: 60, espesor: '10 mm', unidad: 'm2', precioM2: 65000, precioVenta: 65000, stockMinimo: 25, proveedor: 'prov-004', observaciones: 'Placas 120x60cm.' },
+    { id: 'mat-011', nombre: 'Ónix Miel (Placa Entera)', categoria: 'onix', tipo: 'Importado', largo: 240, ancho: 150, espesor: '20 mm', unidad: 'placas', precioM2: 1200000, precioVenta: 1200000, stockMinimo: 2, proveedor: 'prov-002', observaciones: 'Placa entera translúcida para retroiluminar.' },
+    { id: 'mat-012', nombre: 'Granito Exótico Patagonia (Placa)', categoria: 'granito', tipo: 'Importado', largo: 290, ancho: 180, espesor: '20 mm', unidad: 'placas', precioM2: 950000, precioVenta: 950000, stockMinimo: 2, proveedor: 'prov-001', observaciones: 'Placa entera seleccionada con cuarzo cristalino.' },
+    { id: 'mat-013', nombre: 'Zócalo Granito Negro', categoria: 'granito', tipo: 'Nacional', largo: 100, ancho: 10, espesor: '20 mm', unidad: 'metros', precioM2: 25000, precioVenta: 25000, stockMinimo: 20, proveedor: 'prov-001', observaciones: 'h=10cm. Cotizado por metro lineal.' },
+    { id: 'mat-014', nombre: 'Bacha Simple Acero Johnson', categoria: 'otro', tipo: 'Nacional', largo: 52, ancho: 32, espesor: '-', unidad: 'unidades', precioM2: 72000, precioVenta: 72000, stockMinimo: 5, proveedor: 'prov-004', observaciones: 'Para embutir bajo mesada. Precio por unidad.' },
+    { id: 'mat-015', nombre: 'Bacha Doble Acero Johnson', categoria: 'otro', tipo: 'Nacional', largo: 74, ancho: 40, espesor: '-', unidad: 'unidades', precioM2: 105000, precioVenta: 105000, stockMinimo: 3, proveedor: 'prov-004', observaciones: 'Doble cuba cocina. Precio por unidad.' },
+    { id: 'mat-016', nombre: 'Pegamento Especial Mármol', categoria: 'otro', tipo: 'Nacional', largo: 0, ancho: 0, espesor: '-', unidad: 'unidades', precioM2: 18000, precioVenta: 18000, stockMinimo: 10, proveedor: 'prov-005', observaciones: 'Balde 25kg bi-componente.' }
   ];
+
+  try {
+    const savedMats = localStorage.getItem('mb_materiales');
+    store.materiales = savedMats ? JSON.parse(savedMats) : initialMateriales;
+  } catch (e) {
+    store.materiales = initialMateriales;
+  }
 
   // === STOCK MOVIMIENTOS (cantidades en m², placas o unidades según corresponda) ===
   store.stockMovimientos = [
@@ -229,11 +237,11 @@ function initMockData() {
 
   // === PAGOS ===
   store.pagos = [
-    { id: 'pago-001', proveedorId: 'prov-001', facturaId: 'fac-001', concepto: 'Pago factura A-0001-00045678', importe: 1850000, fecha: '2026-08-10', vencimiento: null, metodoPago: 'transferencia', estado: 'pagado', comprobanteKey: null, observaciones: '', createdAt: '2026-08-10T10:00:00' },
-    { id: 'pago-002', proveedorId: 'prov-002', facturaId: 'fac-002', concepto: 'Pago factura A-0002-00012345', importe: 2500000, fecha: '2026-08-28', vencimiento: null, metodoPago: 'transferencia', estado: 'pagado', comprobanteKey: null, observaciones: '', createdAt: '2026-08-28T10:00:00' },
-    { id: 'pago-003', proveedorId: 'prov-003', facturaId: 'fac-003', concepto: 'Pago parcial Silestone', importe: 1600000, fecha: '2026-09-05', vencimiento: null, metodoPago: 'transferencia', estado: 'pagado', comprobanteKey: null, observaciones: 'Pago 50%, resto al entregar', createdAt: '2026-09-05T10:00:00' },
-    { id: 'pago-004', proveedorId: 'prov-005', facturaId: 'fac-006', concepto: 'Pago adhesivos', importe: 240000, fecha: '2026-09-10', vencimiento: null, metodoPago: 'efectivo', estado: 'pagado', comprobanteKey: null, observaciones: '', createdAt: '2026-09-10T10:00:00' },
-    { id: 'pago-005', proveedorId: 'prov-004', facturaId: null, concepto: 'Anticipo próximo pedido', importe: 200000, fecha: '2026-09-12', vencimiento: null, metodoPago: 'mercadopago', estado: 'pagado', comprobanteKey: null, observaciones: 'Anticipo para próximo lote de bachas', createdAt: '2026-09-12T10:00:00' }
+    { id: 'pago-001', proveedorId: 'prov-001', facturaId: 'fac-001', destinatarioConcepto: 'Granitec S.R.L.', concepto: 'Pago factura A-0001-00045678', importe: 1850000, fecha: '2026-08-10', vencimiento: null, metodoPago: 'transferencia', estado: 'pagado', comprobanteKey: null, observaciones: '', createdAt: '2026-08-10T10:00:00' },
+    { id: 'pago-002', proveedorId: 'prov-002', facturaId: 'fac-002', destinatarioConcepto: 'Mármoles del Plata S.A.', concepto: 'Pago factura A-0002-00012345', importe: 2500000, fecha: '2026-08-28', vencimiento: null, metodoPago: 'home_banking', estado: 'pagado', comprobanteKey: null, observaciones: '', createdAt: '2026-08-28T10:00:00' },
+    { id: 'pago-003', proveedorId: 'prov-003', facturaId: 'fac-003', destinatarioConcepto: 'Cosentino Argentina', concepto: 'Pago parcial Silestone', importe: 1600000, fecha: '2026-09-05', vencimiento: null, metodoPago: 'office', estado: 'pagado', comprobanteKey: null, observaciones: 'Pago 50%, resto al entregar', createdAt: '2026-09-05T10:00:00' },
+    { id: 'pago-004', proveedorId: 'prov-005', facturaId: 'fac-006', destinatarioConcepto: 'Adhesivos Pro S.A.', concepto: 'Pago adhesivos', importe: 240000, fecha: '2026-09-10', vencimiento: null, metodoPago: 'efectivo', estado: 'pagado', comprobanteKey: null, observaciones: '', createdAt: '2026-09-10T10:00:00' },
+    { id: 'pago-005', proveedorId: 'prov-004', facturaId: null, destinatarioConcepto: 'Sanitarios Express', concepto: 'Anticipo próximo pedido', importe: 200000, fecha: '2026-09-12', vencimiento: null, metodoPago: 'mercadopago', estado: 'pagado', comprobanteKey: null, observaciones: 'Anticipo para próximo lote de bachas', createdAt: '2026-09-12T10:00:00' }
   ];
 
   // === COBROS ===
@@ -268,6 +276,9 @@ export const DataService = {
       createdAt: new Date().toISOString()
     };
     store[collection].push(record);
+    if (collection === 'materiales') {
+      try { localStorage.setItem('mb_materiales', JSON.stringify(store.materiales)); } catch (e) {}
+    }
     return record;
   },
 
@@ -275,6 +286,9 @@ export const DataService = {
     const idx = store[collection]?.findIndex(item => item.id === id);
     if (idx === -1) return null;
     store[collection][idx] = { ...store[collection][idx], ...data, updatedAt: new Date().toISOString() };
+    if (collection === 'materiales') {
+      try { localStorage.setItem('mb_materiales', JSON.stringify(store.materiales)); } catch (e) {}
+    }
     return store[collection][idx];
   },
 
@@ -282,6 +296,9 @@ export const DataService = {
     const idx = store[collection]?.findIndex(item => item.id === id);
     if (idx === -1) return false;
     store[collection].splice(idx, 1);
+    if (collection === 'materiales') {
+      try { localStorage.setItem('mb_materiales', JSON.stringify(store.materiales)); } catch (e) {}
+    }
     return true;
   },
 

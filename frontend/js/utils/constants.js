@@ -137,6 +137,8 @@ export const COBRO_ESTADO_COLORS = {
 export const METODOS_PAGO = [
   { value: 'efectivo', label: 'Efectivo' },
   { value: 'transferencia', label: 'Transferencia' },
+  { value: 'home_banking', label: 'Home Banking' },
+  { value: 'office', label: 'Office' },
   { value: 'tarjeta', label: 'Tarjeta' },
   { value: 'cheque', label: 'Cheque' },
   { value: 'mercadopago', label: 'Mercado Pago' },

@@ -33,7 +33,7 @@ export function renderPresupuestos(container, actionsEl, path) {
       const clientes = DataService.getAll('clientes');
       filtered = filtered.filter(p => {
         const cli = clientes.find(c => c.id === p.clienteId);
-        const cliName = cli ? `${cli.nombre} ${cli.apellido}` : '';
+        const cliName = cli ? `${cli.nombre} ${cli.apellido}` : (p.clienteNombre || '');
         const combined = `${p.numero} ${cliName} ${p.descripcion}`.toLowerCase();
         return combined.includes(searchTerm.toLowerCase());
       });
@@ -45,7 +45,7 @@ export function renderPresupuestos(container, actionsEl, path) {
       { label: 'Fecha', render: (p) => formatDate(p.fecha), className: 'cell-secondary' },
       { label: 'Cliente', render: (p) => {
         const cli = clientes.find(c => c.id === p.clienteId);
-        return escapeHtml(cli ? `${cli.nombre} ${cli.apellido || ''}` : '-');
+        return escapeHtml(cli ? `${cli.nombre} ${cli.apellido || ''}` : (p.clienteNombre || '-'));
       }},
       { label: 'Descripción', render: (p) => `<span class="text-truncate" style="max-width:200px;display:inline-block">${escapeHtml(p.descripcion)}</span>` },
       { label: 'Estado', render: (p) => renderBadge(PRESUPUESTO_ESTADO_LABELS[p.estado] || p.estado, PRESUPUESTO_ESTADO_COLORS[p.estado] || 'neutral') },
@@ -124,13 +124,22 @@ export function renderPresupuestos(container, actionsEl, path) {
       numero: generateAutoNumber('PRES', DataService.getAll('presupuestos')),
       fecha: new Date().toISOString().split('T')[0],
       moneda: 'ARS', estado: 'borrador',
-      items: [{ id: '1', descripcion: '', material: '', cantidad: 1, largo: 0, ancho: 0, m2: 0, precioUnitario: 0, subtotal: 0 }],
-      adicionales: { colocacion: 0, manoDeObra: 0, transporte: 0, bacha: 0, zocalos: 0, extras: 0 },
-      descuento: 0, impuestos: 0, condiciones: CONDICIONES_COMERCIALES_DEFAULT.join('\n')
+      items: [{ id: '1', descripcion: 'Pieza #1', largo: 0, ancho: 0, cantidad: 1, m2: 0, precioUnitario: 0, subtotal: 0 }],
+      adicionales: { colocacion: 0, manoDeObra: 0, inglete: 0, transporte: 0, bacha: 0, zocalos: 0, extras: 0 },
+      descuento: 0, impuestos: 21, condiciones: CONDICIONES_COMERCIALES_DEFAULT.join('\n')
     };
 
     const clientes = DataService.getAll('clientes');
     const materiales = DataService.getAll('materiales');
+
+    const isNuevoInicial = !pres.clienteId && !!pres.clienteNombre;
+    let selectedMatName = pres.material || (pres.items?.[0]?.material) || (materiales[0]?.nombre || '');
+    let currentMaterial = materiales.find(m => m.nombre === selectedMatName) || materiales[0];
+    
+    // Si es edición de presupuesto existente, conservar el precioM2 histórico de creación; si es nuevo, tomar el precioM2 actual del material en stock
+    let precioM2 = editId
+      ? (pres.precioM2 || pres.items?.[0]?.precioUnitario || (currentMaterial?.precioM2 ?? currentMaterial?.precioVenta ?? 0))
+      : (currentMaterial?.precioM2 ?? currentMaterial?.precioVenta ?? 0);
 
     Drawer.open({
       title: editId ? `Editar ${pres.numero}` : 'Nuevo presupuesto',
@@ -155,35 +164,75 @@ export function renderPresupuestos(container, actionsEl, path) {
                 </select>
               </div>
             </div>
-            <div class="form-row-2">
-              <div class="form-group">
-                <label class="form-label">Cliente <span class="required">*</span></label>
-                <select class="form-select" name="clienteId">
-                  <option value="">Seleccionar cliente...</option>
-                  ${clientes.map(c => `<option value="${c.id}" ${pres.clienteId === c.id ? 'selected' : ''}>${c.nombre} ${c.apellido || ''}</option>`).join('')}
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Dirección de obra</label>
-                <input type="text" class="form-input" name="direccion" value="${escapeHtml(pres.direccion || '')}">
-              </div>
-            </div>
+
+            <!-- Selector de tipo de cliente: Habitual vs Nuevo -->
             <div class="form-group">
-              <label class="form-label">Descripción</label>
-              <input type="text" class="form-input" name="descripcion" value="${escapeHtml(pres.descripcion || '')}">
+              <label class="form-label">Tipo de cliente</label>
+              <div class="client-type-toggle" id="client-type-toggle">
+                <button type="button" class="client-type-btn ${!isNuevoInicial ? 'active' : ''}" data-type="habitual">Cliente habitual</button>
+                <button type="button" class="client-type-btn ${isNuevoInicial ? 'active' : ''}" data-type="nuevo">Cliente nuevo</button>
+              </div>
+              <input type="hidden" name="tipoCliente" id="tipo-cliente-val" value="${isNuevoInicial ? 'nuevo' : 'habitual'}">
+            </div>
+
+            <div class="form-row-2">
+              <div id="cliente-habitual-wrap" style="${isNuevoInicial ? 'display:none' : 'display:block'}">
+                <div class="form-group mb-0">
+                  <label class="form-label">Cliente habitual registrado <span class="required">*</span></label>
+                  <select class="form-select" name="clienteId" id="pres-cliente-select">
+                    <option value="">Seleccionar cliente...</option>
+                    ${clientes.map(c => `<option value="${c.id}" ${pres.clienteId === c.id ? 'selected' : ''}>${c.nombre} ${c.apellido || ''}</option>`).join('')}
+                  </select>
+                </div>
+              </div>
+
+              <div id="cliente-nuevo-wrap" style="${isNuevoInicial ? 'display:block' : 'display:none'}">
+                <div class="form-group mb-0">
+                  <label class="form-label">Nombre del cliente nuevo <span class="required">*</span></label>
+                  <input type="text" class="form-input" name="clienteNombre" id="pres-cliente-nuevo-input" value="${escapeHtml(pres.clienteNombre || '')}" placeholder="Ej: Juan Pérez">
+                </div>
+              </div>
+
+              <div class="form-group mb-0">
+                <label class="form-label">Dirección de obra</label>
+                <input type="text" class="form-input" name="direccion" id="pres-direccion-input" value="${escapeHtml(pres.direccion || '')}" placeholder="Ej: San Martín 450">
+              </div>
+            </div>
+
+            <div class="form-group mt-3">
+              <label class="form-label">Descripción del proyecto</label>
+              <input type="text" class="form-input" name="descripcion" value="${escapeHtml(pres.descripcion || '')}" placeholder="Ej: Mesada de cocina en L con isla">
             </div>
           </div>
 
           <div class="presupuesto-form-section">
-            <div class="flex justify-between items-center mb-3">
-              <h4 class="presupuesto-form-section-title mb-0">${Icons.package} Ítems del presupuesto</h4>
-              <button type="button" class="btn btn-secondary btn-sm" id="btn-add-item">${Icons.plus} Agregar ítem</button>
+            <h4 class="presupuesto-form-section-title mb-2">${Icons.package} Material y Piezas</h4>
+            
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight:var(--font-bold);color:var(--color-stone-900)">
+                Material – precio por m² precargado <span class="required">*</span>
+              </label>
+              <select class="form-select" id="pres-selected-material" name="material" style="font-weight:var(--font-medium);font-size:var(--text-base);padding:10px 14px">
+                <option value="">Seleccionar material del catálogo...</option>
+                ${materiales.map(m => {
+                  const isSel = (selectedMatName === m.nombre);
+                  const pM2 = m.precioM2 ?? m.precioVenta ?? 0;
+                  return `<option value="${escapeHtml(m.nombre)}" ${isSel ? 'selected' : ''}>${escapeHtml(m.nombre)} — ${formatCurrency(pM2)} / m²</option>`;
+                }).join('')}
+              </select>
             </div>
+
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-add-item" style="width:100%;justify-content:center;margin-top:8px;margin-bottom:var(--space-4);padding:11px;font-weight:var(--font-semibold);border-style:dashed;border-color:var(--color-stone-300)">
+              ${Icons.plus} Añadir ítem
+            </button>
+
             <div class="presupuesto-items-list" id="items-body"></div>
+
+            <div id="material-summary-banner"></div>
           </div>
 
           <div class="presupuesto-form-section">
-            <h4 class="presupuesto-form-section-title">${Icons['dollar-sign']} Adicionales</h4>
+            <h4 class="presupuesto-form-section-title">${Icons['dollar-sign']} Campos adicionales</h4>
             <div class="presupuesto-adicionales">
               <div class="form-group">
                 <label class="form-label">Colocación</label>
@@ -192,6 +241,10 @@ export function renderPresupuestos(container, actionsEl, path) {
               <div class="form-group">
                 <label class="form-label">Mano de obra</label>
                 <input type="number" class="form-input calc-field" name="adic_manoDeObra" value="${pres.adicionales?.manoDeObra || 0}" min="0">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Inglete – Mano de obra</label>
+                <input type="number" class="form-input calc-field" name="adic_inglete" value="${pres.adicionales?.inglete || 0}" min="0">
               </div>
               <div class="form-group">
                 <label class="form-label">Transporte</label>
@@ -218,8 +271,12 @@ export function renderPresupuestos(container, actionsEl, path) {
               <input type="number" class="form-input calc-field" name="descuento" value="${pres.descuento || 0}" min="0" max="100">
             </div>
             <div class="form-group">
-              <label class="form-label">Impuestos / IVA (%)</label>
-              <input type="number" class="form-input calc-field" name="impuestos" value="${pres.impuestos || 0}" min="0">
+              <label class="form-label">IVA</label>
+              <select class="form-select calc-field" name="impuestos" id="pres-iva-select">
+                <option value="21" ${(Number(pres.impuestos) === 21 || (!pres.impuestos && pres.impuestos !== 0 && Number(pres.impuestos) !== 10.5)) ? 'selected' : ''}>IVA 21%</option>
+                <option value="10.5" ${Number(pres.impuestos) === 10.5 ? 'selected' : ''}>IVA 10,5%</option>
+                <option value="0" ${Number(pres.impuestos) === 0 ? 'selected' : ''}>Sin IVA (0%)</option>
+              </select>
             </div>
           </div>
 
@@ -264,234 +321,161 @@ export function renderPresupuestos(container, actionsEl, path) {
       `
     });
 
-    // Render items with automatic material pricing
-    const itemsBody = document.getElementById('items-body');
-    let items = (pres.items && pres.items.length > 0)
-      ? pres.items.map(it => {
-          const mat = materiales.find(m => m.nombre === it.material);
-          return {
-            ...it,
-            unidad: it.unidad || (mat ? mat.unidad : 'm2'),
-            precioUnitario: (it.precioUnitario !== undefined && it.precioUnitario !== null && it.precioUnitario !== '')
-              ? it.precioUnitario
-              : (mat ? mat.precioVenta : 0)
-          };
-        })
-      : [{ id: Date.now().toString(), descripcion: '', material: '', unidad: 'm2', cantidad: 1, largo: 0, ancho: 0, m2: 0, precioUnitario: 0, subtotal: 0 }];
+    // Setup Client Type Toggle
+    const toggleWrap = document.getElementById('client-type-toggle');
+    const tipoVal = document.getElementById('tipo-cliente-val');
+    const habWrap = document.getElementById('cliente-habitual-wrap');
+    const nueWrap = document.getElementById('cliente-nuevo-wrap');
+    const cliSelect = document.getElementById('pres-cliente-select');
+    const dirInput = document.getElementById('pres-direccion-input');
 
-    function calculateItem(item) {
-      const cant = Math.max(1, parseFloat(item.cantidad) || 1);
-      const largo = Math.max(0, parseFloat(item.largo) || 0);
-      const ancho = Math.max(0, parseFloat(item.ancho) || 0);
-      const precio = Math.max(0, parseFloat(item.precioUnitario) || 0);
-      const unidad = item.unidad || 'm2';
-
-      if (unidad === 'm2') {
-        // Largo (cm) × Ancho (cm) / 10000 = m² per piece. Total surface = m² per piece × cantidad
-        if (largo > 0 && ancho > 0) {
-          item.m2 = ((largo * ancho) / 10000) * cant;
+    toggleWrap?.querySelectorAll('.client-type-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const type = btn.dataset.type;
+        tipoVal.value = type;
+        toggleWrap.querySelectorAll('.client-type-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        if (type === 'habitual') {
+          habWrap.style.display = 'block';
+          nueWrap.style.display = 'none';
         } else {
-          item.m2 = 0;
+          habWrap.style.display = 'none';
+          nueWrap.style.display = 'block';
         }
-        item.subtotal = item.m2 * precio;
-      } else if (unidad === 'metros') {
-        const ml = largo > 0 ? (largo / 100) * cant : cant;
-        item.m2 = 0;
-        item.subtotal = ml * precio;
+      });
+    });
+
+    cliSelect?.addEventListener('change', (e) => {
+      const selectedCli = clientes.find(c => c.id === e.target.value);
+      if (selectedCli && dirInput && !dirInput.value) {
+        dirInput.value = selectedCli.direccion || '';
+      }
+    });
+
+    // Setup Items and Calculation
+    const itemsBody = document.getElementById('items-body');
+    const matSelect = document.getElementById('pres-selected-material');
+    const matSummaryEl = document.getElementById('material-summary-banner');
+
+    let items = (pres.items && pres.items.length > 0)
+      ? pres.items.map((it, idx) => ({
+          id: it.id || (idx + 1).toString(),
+          descripcion: it.descripcion || `Ítem ${idx + 1}`,
+          material: selectedMatName,
+          cantidad: Math.max(1, parseFloat(it.cantidad) || 1),
+          largo: parseFloat(it.largo) || 0,
+          ancho: parseFloat(it.ancho) || 0,
+          m2: parseFloat(it.m2) || 0,
+          precioUnitario: precioM2,
+          subtotal: parseFloat(it.subtotal) || 0
+        }))
+      : [
+          { id: '1', descripcion: 'Ítem 1', material: selectedMatName, cantidad: 1, largo: 0, ancho: 0, m2: 0, precioUnitario: precioM2, subtotal: 0 }
+        ];
+
+    function calculateItem(it) {
+      const cant = Math.max(1, parseFloat(it.cantidad) || 1);
+      const largo = Math.max(0, parseFloat(it.largo) || 0);
+      const ancho = Math.max(0, parseFloat(it.ancho) || 0);
+      if (largo > 0 && ancho > 0) {
+        it.m2 = ((largo * ancho) / 10000) * cant;
+      } else if (largo > 0 && ancho === 0) {
+        it.m2 = (largo / 100) * cant;
       } else {
-        // unidades, kg, etc.
-        item.m2 = 0;
-        item.subtotal = cant * precio;
+        it.m2 = 0;
+      }
+      it.material = selectedMatName;
+      it.precioUnitario = precioM2;
+      it.subtotal = it.m2 * precioM2;
+    }
+
+    items.forEach(it => calculateItem(it));
+
+    function renderMaterialSummary() {
+      const totalM2 = items.reduce((sum, it) => sum + (it.m2 || 0), 0);
+      const totalSubtotal = items.reduce((sum, it) => sum + (it.subtotal || 0), 0);
+      if (matSummaryEl) {
+        matSummaryEl.innerHTML = `
+          <div class="material-summary-box">
+            <div>
+              <div style="font-size:13px;font-weight:var(--font-bold);color:var(--color-stone-900)">
+                ${escapeHtml(selectedMatName || 'Sin material seleccionado')}
+              </div>
+              <div style="font-size:12px;color:var(--color-stone-600);margin-top:2px">
+                Suma total: <strong>${totalM2.toFixed(2)} m²</strong> · Precio por m²: <strong>${formatCurrency(precioM2)} / m²</strong>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:11px;color:var(--color-stone-500);text-transform:uppercase;letter-spacing:0.5px">Subtotal material</div>
+              <div style="font-size:16px;font-weight:var(--font-bold);color:var(--color-stone-900)">${formatCurrency(totalSubtotal)}</div>
+            </div>
+          </div>
+        `;
       }
     }
 
-    // Initial calculation for all items
-    items.forEach(it => calculateItem(it));
-
     function renderItems() {
-      itemsBody.innerHTML = items.map((item, idx) => {
-        const unidad = item.unidad || 'm2';
-        const isM2 = unidad === 'm2';
-        const isMetros = unidad === 'metros';
-        const isUnidad = unidad === 'unidades';
-
-        const selectedMat = materiales.find(m => m.nombre === item.material);
-        const autoPriceBadge = selectedMat
-          ? `<span class="badge badge-success" style="font-size:10px;padding:2px 6px">Precio cargado de ${escapeHtml(selectedMat.nombre)}</span>`
-          : '';
-
-        let formulaText = '';
-        if (isM2) {
-          formulaText = `${(item.m2 || 0).toFixed(2)} m² × ${formatCurrency(item.precioUnitario)}/m²`;
-        } else if (isMetros) {
-          const ml = item.largo > 0 ? (((item.largo || 0) / 100) * (item.cantidad || 1)).toFixed(2) : (item.cantidad || 1);
-          formulaText = `${ml} ml × ${formatCurrency(item.precioUnitario)}/ml`;
-        } else {
-          formulaText = `${item.cantidad || 1} un × ${formatCurrency(item.precioUnitario)}/un`;
-        }
-
-        return `
-        <div class="pres-item-card" data-idx="${idx}">
-          <div class="pres-item-header">
-            <div class="pres-item-title-wrap">
-              <span class="pres-item-badge">Ítem #${idx + 1}</span>
-              <span class="pres-item-title">${escapeHtml(item.descripcion || 'Nueva pieza')}</span>
-              ${autoPriceBadge}
+      itemsBody.innerHTML = items.map((item, idx) => `
+        <div class="pres-item-card compact-item-card" data-idx="${idx}">
+          <div class="pres-item-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="display:flex;align-items:center;gap:8px;flex:1">
+              <span class="pres-item-badge">Ítem ${idx + 1}</span>
+              <input type="text" class="form-input item-field item-desc-input" data-field="descripcion" value="${escapeHtml(item.descripcion || `Ítem ${idx + 1}`)}" placeholder="Nombre de pieza (ej: Mesada, Isla, Alzada)" style="height:34px;font-size:13px;font-weight:var(--font-semibold);padding:4px 8px;flex:1;max-width:260px">
             </div>
             ${items.length > 1 ? `
-              <button type="button" class="btn btn-ghost btn-sm row-remove" data-idx="${idx}" title="Eliminar ítem" style="color:var(--color-error)">
-                ${Icons.trash} <span style="font-size:12px;margin-left:4px">Quitar</span>
+              <button type="button" class="btn btn-ghost btn-sm row-remove" data-idx="${idx}" title="Eliminar ítem" style="color:var(--color-error);padding:4px 8px">
+                ${Icons.trash} <span style="font-size:12px">Quitar</span>
               </button>
             ` : ''}
           </div>
-          <div class="pres-item-body">
-            <div class="form-row-2" style="margin-bottom:var(--space-3)">
-              <div class="form-group mb-0">
-                <label class="form-label-sm">Descripción del trabajo / Pieza <span class="required">*</span></label>
-                <input type="text" class="form-input item-field" data-field="descripcion" value="${escapeHtml(item.descripcion || '')}" placeholder="Ej: Mesada con trasforo, Isla cocina, Vanitory...">
-              </div>
-              <div class="form-group mb-0">
-                <label class="form-label-sm">Material (con precio por m² precargado) <span class="required">*</span></label>
-                <select class="form-select item-field item-mat-select" data-field="material">
-                  <option value="">Seleccionar material del catálogo...</option>
-                  ${materiales.map(m => {
-                    const unitSuffix = m.unidad === 'm2' ? 'm²' : (m.unidad === 'metros' ? 'ml' : (m.unidad === 'unidades' ? 'un' : m.unidad));
-                    return `<option value="${escapeHtml(m.nombre)}" ${item.material === m.nombre ? 'selected' : ''}>${escapeHtml(m.nombre)} — ${formatCurrency(m.precioVenta)} / ${unitSuffix}</option>`;
-                  }).join('')}
-                </select>
-              </div>
+
+          <div class="pres-item-metrics-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(85px, 1fr));gap:8px">
+            <div class="form-group mb-0">
+              <label class="form-label-sm">Largo (cm)</label>
+              <input type="number" class="form-input item-field" data-field="largo" value="${item.largo || ''}" min="0" placeholder="Ej: 220" style="padding:8px">
             </div>
-
-            <div class="pres-item-metrics-grid">
-              <div class="form-group mb-0">
-                <label class="form-label-sm">${isM2 ? 'Cantidad de piezas' : (isMetros ? 'Cantidad (tiras)' : 'Cantidad (unidades)')}</label>
-                <input type="number" class="form-input item-field" data-field="cantidad" value="${item.cantidad || 1}" min="1">
-              </div>
-
-              ${isM2 ? `
-                <div class="form-group mb-0">
-                  <label class="form-label-sm">Largo (cm)</label>
-                  <input type="number" class="form-input item-field" data-field="largo" value="${item.largo || 0}" min="0" placeholder="Ej: 220">
-                </div>
-                <div class="form-group mb-0">
-                  <label class="form-label-sm">Ancho (cm)</label>
-                  <input type="number" class="form-input item-field" data-field="ancho" value="${item.ancho || 0}" min="0" placeholder="Ej: 60">
-                </div>
-                <div class="form-group mb-0">
-                  <label class="form-label-sm">Superficie total (m²)</label>
-                  <div class="item-m2-pill" title="Superficie total: (Largo × Ancho / 10.000) × Cantidad">
-                    <span class="item-m2">${(item.m2 || 0).toFixed(2)}</span>&nbsp;m²
-                  </div>
-                </div>
-                <div class="form-group mb-0">
-                  <label class="form-label-sm">Precio por m² ($)</label>
-                  <div style="position:relative">
-                    <input type="number" class="form-input item-field item-price-input" data-field="precioUnitario" value="${item.precioUnitario || 0}" min="0" placeholder="Ej: $85.000 / m²">
-                    <span style="position:absolute;right:10px;top:11px;font-size:11px;color:var(--color-stone-400);pointer-events:none">/ m²</span>
-                  </div>
-                </div>
-              ` : (isMetros ? `
-                <div class="form-group mb-0">
-                  <label class="form-label-sm">Largo por tira (cm)</label>
-                  <input type="number" class="form-input item-field" data-field="largo" value="${item.largo || 0}" min="0" placeholder="Ej: 100">
-                </div>
-                <div class="form-group mb-0">
-                  <label class="form-label-sm">Metros lineales totales</label>
-                  <div class="item-m2-pill">
-                    <span class="item-m2">${(((item.largo || 0) / 100) * (item.cantidad || 1)).toFixed(2)}</span>&nbsp;ml
-                  </div>
-                </div>
-                <div class="form-group mb-0">
-                  <label class="form-label-sm">Precio por metro lineal ($)</label>
-                  <div style="position:relative">
-                    <input type="number" class="form-input item-field item-price-input" data-field="precioUnitario" value="${item.precioUnitario || 0}" min="0" placeholder="Ej: $25.000 / ml">
-                    <span style="position:absolute;right:10px;top:11px;font-size:11px;color:var(--color-stone-400);pointer-events:none">/ ml</span>
-                  </div>
-                </div>
-              ` : `
-                <div class="form-group mb-0" style="grid-column: span 2">
-                  <label class="form-label-sm">Precio unitario ($)</label>
-                  <div style="position:relative">
-                    <input type="number" class="form-input item-field item-price-input" data-field="precioUnitario" value="${item.precioUnitario || 0}" min="0" placeholder="Ej: $72.000">
-                    <span style="position:absolute;right:10px;top:11px;font-size:11px;color:var(--color-stone-400);pointer-events:none">/ un</span>
-                  </div>
-                </div>
-              `)}
+            <div class="form-group mb-0">
+              <label class="form-label-sm">Ancho (cm)</label>
+              <input type="number" class="form-input item-field" data-field="ancho" value="${item.ancho || ''}" min="0" placeholder="Ej: 60" style="padding:8px">
             </div>
-
-            <div class="pres-item-footer-bar">
-              <div style="display:flex;align-items:center;gap:var(--space-2)">
-                <span class="text-muted" style="font-size:var(--text-xs)">Cálculo:</span>
-                <span class="item-calc-formula" style="font-size:var(--text-xs);font-weight:var(--font-semibold);color:var(--color-stone-700)">${formulaText}</span>
-              </div>
-              <div style="display:flex;align-items:center;gap:var(--space-2)">
-                <span class="pres-item-footer-label">Subtotal ítem:</span>
-                <span class="item-subtotal pres-item-footer-value">${formatCurrency(item.subtotal || 0)}</span>
+            <div class="form-group mb-0">
+              <label class="form-label-sm">Cantidad</label>
+              <input type="number" class="form-input item-field" data-field="cantidad" value="${item.cantidad || 1}" min="1" style="padding:8px">
+            </div>
+            <div class="form-group mb-0">
+              <label class="form-label-sm">Superficie</label>
+              <div class="item-m2-pill" style="justify-content:center;height:38px;padding:0 8px">
+                <span class="item-m2" style="font-weight:var(--font-bold)">${(item.m2 || 0).toFixed(2)}</span>&nbsp;m²
               </div>
             </div>
           </div>
-        </div>
-        `;
-      }).join('');
 
-      // Item field events
+          <div class="pres-item-footer-bar" style="margin-top:8px;padding:6px 10px;font-size:12px;background:var(--color-stone-50);border-radius:var(--radius-md);display:flex;justify-content:space-between;align-items:center">
+            <span style="color:var(--color-stone-600)">${(item.m2 || 0).toFixed(2)} m² × ${formatCurrency(precioM2)}/m²</span>
+            <span class="item-subtotal-val" style="font-weight:var(--font-bold);color:var(--color-stone-900)">${formatCurrency(item.subtotal || 0)}</span>
+          </div>
+        </div>
+      `).join('');
+
+      // Field events
       itemsBody.querySelectorAll('.item-field').forEach(input => {
-        const eventType = input.tagName === 'SELECT' ? 'change' : 'input';
-        input.addEventListener(eventType, () => {
+        input.addEventListener('input', () => {
           const card = input.closest('.pres-item-card');
           const idx = parseInt(card.dataset.idx);
           const field = input.dataset.field;
           let val = input.value;
-
-          if (field === 'material') {
-            const mat = materiales.find(m => m.nombre === val);
-            if (mat) {
-              items[idx].material = mat.nombre;
-              items[idx].unidad = mat.unidad || 'm2';
-              // Automatically fetch the pre-configured selling price / price per m²
-              items[idx].precioUnitario = mat.precioVenta || 0;
-            } else {
-              items[idx].material = '';
-              items[idx].unidad = 'm2';
-              items[idx].precioUnitario = 0;
-            }
-            calculateItem(items[idx]);
-            renderItems();
-            updateSummary();
-            return;
-          }
-
-          if (['cantidad', 'largo', 'ancho', 'precioUnitario'].includes(field)) {
+          if (['cantidad', 'largo', 'ancho'].includes(field)) {
             val = parseFloat(val) || 0;
           }
           items[idx][field] = val;
           calculateItem(items[idx]);
 
-          // Update dynamic values on card without full re-render for smooth typing
           const m2El = card.querySelector('.item-m2');
-          if (m2El) {
-            m2El.textContent = (items[idx].unidad === 'metros')
-              ? (((items[idx].largo || 0) / 100) * (items[idx].cantidad || 1)).toFixed(2)
-              : (items[idx].m2 || 0).toFixed(2);
-          }
-          const subtotalEl = card.querySelector('.item-subtotal');
-          if (subtotalEl) subtotalEl.textContent = formatCurrency(items[idx].subtotal || 0);
+          if (m2El) m2El.textContent = (items[idx].m2 || 0).toFixed(2);
+          const subEl = card.querySelector('.item-subtotal-val');
+          if (subEl) subEl.textContent = formatCurrency(items[idx].subtotal || 0);
 
-          const formulaEl = card.querySelector('.item-calc-formula');
-          if (formulaEl) {
-            if (items[idx].unidad === 'm2') {
-              formulaEl.textContent = `${(items[idx].m2 || 0).toFixed(2)} m² × ${formatCurrency(items[idx].precioUnitario)}/m²`;
-            } else if (items[idx].unidad === 'metros') {
-              const ml = items[idx].largo > 0 ? (((items[idx].largo || 0) / 100) * (items[idx].cantidad || 1)).toFixed(2) : (items[idx].cantidad || 1);
-              formulaEl.textContent = `${ml} ml × ${formatCurrency(items[idx].precioUnitario)}/ml`;
-            } else {
-              formulaEl.textContent = `${items[idx].cantidad || 1} un × ${formatCurrency(items[idx].precioUnitario)}/un`;
-            }
-          }
-
-          if (field === 'descripcion') {
-            card.querySelector('.pres-item-title').textContent = val || 'Nueva pieza';
-          }
+          renderMaterialSummary();
           updateSummary();
         });
       });
@@ -503,15 +487,46 @@ export function renderPresupuestos(container, actionsEl, path) {
           const idx = parseInt(btn.dataset.idx);
           items.splice(idx, 1);
           renderItems();
+          renderMaterialSummary();
           updateSummary();
+          Toast.info('Ítem eliminado');
         });
       });
     }
 
+    matSelect?.addEventListener('change', (e) => {
+      selectedMatName = e.target.value;
+      const mat = materiales.find(m => m.nombre === selectedMatName);
+      precioM2 = mat ? (mat.precioM2 ?? mat.precioVenta ?? 0) : 0;
+      items.forEach(it => calculateItem(it));
+      renderItems();
+      renderMaterialSummary();
+      updateSummary();
+    });
+
+    document.getElementById('btn-add-item')?.addEventListener('click', () => {
+      items.push({
+        id: Date.now().toString(),
+        descripcion: `Ítem ${items.length + 1}`,
+        material: selectedMatName,
+        cantidad: 1,
+        largo: 0,
+        ancho: 0,
+        m2: 0,
+        precioUnitario: precioM2,
+        subtotal: 0
+      });
+      renderItems();
+      renderMaterialSummary();
+      updateSummary();
+      Toast.info('Nuevo ítem añadido');
+    });
+
     function updateSummary() {
       const form = document.getElementById('pres-form');
+      if (!form) return;
       const itemsTotal = items.reduce((s, i) => s + (i.subtotal || 0), 0);
-      const adics = ['colocacion', 'manoDeObra', 'transporte', 'bacha', 'zocalos', 'extras'];
+      const adics = ['colocacion', 'manoDeObra', 'inglete', 'transporte', 'bacha', 'zocalos', 'extras'];
       const adicsTotal = adics.reduce((s, k) => s + (parseFloat(form.querySelector(`[name="adic_${k}"]`)?.value) || 0), 0);
       const subtotal = itemsTotal + adicsTotal;
       const desc = parseFloat(form.querySelector('[name="descuento"]')?.value) || 0;
@@ -520,38 +535,47 @@ export function renderPresupuestos(container, actionsEl, path) {
       const impMonto = (subtotal - descMonto) * imp / 100;
       const total = subtotal - descMonto + impMonto;
 
-      document.getElementById('pres-summary').innerHTML = `
-        <div class="summary-row"><span class="summary-row-label">Subtotal materiales e ítems</span><span class="summary-row-value">${formatCurrency(itemsTotal)}</span></div>
-        <div class="summary-row"><span class="summary-row-label">Adicionales (colocación, transporte, etc.)</span><span class="summary-row-value">${formatCurrency(adicsTotal)}</span></div>
-        ${desc > 0 ? `<div class="summary-row"><span class="summary-row-label">Descuento (${desc}%)</span><span class="summary-row-value" style="color:var(--color-error)">-${formatCurrency(descMonto)}</span></div>` : ''}
-        ${imp > 0 ? `<div class="summary-row"><span class="summary-row-label">Impuestos (${imp}%)</span><span class="summary-row-value">${formatCurrency(impMonto)}</span></div>` : ''}
-        <div class="summary-row total"><span class="summary-row-label">Total Presupuesto</span><span class="summary-row-value">${formatCurrency(total)}</span></div>
-      `;
+      const sumEl = document.getElementById('pres-summary');
+      if (sumEl) {
+        sumEl.innerHTML = `
+          <div class="summary-row"><span class="summary-row-label">Subtotal materiales e ítems</span><span class="summary-row-value">${formatCurrency(itemsTotal)}</span></div>
+          <div class="summary-row"><span class="summary-row-label">Campos adicionales</span><span class="summary-row-value">${formatCurrency(adicsTotal)}</span></div>
+          ${desc > 0 ? `<div class="summary-row"><span class="summary-row-label">Descuento (${desc}%)</span><span class="summary-row-value" style="color:var(--color-error)">-${formatCurrency(descMonto)}</span></div>` : ''}
+          ${imp > 0 ? `<div class="summary-row"><span class="summary-row-label">IVA (${imp}%)</span><span class="summary-row-value">${formatCurrency(impMonto)}</span></div>` : ''}
+          <div class="summary-row total"><span class="summary-row-label">Total Presupuesto</span><span class="summary-row-value">${formatCurrency(total)}</span></div>
+        `;
+      }
     }
 
     renderItems();
+    renderMaterialSummary();
     updateSummary();
 
-    document.getElementById('btn-add-item')?.addEventListener('click', () => {
-      items.push({ id: Date.now().toString(), descripcion: '', material: '', unidad: 'm2', cantidad: 1, largo: 0, ancho: 0, m2: 0, precioUnitario: 0, subtotal: 0 });
-      renderItems();
-      updateSummary();
+    document.querySelectorAll('.calc-field').forEach(f => {
+      f.addEventListener('input', updateSummary);
+      f.addEventListener('change', updateSummary);
     });
-
-    document.querySelectorAll('.calc-field').forEach(f => f.addEventListener('input', updateSummary));
 
     function previewDraft() {
       const form = document.getElementById('pres-form');
       if (!form) return;
       const fd = new FormData(form);
       const data = Object.fromEntries(fd);
-      const cli = clientes.find(c => c.id === data.clienteId) || { nombre: 'Cliente borrador', apellido: '' };
-      const adics = ['colocacion', 'manoDeObra', 'transporte', 'bacha', 'zocalos', 'extras'];
+      const tipoCliente = data.tipoCliente || 'habitual';
+      let cli = null;
+      if (tipoCliente === 'habitual') {
+        cli = clientes.find(c => c.id === data.clienteId) || null;
+      } else {
+        cli = { nombre: data.clienteNombre || 'Cliente ocasional', apellido: '', direccion: data.direccion || '' };
+      }
+      const adics = ['colocacion', 'manoDeObra', 'inglete', 'transporte', 'bacha', 'zocalos', 'extras'];
       const adicionales = {};
       adics.forEach(k => { adicionales[k] = parseFloat(data[`adic_${k}`]) || 0; });
       const draftPres = {
         ...pres,
         ...data,
+        material: selectedMatName,
+        precioM2,
         items,
         adicionales,
         descuento: parseFloat(data.descuento) || 0,
@@ -560,7 +584,7 @@ export function renderPresupuestos(container, actionsEl, path) {
       const draftTotal = DataService.getPresupuestoTotal(draftPres);
       DocumentModal.open({
         title: `Vista previa — ${draftPres.numero}`,
-        filename: `Borrador_${draftPres.numero}`,
+        filename: `Presupuesto_${draftPres.numero}`,
         htmlContent: generatePresupuestoHtml(draftPres, cli, draftTotal)
       });
     }
@@ -571,9 +595,21 @@ export function renderPresupuestos(container, actionsEl, path) {
       const fd = new FormData(form);
       const data = Object.fromEntries(fd);
 
-      if (!data.clienteId) {
-        Toast.warning('Seleccioná un cliente para el presupuesto');
-        return;
+      const tipoCliente = data.tipoCliente || 'habitual';
+      if (tipoCliente === 'habitual') {
+        if (!data.clienteId) {
+          Toast.warning('Seleccioná un cliente habitual para el presupuesto');
+          return;
+        }
+        data.clienteNombre = null;
+      } else {
+        const nombre = (data.clienteNombre || '').trim();
+        if (!nombre) {
+          Toast.warning('Ingresá el nombre del cliente nuevo');
+          return;
+        }
+        data.clienteNombre = nombre;
+        data.clienteId = null;
       }
 
       if (!items || items.length === 0) {
@@ -581,11 +617,19 @@ export function renderPresupuestos(container, actionsEl, path) {
         return;
       }
 
-      const adics = ['colocacion', 'manoDeObra', 'transporte', 'bacha', 'zocalos', 'extras'];
+      const adics = ['colocacion', 'manoDeObra', 'inglete', 'transporte', 'bacha', 'zocalos', 'extras'];
       const adicionales = {};
       adics.forEach(k => { adicionales[k] = parseFloat(data[`adic_${k}`]) || 0; delete data[`adic_${k}`]; });
 
-      const record = { ...data, items, adicionales, descuento: parseFloat(data.descuento) || 0, impuestos: parseFloat(data.impuestos) || 0 };
+      const record = {
+        ...data,
+        material: selectedMatName,
+        precioM2,
+        items,
+        adicionales,
+        descuento: parseFloat(data.descuento) || 0,
+        impuestos: parseFloat(data.impuestos) || 0
+      };
 
       let saved;
       if (editId) {
@@ -625,7 +669,7 @@ export function renderPresupuestos(container, actionsEl, path) {
     const getDocHtml = () => generatePresupuestoHtml(pres, cliente, total);
     const docFilename = `Presupuesto_${pres.numero}`;
 
-    const cliName = cliente ? `${cliente.nombre} ${cliente.apellido || ''}`.trim() : 'Cliente';
+    const cliName = cliente ? `${cliente.nombre} ${cliente.apellido || ''}`.trim() : (pres.clienteNombre || 'Cliente');
     const cliPhone = cliente?.whatsapp || cliente?.telefono || '';
     const cleanPhone = cliPhone.replace(/\D/g, '');
 
@@ -778,7 +822,15 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
   `;
 
   const adic = pres.adicionales || {};
-  const adicEntries = Object.entries({ Colocación: adic.colocacion, 'Mano de obra': adic.manoDeObra, Transporte: adic.transporte, Bacha: adic.bacha, Zócalos: adic.zocalos, Extras: adic.extras }).filter(([, v]) => v > 0);
+  const adicEntries = Object.entries({
+    Colocación: adic.colocacion,
+    'Mano de obra': adic.manoDeObra,
+    'Inglete – Mano de obra': adic.inglete,
+    Transporte: adic.transporte,
+    Bacha: adic.bacha,
+    Zócalos: adic.zocalos,
+    Extras: adic.extras
+  }).filter(([, v]) => v > 0);
 
   container.innerHTML = `
     <!-- Action buttons bar -->
@@ -805,7 +857,7 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
         <div class="detail-list">
           <div class="detail-item">
             <span class="detail-label">Cliente</span>
-            <span class="detail-value">${cliente ? `${cliente.nombre} ${cliente.apellido || ''}` : '-'}</span>
+            <span class="detail-value">${cliente ? `${cliente.nombre} ${cliente.apellido || ''}`.trim() : escapeHtml(pres.clienteNombre || 'Cliente ocasional')}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Fecha</span>

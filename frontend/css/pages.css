@@ -524,3 +524,57 @@
     width: 100%;
   }
 }
+
+/* ── Segmented Client Type Toggle ── */
+.client-type-toggle {
+  display: flex;
+  background: var(--color-stone-100);
+  padding: 4px;
+  border-radius: var(--radius-lg);
+  gap: 4px;
+  margin-bottom: var(--space-3);
+  border: 1px solid var(--color-stone-200);
+}
+
+.client-type-btn {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  border: none;
+  background: transparent;
+  color: var(--color-stone-600);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+  touch-action: manipulation;
+}
+
+.client-type-btn.active {
+  background: #ffffff;
+  color: var(--color-stone-900);
+  font-weight: var(--font-bold);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* ── Material Summary Box ── */
+.material-summary-box {
+  background: var(--color-stone-50);
+  border: 1px solid var(--color-stone-200);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--space-3);
+}
+
+.compact-item-card {
+  padding: var(--space-3);
+  border: 1px solid var(--color-stone-200);
+  border-radius: var(--radius-lg);
+  background: #ffffff;
+  box-shadow: var(--shadow-sm);
+}
+

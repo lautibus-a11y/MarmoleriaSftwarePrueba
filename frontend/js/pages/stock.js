@@ -26,42 +26,74 @@ export function renderStock(container, actionsEl) {
     if (searchTerm) filtered = searchFilter(filtered, searchTerm, ['nombre', 'categoria', 'tipo']);
 
     const columns = [
-      { label: 'Material', render: (m) => `<span class="cell-primary">${escapeHtml(m.nombre)}</span><br><span class="cell-secondary" style="font-size:var(--text-xs)">${escapeHtml(m.tipo)} · ${escapeHtml(m.espesor)}</span>` },
-      { label: 'Categoría', render: (m) => { const cat = MATERIAL_CATEGORIAS.find(c=>c.value===m.categoria); return renderBadge(cat?.label||m.categoria, 'neutral'); }},
-      { label: 'Unidad', render: (m) => {
-        const u = m.unidad || 'm2';
-        const label = u === 'm2' ? 'm²' : (u === 'metros' ? 'ml' : (u === 'unidades' ? 'un' : (u === 'placas' ? 'placa' : u)));
-        const color = u === 'm2' ? 'accent' : (u === 'placas' ? 'warning' : 'neutral');
-        return renderBadge(label, color);
-      }},
-      { label: 'Stock', render: (m) => {
-        const actual = DataService.getStockActual(m.id);
-        const isBajo = actual <= m.stockMinimo;
-        const unitSuffix = m.unidad === 'm2' ? ' m²' : (m.unidad === 'metros' ? ' ml' : (m.unidad === 'unidades' ? ' un' : (m.unidad === 'placas' ? ' pl' : '')));
-        return `<span style="font-weight:var(--font-semibold);color:${isBajo?'var(--color-error)':'var(--color-stone-800)'}">${actual}${unitSuffix}</span>
-          <span class="cell-secondary" style="font-size:var(--text-xs)"> / mín: ${m.stockMinimo}${unitSuffix}</span>
-          ${isBajo ? `<span style="margin-left:4px">${Icons['alert-triangle']}</span>` : ''}`;
-      }},
-      { label: 'Costo', align: 'right', render: (m) => `<span class="cell-currency cell-secondary">${formatCurrency(m.costo)}</span>` },
       {
-        label: 'P. Venta', align: 'right',
+        label: 'Material',
+        render: (m) => `
+          <span class="cell-primary">${escapeHtml(m.nombre)}</span><br>
+          <span class="cell-secondary" style="font-size:var(--text-xs)">${escapeHtml(m.tipo || 'Nacional')}</span>
+        `
+      },
+      {
+        label: 'Medidas',
         render: (m) => {
-          const unit = m.unidad === 'm2' ? ' / m²' : (m.unidad === 'metros' ? ' / ml' : (m.unidad === 'unidades' ? ' / un' : (m.unidad ? ` / ${m.unidad}` : '')));
-          return `<span class="cell-currency" style="font-weight:var(--font-bold)">${formatCurrency(m.precioVenta)}<span class="cell-secondary" style="font-size:11px;font-weight:normal">${unit}</span></span>`;
+          if (m.largo && m.ancho) {
+            return `<span class="cell-mono" style="font-weight:var(--font-semibold)">${m.largo} × ${m.ancho} cm</span>`;
+          }
+          if (m.largo) return `<span class="cell-mono">${m.largo} cm</span>`;
+          return `<span class="cell-secondary">-</span>`;
         }
       },
-      { label: '', align: 'right', className: 'cell-actions', render: (m) => `
-        <button class="btn btn-ghost btn-icon btn-sm" data-action="history" data-id="${m.id}" title="Historial">${Icons.clock}</button>
-        <button class="btn btn-ghost btn-icon btn-sm" data-action="edit" data-id="${m.id}" title="Editar">${Icons.edit}</button>
-        <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-id="${m.id}" title="Eliminar">${Icons.trash}</button>
-      `}
+      {
+        label: 'Espesor',
+        render: (m) => escapeHtml(m.espesor || '20 mm'),
+        className: 'cell-secondary'
+      },
+      {
+        label: 'Precio por m²',
+        render: (m) => {
+          const precio = m.precioM2 ?? m.precioVenta ?? 0;
+          return `
+            <div style="display:flex;align-items:baseline;gap:4px">
+              <span class="cell-mono" style="font-weight:var(--font-bold);color:var(--color-primary-700);font-size:var(--text-sm)">
+                ${formatCurrency(precio)}
+              </span>
+              <span class="cell-secondary" style="font-size:var(--text-xs)">/ m²</span>
+            </div>
+          `;
+        }
+      },
+      {
+        label: 'Cantidad/Stock',
+        render: (m) => {
+          const actual = DataService.getStockActual(m.id);
+          const isBajo = actual <= m.stockMinimo;
+          const unitSuffix = m.unidad === 'm2' ? ' m²' : (m.unidad === 'metros' ? ' ml' : (m.unidad === 'unidades' ? ' un' : (m.unidad === 'placas' ? ' pl' : '')));
+          return `
+            <span style="font-weight:var(--font-bold);font-size:var(--text-sm);color:${isBajo ? 'var(--color-error)' : 'var(--color-stone-800)'}">
+              ${actual}${unitSuffix}
+            </span>
+            <span class="cell-secondary" style="font-size:var(--text-xs);margin-left:4px">
+              / mín: ${m.stockMinimo}${unitSuffix}
+            </span>
+            ${isBajo ? `<span style="margin-left:4px;color:var(--color-error);display:inline-flex;vertical-align:middle">${Icons['alert-triangle']}</span>` : ''}
+          `;
+        }
+      },
+      {
+        label: '', align: 'right', className: 'cell-actions',
+        render: (m) => `
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="history" data-id="${m.id}" title="Historial">${Icons.clock}</button>
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="edit" data-id="${m.id}" title="Editar">${Icons.edit}</button>
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-id="${m.id}" title="Eliminar">${Icons.trash}</button>
+        `
+      }
     ];
 
     container.innerHTML = `
       <div class="table-container">
         <div class="table-toolbar">
           <div class="table-toolbar-left">
-            ${renderSearchInput('Buscar material...')}
+            ${renderSearchInput('Buscar material por nombre o tipo...')}
             <select class="filter-select" id="filter-cat"><option value="">Todas las categorías</option>${MATERIAL_CATEGORIAS.map(c=>`<option value="${c.value}" ${filterCat===c.value?'selected':''}>${c.label}</option>`).join('')}</select>
           </div>
           <div class="table-toolbar-right"><span class="text-muted" style="font-size:var(--text-sm)">${filtered.length} materiales</span></div>
@@ -86,68 +118,107 @@ export function renderStock(container, actionsEl) {
     const mat=editId?DataService.getById('materiales',editId):{};
     const isEdit=!!editId;
     const proveedores=DataService.getAll('proveedores');
+    const valorPrecio = (mat.precioM2 ?? mat.precioVenta) ?? '';
 
-    const unitConfigs = {
-      m2: { label: 'Precio por m² ($)', placeholder: 'Ej: $85.000 / m²', help: 'Configurado una sola vez. Se aplicará automáticamente al cotizar en presupuestos.' },
-      metros: { label: 'Precio por metro lineal ($)', placeholder: 'Ej: $25.000 / ml', help: 'Precio por metro lineal que se cargará automáticamente en presupuestos.' },
-      unidades: { label: 'Precio por unidad ($)', placeholder: 'Ej: $72.000 / un', help: 'Precio por unidad que se cargará automáticamente en presupuestos.' },
-      kg: { label: 'Precio por kg ($)', placeholder: 'Ej: $15.000 / kg', help: 'Precio por kilogramo que se cargará automáticamente en presupuestos.' },
-      placas: { label: 'Precio por placa ($)', placeholder: 'Ej: $250.000 / placa', help: 'Precio por placa entera que se cargará automáticamente en presupuestos.' }
-    };
-    const initialUnit = mat.unidad || 'm2';
-    const currentCfg = unitConfigs[initialUnit] || unitConfigs.m2;
-
-    Drawer.open({title:isEdit?'Editar material':'Nuevo material',
-      content:`<form id="mat-form">
-        <div class="form-group"><label class="form-label">Nombre del material <span class="required">*</span></label><input type="text" class="form-input" name="nombre" value="${escapeHtml(mat.nombre||'')}" placeholder="Ej: Granito Negro Brasil, Mármol Carrara..." required></div>
-        <div class="form-row-2">
-          <div class="form-group"><label class="form-label">Categoría</label><select class="form-select" name="categoria">${MATERIAL_CATEGORIAS.map(c=>`<option value="${c.value}" ${mat.categoria===c.value?'selected':''}>${c.label}</option>`).join('')}</select></div>
-          <div class="form-group"><label class="form-label">Tipo / Procedencia</label><input type="text" class="form-input" name="tipo" value="${escapeHtml(mat.tipo||'Nacional')}" placeholder="Nacional, Importado..."></div>
+    Drawer.open({
+      title: isEdit ? 'Editar material' : 'Nuevo material',
+      content: `<form id="mat-form">
+        <div class="form-group">
+          <label class="form-label">Nombre del material <span class="required">*</span></label>
+          <input type="text" class="form-input" name="nombre" value="${escapeHtml(mat.nombre||'')}" placeholder="Ej: Negro Brasil, Granito Negro Absoluto..." required>
         </div>
-        <div class="form-row-3">
-          <div class="form-group"><label class="form-label">Unidad de medida <span class="required">*</span></label>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">Categoría</label>
+            <select class="form-select" name="categoria">
+              ${MATERIAL_CATEGORIAS.map(c=>`<option value="${c.value}" ${mat.categoria===c.value?'selected':''}>${c.label}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tipo / Procedencia</label>
+            <input type="text" class="form-input" name="tipo" value="${escapeHtml(mat.tipo||'Nacional')}" placeholder="Nacional, Importado...">
+          </div>
+        </div>
+
+        <div style="background:var(--color-stone-50);border:1px solid var(--color-stone-200);border-radius:var(--radius-lg);padding:var(--space-3);margin-bottom:var(--space-4)">
+          <div style="font-size:var(--text-xs);font-weight:var(--font-bold);color:var(--color-stone-700);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:var(--space-2)">
+            Medidas y Dimensiones
+          </div>
+          <div class="form-row-3">
+            <div class="form-group mb-0">
+              <label class="form-label">Largo (cm)</label>
+              <input type="number" class="form-input" name="largo" value="${mat.largo || ''}" min="0" placeholder="Ej: 300">
+            </div>
+            <div class="form-group mb-0">
+              <label class="form-label">Ancho (cm)</label>
+              <input type="number" class="form-input" name="ancho" value="${mat.ancho || ''}" min="0" placeholder="Ej: 180">
+            </div>
+            <div class="form-group mb-0">
+              <label class="form-label">Espesor</label>
+              <input type="text" class="form-input" name="espesor" value="${escapeHtml(mat.espesor||'20 mm')}" placeholder="Ej: 20 mm">
+            </div>
+          </div>
+        </div>
+
+        <!-- CAMPO EXCLUSIVO DE PRECIO POR M² PARA PRESUPUESTOS -->
+        <div class="form-group" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:var(--radius-lg);padding:var(--space-3);margin-bottom:var(--space-4)">
+          <label class="form-label" style="font-weight:var(--font-bold);color:#166534;display:flex;align-items:center;justify-content:space-between">
+            <span>Precio por m² ($) <span class="required">*</span></span>
+            <span style="font-size:11px;font-weight:var(--font-semibold);background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:12px">Referencia Presupuestos</span>
+          </label>
+          <div style="position:relative">
+            <input type="number" step="any" class="form-input" name="precioM2" id="mat-precio-m2" value="${valorPrecio}" min="0" placeholder="Ej: 50000" required style="font-size:var(--text-base);font-weight:var(--font-bold);color:#14532d;background:#fff">
+          </div>
+          <span style="font-size:var(--text-xs);color:#15803d;margin-top:6px;display:block">
+            Este precio se cargará automáticamente al seleccionar este material en cualquier nuevo presupuesto.
+          </span>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">Unidad de medida <span class="required">*</span></label>
             <select class="form-select" name="unidad" id="mat-form-unidad">
               ${UNIDADES.map(u=>`<option value="${u.value}" ${(mat.unidad||'m2')===u.value?'selected':''}>${u.label}</option>`).join('')}
             </select>
           </div>
-          <div class="form-group"><label class="form-label">Espesor</label><input type="text" class="form-input" name="espesor" value="${escapeHtml(mat.espesor||'2cm')}" placeholder="2cm"></div>
-          <div class="form-group"><label class="form-label">Stock mínimo</label><input type="number" class="form-input" name="stockMinimo" value="${mat.stockMinimo||5}" min="0"></div>
-        </div>
-        <div class="form-row-2">
-          <div class="form-group"><label class="form-label">Costo unitario ($)</label><input type="number" class="form-input" name="costo" value="${mat.costo||0}" min="0" placeholder="Ej: 55000"></div>
           <div class="form-group">
-            <label class="form-label" id="mat-precio-label">${currentCfg.label} <span class="required">*</span></label>
-            <input type="number" class="form-input" name="precioVenta" id="mat-precio-input" value="${mat.precioVenta||''}" min="0" placeholder="${currentCfg.placeholder}" required>
-            <span class="text-muted" id="mat-precio-help" style="font-size:11px;display:block;margin-top:3px">${currentCfg.help}</span>
+            <label class="form-label">Stock mínimo de alerta</label>
+            <input type="number" class="form-input" name="stockMinimo" value="${mat.stockMinimo||5}" min="0">
           </div>
         </div>
-        <div class="form-group"><label class="form-label">Proveedor habitual</label><select class="form-select" name="proveedor"><option value="">-</option>${proveedores.map(p=>`<option value="${p.id}" ${mat.proveedor===p.id?'selected':''}>${p.nombre}</option>`).join('')}</select></div>
-        <div class="form-group"><label class="form-label">Observaciones</label><textarea class="form-textarea" name="observaciones" rows="2" placeholder="Terminación, pulido, detalles...">${escapeHtml(mat.observaciones||'')}</textarea></div>
-      </form>`,
-      footer:`<button class="btn btn-secondary" id="drawer-cancel">Cancelar</button><button class="btn btn-primary" id="drawer-save">${isEdit?'Guardar cambios':'Crear material'}</button>`
-    });
 
-    // Dynamic label update when changing unit
-    const unidadSelect = document.getElementById('mat-form-unidad');
-    unidadSelect?.addEventListener('change', (e) => {
-      const u = e.target.value;
-      const cfg = unitConfigs[u] || unitConfigs.m2;
-      const lbl = document.getElementById('mat-precio-label');
-      const inp = document.getElementById('mat-precio-input');
-      const hlp = document.getElementById('mat-precio-help');
-      if (lbl) lbl.innerHTML = `${cfg.label} <span class="required">*</span>`;
-      if (inp) inp.placeholder = cfg.placeholder;
-      if (hlp) hlp.textContent = cfg.help;
+        <div class="form-group">
+          <label class="form-label">Proveedor habitual</label>
+          <select class="form-select" name="proveedor">
+            <option value="">-</option>
+            ${proveedores.map(p=>`<option value="${p.id}" ${mat.proveedor===p.id?'selected':''}>${p.nombre}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observaciones</label>
+          <textarea class="form-textarea" name="observaciones" rows="2" placeholder="Terminación, pulido, detalles...">${escapeHtml(mat.observaciones||'')}</textarea>
+        </div>
+      </form>`,
+      footer: `<button class="btn btn-secondary" id="drawer-cancel">Cancelar</button><button class="btn btn-primary" id="drawer-save">${isEdit?'Guardar cambios':'Crear material'}</button>`
     });
 
     document.getElementById('drawer-cancel').addEventListener('click',()=>Drawer.close());
     document.getElementById('drawer-save').addEventListener('click',()=>{
-      const fd=new FormData(document.getElementById('mat-form'));const data=Object.fromEntries(fd);
+      const fd=new FormData(document.getElementById('mat-form'));
+      const data=Object.fromEntries(fd);
       if(!data.nombre?.trim()){Toast.warning('El nombre es obligatorio');return;}
-      data.costo=parseFloat(data.costo)||0;data.precioVenta=parseFloat(data.precioVenta)||0;data.stockMinimo=parseInt(data.stockMinimo)||0;
-      data.unidad=data.unidad || 'm2';
-      if(isEdit){DataService.update('materiales',editId,data);Toast.success('Material actualizado');}
-      else{DataService.create('materiales',data);Toast.success('Material creado');}
+      data.largo = parseFloat(data.largo) || 0;
+      data.ancho = parseFloat(data.ancho) || 0;
+      data.stockMinimo = parseInt(data.stockMinimo) || 0;
+      data.unidad = data.unidad || 'm2';
+      
+      // Guardar precio por m² y sincronizar precioVenta
+      const precioM2Val = parseFloat(data.precioM2) || 0;
+      data.precioM2 = precioM2Val;
+      data.precioVenta = precioM2Val;
+
+      if(isEdit){DataService.update('materiales',editId,data);Toast.success('Material y precio actualizado');}
+      else{DataService.create('materiales',data);Toast.success('Material creado exitosamente');}
       Drawer.close();materiales=DataService.getAll('materiales');render();
     });
   }
