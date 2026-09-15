@@ -60,15 +60,24 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
   const subtotalConDesc = baseImponible - descuentoMonto;
   const impuestosMonto = pres.impuestos > 0 ? (subtotalConDesc * (pres.impuestos / 100)) : 0;
 
+  // Helper to format measure in meters
+  const formatDocMeasure = (val) => {
+    if (!val && val !== 0) return '-';
+    const n = parseFloat(val);
+    if (isNaN(n) || n === 0) return '-';
+    if (n > 10) return (n / 100).toFixed(2) + ' m';
+    return n.toFixed(2) + ' m';
+  };
+
   // Items table rows
   const itemsRowsHtml = items.map((it, idx) => `
     <tr>
       <td style="text-align:center;width:28px">${idx + 1}</td>
       <td><strong>${escapeHtml(it.descripcion || 'Sin descripción')}</strong></td>
-      <td>${escapeHtml(it.material || '-')}</td>
+      <td><span style="font-weight:600;color:#1C1917">${escapeHtml(it.material || '-')}</span></td>
       <td class="num">${it.cantidad || 1}</td>
-      <td class="num">${it.largo ? it.largo + ' cm' : '-'}</td>
-      <td class="num">${it.ancho ? it.ancho + ' cm' : '-'}</td>
+      <td class="num">${formatDocMeasure(it.largo)}</td>
+      <td class="num">${formatDocMeasure(it.ancho)}</td>
       <td class="num">${(Number(it.m2) || 0).toFixed(2)} m²</td>
       <td class="num">${formatCurrency(it.precioUnitario || 0, pres.moneda)}</td>
       <td class="num" style="font-weight:700">${formatCurrency(it.subtotal || 0, pres.moneda)}</td>

@@ -14,7 +14,8 @@ const store = {
   proveedores: [],
   facturas: [],
   pagos: [],
-  cobros: []
+  cobros: [],
+  eventos: []
 };
 
 // ── Initialize mock data ──
@@ -253,6 +254,108 @@ function initMockData() {
     { id: 'cob-005', clienteId: 'cli-006', obraId: 'obra-004', presupuestoId: 'pres-007', fecha: '2026-09-10', importe: 5128500, metodoPago: 'cheque', estado: 'cobrado', comprobanteKey: null, observaciones: 'Anticipo 30%', createdAt: '2026-09-10T10:00:00' },
     { id: 'cob-006', clienteId: 'cli-004', obraId: 'obra-005', presupuestoId: null, fecha: '2026-09-14', importe: 150000, metodoPago: 'efectivo', estado: 'cobrado', comprobanteKey: null, observaciones: 'Pago total reparación', createdAt: '2026-09-14T08:00:00' }
   ];
+
+  // === EVENTOS DEL CALENDARIO OPERATIVO ===
+  const initialEventos = [
+    {
+      id: 'evt-001',
+      tipo: 'medicion',
+      fecha: '2026-09-15',
+      hora: '10:00',
+      estado: 'pendiente',
+      clienteId: 'cli-002',
+      clienteNombre: 'María Elena Gutiérrez',
+      presupuestoId: 'pres-002',
+      direccion: 'San Martín 450, Vicente López',
+      notas: 'Llevar muestras de Mármol Carrara y cinta láser de medición.',
+      createdAt: '2026-09-10T10:00:00'
+    },
+    {
+      id: 'evt-002',
+      tipo: 'instalacion',
+      fecha: '2026-09-15',
+      hora: '14:30',
+      estado: 'pendiente',
+      clienteId: 'cli-001',
+      clienteNombre: 'Carlos Rodríguez',
+      presupuestoId: 'pres-001',
+      direccion: 'Av. Libertador 1250, CABA',
+      notas: 'Instalación de mesada en L Negro Absoluto con bacha pegada.',
+      createdAt: '2026-09-10T11:00:00'
+    },
+    {
+      id: 'evt-003',
+      tipo: 'entrega',
+      fecha: '2026-09-16',
+      hora: '09:30',
+      estado: 'pendiente',
+      clienteId: 'cli-007',
+      clienteNombre: 'Ana Morales',
+      presupuestoId: 'pres-006',
+      direccion: 'Rivadavia 2300, Morón',
+      notas: 'Entrega de piezas pulidas Gris Mara para cocina.',
+      createdAt: '2026-09-12T09:00:00'
+    },
+    {
+      id: 'evt-004',
+      tipo: 'cobro',
+      fecha: '2026-09-16',
+      hora: '15:00',
+      estado: 'pendiente',
+      clienteId: 'cli-004',
+      clienteNombre: 'Roberto Fernández',
+      presupuestoId: 'pres-004',
+      direccion: 'Colón 890, San Isidro',
+      notas: 'Cobro de saldo restante de mesada Silestone Blanco Zeus.',
+      createdAt: '2026-09-12T14:00:00'
+    },
+    {
+      id: 'evt-005',
+      tipo: 'fabricacion',
+      fecha: '2026-09-18',
+      hora: '08:30',
+      estado: 'pendiente',
+      clienteId: 'cli-003',
+      clienteNombre: 'Constructora Del Sur S.A.',
+      presupuestoId: 'pres-003',
+      direccion: 'Av. Corrientes 3200, CABA',
+      notas: 'Corte y pulido de placas Mármol Botticino para lobby.',
+      createdAt: '2026-09-13T10:00:00'
+    },
+    {
+      id: 'evt-006',
+      tipo: 'visita',
+      fecha: '2026-09-21',
+      hora: '11:00',
+      estado: 'pendiente',
+      clienteId: 'cli-006',
+      clienteNombre: 'Estudio Arq. Bianchi',
+      presupuestoId: 'pres-007',
+      direccion: 'Av. Del Libertador 4500, Martínez',
+      notas: 'Inspección técnica de estructura de escalera antes de colocación final.',
+      createdAt: '2026-09-14T11:00:00'
+    },
+    {
+      id: 'evt-007',
+      tipo: 'medicion',
+      fecha: '2026-09-14',
+      hora: '16:00',
+      estado: 'realizado',
+      clienteId: 'cli-005',
+      clienteNombre: 'Laura Martínez',
+      presupuestoId: 'pres-005',
+      direccion: 'Mitre 1500, Olivos',
+      notas: 'Medición completa realizada sin observaciones.',
+      createdAt: '2026-09-10T14:00:00'
+    }
+  ];
+
+  try {
+    const savedEvts = localStorage.getItem('mb_eventos');
+    store.eventos = savedEvts ? JSON.parse(savedEvts) : initialEventos;
+  } catch (e) {
+    store.eventos = initialEventos;
+  }
 }
 
 // Initialize on import
@@ -279,6 +382,9 @@ export const DataService = {
     if (collection === 'materiales') {
       try { localStorage.setItem('mb_materiales', JSON.stringify(store.materiales)); } catch (e) {}
     }
+    if (collection === 'eventos') {
+      try { localStorage.setItem('mb_eventos', JSON.stringify(store.eventos)); } catch (e) {}
+    }
     return record;
   },
 
@@ -289,6 +395,9 @@ export const DataService = {
     if (collection === 'materiales') {
       try { localStorage.setItem('mb_materiales', JSON.stringify(store.materiales)); } catch (e) {}
     }
+    if (collection === 'eventos') {
+      try { localStorage.setItem('mb_eventos', JSON.stringify(store.eventos)); } catch (e) {}
+    }
     return store[collection][idx];
   },
 
@@ -298,6 +407,9 @@ export const DataService = {
     store[collection].splice(idx, 1);
     if (collection === 'materiales') {
       try { localStorage.setItem('mb_materiales', JSON.stringify(store.materiales)); } catch (e) {}
+    }
+    if (collection === 'eventos') {
+      try { localStorage.setItem('mb_eventos', JSON.stringify(store.eventos)); } catch (e) {}
     }
     return true;
   },
@@ -459,5 +571,46 @@ export const DataService = {
         const cli = store.clientes.find(cl => cl.id === c.clienteId);
         return { ...c, clienteNombre: cli ? `${cli.nombre} ${cli.apellido}` : '-' };
       });
+  },
+
+  // ── Eventos del Calendario ──
+  getEventos(filtros = {}) {
+    let evts = [...store.eventos];
+    if (filtros.estado) evts = evts.filter(e => e.estado === filtros.estado);
+    if (filtros.tipo) evts = evts.filter(e => e.tipo === filtros.tipo);
+    if (filtros.clienteId) evts = evts.filter(e => e.clienteId === filtros.clienteId);
+    if (filtros.presupuestoId) evts = evts.filter(e => e.presupuestoId === filtros.presupuestoId);
+    if (filtros.fecha) evts = evts.filter(e => e.fecha === filtros.fecha);
+    return evts.sort((a, b) => (a.fecha + (a.hora || '')).localeCompare(b.fecha + (b.hora || '')));
+  },
+
+  getEventosHoy() {
+    const today = new Date().toISOString().split('T')[0];
+    return this.getEventosPorFecha(today);
+  },
+
+  getProximosEventos(limit = 10) {
+    const today = new Date().toISOString().split('T')[0];
+    return [...store.eventos]
+      .filter(e => e.fecha >= today && e.estado !== 'cancelado')
+      .sort((a, b) => (a.fecha + (a.hora || '')).localeCompare(b.fecha + (b.hora || '')));
+  },
+
+  getEventosPorFecha(fecha) {
+    return [...store.eventos]
+      .filter(e => e.fecha === fecha)
+      .sort((a, b) => (a.hora || '').localeCompare(b.hora || ''));
+  },
+
+  getEventosCliente(clienteId) {
+    return [...store.eventos]
+      .filter(e => e.clienteId === clienteId)
+      .sort((a, b) => (b.fecha + (b.hora || '')).localeCompare(a.fecha + (a.hora || '')));
+  },
+
+  getEventosPresupuesto(presupuestoId) {
+    return [...store.eventos]
+      .filter(e => e.presupuestoId === presupuestoId)
+      .sort((a, b) => (b.fecha + (b.hora || '')).localeCompare(a.fecha + (a.hora || '')));
   }
 };

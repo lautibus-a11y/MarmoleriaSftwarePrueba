@@ -8,6 +8,8 @@ import { Icons, renderDataTable, renderSearchInput, renderBadge, renderEmptyStat
 import { Drawer } from '../components/drawer.js';
 import { Toast } from '../components/toast.js';
 import { confirmDialog } from '../components/confirmDialog.js';
+import { EVENTO_TIPO_LABELS, EVENTO_TIPO_COLORS, EVENTO_ESTADO_LABELS, EVENTO_ESTADO_COLORS } from '../utils/constants.js';
+import { openEventoForm, openEventoDetailModal } from './calendario.js';
 
 export function renderClientes(container, actionsEl, path) {
   // Check if we're viewing a specific client
@@ -217,6 +219,7 @@ function renderClienteDetail(container, actionsEl, clienteId) {
   const presupuestos = DataService.getAll('presupuestos').filter(p => p.clienteId === clienteId);
   const obras = DataService.getAll('obras').filter(o => o.clienteId === clienteId);
   const cobros = DataService.getAll('cobros').filter(c => c.clienteId === clienteId);
+  const eventos = DataService.getEventosCliente(clienteId);
 
   // Header actions - clean Volver button only to avoid top bar overflow
   actionsEl.innerHTML = `
@@ -230,6 +233,7 @@ function renderClienteDetail(container, actionsEl, clienteId) {
     <div class="card mb-4">
       <div class="card-body" style="display:flex;gap:var(--space-2);flex-wrap:wrap">
         <button class="btn btn-primary" id="btn-cliente-new-pres" style="flex:1;min-width:140px;justify-content:center">${Icons.plus} Presupuesto</button>
+        <button class="btn btn-secondary" id="btn-cliente-action-agendar" style="flex:1;min-width:140px;justify-content:center">${Icons.calendar} Agendar</button>
         ${cliente.whatsapp ? `<a href="https://wa.me/${cliente.whatsapp}" target="_blank" class="btn btn-secondary" style="flex:1;min-width:130px;justify-content:center">${Icons.whatsapp} WhatsApp</a>` : ''}
         ${cliente.telefono ? `<a href="tel:${cliente.telefono}" class="btn btn-secondary" style="flex:1;min-width:110px;justify-content:center">${Icons.phone} Llamar</a>` : ''}
         <button class="btn btn-secondary" id="btn-cliente-edit" style="flex:1;min-width:110px;justify-content:center">${Icons.edit} Editar</button>
@@ -271,6 +275,53 @@ function renderClienteDetail(container, actionsEl, clienteId) {
       <div class="detail-stat-mini">
         <span class="detail-stat-mini-label">Presupuestos</span>
         <span class="detail-stat-mini-value">${presupuestos.length}</span>
+      </div>
+    </div>
+
+    <!-- Próximos eventos / trabajos agendados section -->
+    <div class="card mb-4">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-2)">
+        <h3 class="card-title" style="display:flex;align-items:center;gap:var(--space-2)">
+          ${Icons.calendar} Próximos eventos / trabajos agendados (${eventos.length})
+        </h3>
+        <div style="display:flex;gap:var(--space-2)">
+          <button class="btn btn-sm btn-primary" id="btn-cliente-agendar">${Icons.plus} Agendar evento</button>
+          <a href="#/calendario" class="btn btn-sm btn-secondary">${Icons.calendar} Ver en calendario</a>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0">
+        ${eventos.length === 0 ? `
+          <div class="text-center text-muted" style="padding:var(--space-6)">
+            <p style="margin-bottom:var(--space-2);font-size:var(--text-sm)">No hay eventos ni trabajos agendados para este cliente.</p>
+            <button class="btn btn-sm btn-secondary" id="btn-cliente-agendar-empty">${Icons.plus} Agendar el primero</button>
+          </div>
+        ` : `
+          <div class="cliente-eventos-list">
+            ${eventos.map(ev => `
+              <div class="cliente-evento-row" data-event-id="${ev.id}" style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--color-stone-200);cursor:pointer;gap:var(--space-3);transition:background 0.15s">
+                <div style="display:flex;align-items:center;gap:var(--space-3);min-width:0;flex:1">
+                  <div style="width:40px;height:40px;border-radius:var(--radius-md);background:var(--color-stone-100);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;border:1px solid var(--color-stone-200)">
+                    <span style="font-size:10px;font-weight:var(--font-bold);text-transform:uppercase;color:var(--color-stone-500);line-height:1">${new Date(ev.fecha + 'T00:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
+                    <span style="font-size:14px;font-weight:var(--font-bold);color:var(--color-stone-900);line-height:1.1">${new Date(ev.fecha + 'T00:00:00').getDate()}</span>
+                  </div>
+                  <div style="min-width:0;flex:1">
+                    <div style="display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap">
+                      ${renderBadge(EVENTO_TIPO_LABELS[ev.tipo] || ev.tipo, EVENTO_TIPO_COLORS[ev.tipo] || 'neutral')}
+                      <span style="font-size:var(--text-sm);font-weight:var(--font-medium);color:var(--color-stone-900)">${ev.hora ? ev.hora + ' hs' : 'Todo el día'}</span>
+                    </div>
+                    <div style="font-size:var(--text-xs);color:var(--color-stone-600);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                      ${escapeHtml(ev.direccion || ev.notas || 'Sin notas adicionales')}
+                    </div>
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:var(--space-2);flex-shrink:0">
+                  ${renderBadge(EVENTO_ESTADO_LABELS[ev.estado] || ev.estado, EVENTO_ESTADO_COLORS[ev.estado] || 'neutral')}
+                  <button class="btn btn-ghost btn-icon btn-sm" title="Ver detalle">${Icons.eye}</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
       </div>
     </div>
 
@@ -391,6 +442,28 @@ function renderClienteDetail(container, actionsEl, clienteId) {
         }
       }, 100);
     }, 150);
+  });
+
+  // Agendar evento actions
+  const handleAgendar = () => {
+    openEventoForm({
+      clienteId: cliente.id,
+      clienteNombre: `${cliente.nombre} ${cliente.apellido || ''}`.trim(),
+      direccion: cliente.direccion || ''
+    }, () => {
+      renderClienteDetail(container, actionsEl, clienteId);
+    });
+  };
+
+  document.getElementById('btn-cliente-action-agendar')?.addEventListener('click', handleAgendar);
+  document.getElementById('btn-cliente-agendar')?.addEventListener('click', handleAgendar);
+  document.getElementById('btn-cliente-agendar-empty')?.addEventListener('click', handleAgendar);
+
+  container.querySelectorAll('.cliente-evento-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const evId = row.dataset.eventId;
+      if (evId) openEventoDetailModal(evId);
+    });
   });
 
   // Tabs logic

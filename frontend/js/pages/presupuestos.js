@@ -12,6 +12,7 @@ import { confirmDialog } from '../components/confirmDialog.js';
 import { DocumentModal } from '../components/documentModal.js';
 import { generatePresupuestoHtml, exportToPdf, exportToWord } from '../services/documentExporter.js';
 import { PRESUPUESTO_ESTADO_LABELS, PRESUPUESTO_ESTADO_COLORS, CONDICIONES_COMERCIALES_DEFAULT, MONEDAS } from '../utils/constants.js';
+import { openEventoForm } from './calendario.js';
 
 export function renderPresupuestos(container, actionsEl, path) {
   const parts = path.split('/');
@@ -51,6 +52,7 @@ export function renderPresupuestos(container, actionsEl, path) {
       { label: 'Estado', render: (p) => renderBadge(PRESUPUESTO_ESTADO_LABELS[p.estado] || p.estado, PRESUPUESTO_ESTADO_COLORS[p.estado] || 'neutral') },
       { label: 'Total', align: 'right', render: (p) => `<span class="cell-currency">${formatCurrency(DataService.getPresupuestoTotal(p), p.moneda)}</span>` },
       { label: '', align: 'right', className: 'cell-actions', render: (p) => `
+        <button class="btn btn-ghost btn-icon btn-sm" data-action="schedule" data-id="${p.id}" title="Agendar en calendario">${Icons.calendar}</button>
         <button class="btn btn-ghost btn-icon btn-sm" data-action="share" data-id="${p.id}" title="Compartir (WhatsApp / PDF)" style="color:#25D366">${Icons.whatsapp}</button>
         <button class="btn btn-ghost btn-icon btn-sm" data-action="view" data-id="${p.id}" title="Ver">${Icons.eye}</button>
         <button class="btn btn-ghost btn-icon btn-sm" data-action="export" data-id="${p.id}" title="Exportar PDF / Word">${Icons.download}</button>
@@ -107,6 +109,20 @@ export function renderPresupuestos(container, actionsEl, path) {
         });
       }
       if (action === 'edit') openPresupuestoForm(id);
+      if (action === 'schedule') {
+        const pres = DataService.getById('presupuestos', id);
+        if (pres) {
+          const matList = [...new Set((pres.items || []).map(i => i.material).filter(Boolean))].join(', ') || pres.material || '';
+          openEventoForm({
+            clienteId: pres.clienteId,
+            clienteNombre: pres.clienteNombre,
+            presupuestoId: pres.id,
+            direccion: pres.direccion,
+            notas: matList ? `Materiales: ${matList}` : (pres.descripcion || ''),
+            tipo: 'instalacion'
+          });
+        }
+      }
       if (action === 'duplicate') handleDuplicate(id);
       if (action === 'delete') handleDelete(id);
     });
@@ -133,13 +149,6 @@ export function renderPresupuestos(container, actionsEl, path) {
     const materiales = DataService.getAll('materiales');
 
     const isNuevoInicial = !pres.clienteId && !!pres.clienteNombre;
-    let selectedMatName = pres.material || (pres.items?.[0]?.material) || (materiales[0]?.nombre || '');
-    let currentMaterial = materiales.find(m => m.nombre === selectedMatName) || materiales[0];
-    
-    // Si es edición de presupuesto existente, conservar el precioM2 histórico de creación; si es nuevo, tomar el precioM2 actual del material en stock
-    let precioM2 = editId
-      ? (pres.precioM2 || pres.items?.[0]?.precioUnitario || (currentMaterial?.precioM2 ?? currentMaterial?.precioVenta ?? 0))
-      : (currentMaterial?.precioM2 ?? currentMaterial?.precioVenta ?? 0);
 
     Drawer.open({
       title: editId ? `Editar ${pres.numero}` : 'Nuevo presupuesto',
@@ -206,27 +215,16 @@ export function renderPresupuestos(container, actionsEl, path) {
           </div>
 
           <div class="presupuesto-form-section">
-            <h4 class="presupuesto-form-section-title mb-2">${Icons.package} Material y Piezas</h4>
-            
-            <div class="form-group mb-2">
-              <label class="form-label" style="font-weight:var(--font-bold);color:var(--color-stone-900)">
-                Material – precio por m² precargado <span class="required">*</span>
-              </label>
-              <select class="form-select" id="pres-selected-material" name="material" style="font-weight:var(--font-medium);font-size:var(--text-base);padding:10px 14px">
-                <option value="">Seleccionar material del catálogo...</option>
-                ${materiales.map(m => {
-                  const isSel = (selectedMatName === m.nombre);
-                  const pM2 = m.precioM2 ?? m.precioVenta ?? 0;
-                  return `<option value="${escapeHtml(m.nombre)}" ${isSel ? 'selected' : ''}>${escapeHtml(m.nombre)} — ${formatCurrency(pM2)} / m²</option>`;
-                }).join('')}
-              </select>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-3)">
+              <h4 class="presupuesto-form-section-title mb-0">${Icons.package} Ítems del presupuesto</h4>
+              <span class="text-muted" style="font-size:12px;font-weight:var(--font-medium)">Material independiente por ítem</span>
             </div>
 
-            <button type="button" class="btn btn-secondary btn-sm" id="btn-add-item" style="width:100%;justify-content:center;margin-top:8px;margin-bottom:var(--space-4);padding:11px;font-weight:var(--font-semibold);border-style:dashed;border-color:var(--color-stone-300)">
+            <div class="presupuesto-items-list" id="items-body"></div>
+
+            <button type="button" class="btn btn-secondary" id="btn-add-item" style="width:100%;justify-content:center;margin-top:var(--space-2);margin-bottom:var(--space-3);padding:11px;font-weight:var(--font-semibold);border:1.5px dashed var(--color-stone-300);border-radius:var(--radius-lg);gap:8px">
               ${Icons.plus} Añadir ítem
             </button>
-
-            <div class="presupuesto-items-list" id="items-body"></div>
 
             <div id="material-summary-banner"></div>
           </div>
@@ -354,126 +352,206 @@ export function renderPresupuestos(container, actionsEl, path) {
 
     // Setup Items and Calculation
     const itemsBody = document.getElementById('items-body');
-    const matSelect = document.getElementById('pres-selected-material');
     const matSummaryEl = document.getElementById('material-summary-banner');
 
+    const defaultFirstMat = materiales[0]?.nombre || '';
+    const defaultFirstMatPrice = materiales[0] ? (materiales[0].precioM2 ?? materiales[0].precioVenta ?? 0) : 0;
+
     let items = (pres.items && pres.items.length > 0)
-      ? pres.items.map((it, idx) => ({
-          id: it.id || (idx + 1).toString(),
-          descripcion: it.descripcion || `Ítem ${idx + 1}`,
-          material: selectedMatName,
-          cantidad: Math.max(1, parseFloat(it.cantidad) || 1),
-          largo: parseFloat(it.largo) || 0,
-          ancho: parseFloat(it.ancho) || 0,
-          m2: parseFloat(it.m2) || 0,
-          precioUnitario: precioM2,
-          subtotal: parseFloat(it.subtotal) || 0
-        }))
+      ? pres.items.map((it, idx) => {
+          const matName = it.material || pres.material || defaultFirstMat;
+          const matObj = materiales.find(m => m.nombre === matName);
+          const pM2 = it.precioUnitario || (matObj ? (matObj.precioM2 ?? matObj.precioVenta ?? 0) : defaultFirstMatPrice);
+          const largoNorm = (it.largo && it.largo > 10) ? +(it.largo / 100).toFixed(2) : (it.largo !== undefined && it.largo !== null ? it.largo : '');
+          const anchoNorm = (it.ancho && it.ancho > 10) ? +(it.ancho / 100).toFixed(2) : (it.ancho !== undefined && it.ancho !== null ? it.ancho : '');
+          return {
+            id: it.id || (idx + 1).toString(),
+            descripcion: it.descripcion || `Ítem ${idx + 1}`,
+            material: matName,
+            cantidad: Math.max(1, parseFloat(it.cantidad) || 1),
+            largo: largoNorm,
+            ancho: anchoNorm,
+            m2: parseFloat(it.m2) || 0,
+            precioUnitario: pM2,
+            subtotal: parseFloat(it.subtotal) || 0
+          };
+        })
       : [
-          { id: '1', descripcion: 'Ítem 1', material: selectedMatName, cantidad: 1, largo: 0, ancho: 0, m2: 0, precioUnitario: precioM2, subtotal: 0 }
+          {
+            id: '1',
+            descripcion: 'Ítem 1',
+            material: defaultFirstMat,
+            cantidad: 1,
+            largo: '',
+            ancho: '',
+            m2: 0,
+            precioUnitario: defaultFirstMatPrice,
+            subtotal: 0
+          }
         ];
 
     function calculateItem(it) {
       const cant = Math.max(1, parseFloat(it.cantidad) || 1);
-      const largo = Math.max(0, parseFloat(it.largo) || 0);
-      const ancho = Math.max(0, parseFloat(it.ancho) || 0);
+      const largo = Math.max(0, parseFloat(String(it.largo).replace(',', '.')) || 0);
+      const ancho = Math.max(0, parseFloat(String(it.ancho).replace(',', '.')) || 0);
+
       if (largo > 0 && ancho > 0) {
-        it.m2 = ((largo * ancho) / 10000) * cant;
+        it.m2 = (largo * ancho) * cant;
       } else if (largo > 0 && ancho === 0) {
-        it.m2 = (largo / 100) * cant;
+        it.m2 = largo * cant;
       } else {
         it.m2 = 0;
       }
-      it.material = selectedMatName;
-      it.precioUnitario = precioM2;
-      it.subtotal = it.m2 * precioM2;
+
+      // Obtener precio por m² del material seleccionado desde Stock e Inventario
+      const mat = materiales.find(m => m.nombre === it.material);
+      if (mat) {
+        it.precioUnitario = mat.precioM2 ?? mat.precioVenta ?? 0;
+      } else if (!it.precioUnitario) {
+        it.precioUnitario = 0;
+      }
+
+      it.subtotal = it.m2 * it.precioUnitario;
     }
 
     items.forEach(it => calculateItem(it));
 
     function renderMaterialSummary() {
+      if (!matSummaryEl) return;
+      const matGroups = {};
+      items.forEach(it => {
+        const matName = it.material || 'Sin material especificado';
+        if (!matGroups[matName]) {
+          matGroups[matName] = { totalM2: 0, subtotal: 0, count: 0, precioM2: it.precioUnitario || 0 };
+        }
+        matGroups[matName].totalM2 += (it.m2 || 0);
+        matGroups[matName].subtotal += (it.subtotal || 0);
+        matGroups[matName].count += 1;
+      });
+
+      const groupEntries = Object.entries(matGroups);
       const totalM2 = items.reduce((sum, it) => sum + (it.m2 || 0), 0);
-      const totalSubtotal = items.reduce((sum, it) => sum + (it.subtotal || 0), 0);
-      if (matSummaryEl) {
-        matSummaryEl.innerHTML = `
-          <div class="material-summary-box">
-            <div>
-              <div style="font-size:13px;font-weight:var(--font-bold);color:var(--color-stone-900)">
-                ${escapeHtml(selectedMatName || 'Sin material seleccionado')}
-              </div>
-              <div style="font-size:12px;color:var(--color-stone-600);margin-top:2px">
-                Suma total: <strong>${totalM2.toFixed(2)} m²</strong> · Precio por m²: <strong>${formatCurrency(precioM2)} / m²</strong>
-              </div>
-            </div>
-            <div style="text-align:right">
-              <div style="font-size:11px;color:var(--color-stone-500);text-transform:uppercase;letter-spacing:0.5px">Subtotal material</div>
-              <div style="font-size:16px;font-weight:var(--font-bold);color:var(--color-stone-900)">${formatCurrency(totalSubtotal)}</div>
-            </div>
+
+      matSummaryEl.innerHTML = `
+        <div class="material-breakdown-box">
+          <div class="material-breakdown-header">
+            <span>Materiales seleccionados (${groupEntries.length})</span>
+            <span style="font-size:11px;font-weight:var(--font-bold);color:var(--color-stone-900)">Total: ${totalM2.toFixed(2)} m²</span>
           </div>
-        `;
-      }
+          <div class="material-breakdown-list">
+            ${groupEntries.map(([mat, data]) => `
+              <div class="material-breakdown-row">
+                <div>
+                  <strong>${escapeHtml(mat)}</strong>
+                  <span style="color:var(--color-stone-500);font-size:11px;margin-left:4px">(${data.count} ${data.count === 1 ? 'ítem' : 'ítems'})</span>
+                </div>
+                <div style="display:flex;gap:12px;align-items:center">
+                  <span style="color:var(--color-stone-600)">${data.totalM2.toFixed(2)} m²</span>
+                  <strong style="font-family:var(--font-mono);color:var(--color-stone-900)">${formatCurrency(data.subtotal)}</strong>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
     }
 
     function renderItems() {
       itemsBody.innerHTML = items.map((item, idx) => `
-        <div class="pres-item-card compact-item-card" data-idx="${idx}">
-          <div class="pres-item-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <div style="display:flex;align-items:center;gap:8px;flex:1">
+        <div class="pres-item-card" data-idx="${idx}">
+          <div class="pres-item-header">
+            <div class="pres-item-title-wrap">
               <span class="pres-item-badge">Ítem ${idx + 1}</span>
-              <input type="text" class="form-input item-field item-desc-input" data-field="descripcion" value="${escapeHtml(item.descripcion || `Ítem ${idx + 1}`)}" placeholder="Nombre de pieza (ej: Mesada, Isla, Alzada)" style="height:34px;font-size:13px;font-weight:var(--font-semibold);padding:4px 8px;flex:1;max-width:260px">
+              <input type="text" class="form-input pres-item-desc-input item-field" data-field="descripcion" value="${escapeHtml(item.descripcion || `Ítem ${idx + 1}`)}" placeholder="Pieza (ej: Mesada, Isla)">
             </div>
             ${items.length > 1 ? `
-              <button type="button" class="btn btn-ghost btn-sm row-remove" data-idx="${idx}" title="Eliminar ítem" style="color:var(--color-error);padding:4px 8px">
-                ${Icons.trash} <span style="font-size:12px">Quitar</span>
+              <button type="button" class="btn btn-ghost btn-sm row-remove" data-idx="${idx}" title="Eliminar ítem" style="color:var(--color-error);padding:3px 8px;gap:4px">
+                ${Icons.trash} <span style="font-size:11.5px;font-weight:var(--font-semibold)">Eliminar</span>
               </button>
             ` : ''}
           </div>
 
-          <div class="pres-item-metrics-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(85px, 1fr));gap:8px">
+          <!-- Selector de Material independiente por cada ítem -->
+          <div class="form-group mb-2">
+            <label class="form-label-sm">Material <span class="required">*</span></label>
+            <select class="form-select item-field item-material-select" data-field="material">
+              <option value="">Seleccionar material del catálogo...</option>
+              ${materiales.map(m => {
+                const isSel = (item.material === m.nombre);
+                const pM2 = m.precioM2 ?? m.precioVenta ?? 0;
+                return `<option value="${escapeHtml(m.nombre)}" ${isSel ? 'selected' : ''}>${escapeHtml(m.nombre)} — ${formatCurrency(pM2)} / m²</option>`;
+              }).join('')}
+            </select>
+          </div>
+
+          <!-- Medidas: Largo y Ancho (en metros) + Cantidad -->
+          <div class="pres-item-measures-grid">
             <div class="form-group mb-0">
-              <label class="form-label-sm">Largo (cm)</label>
-              <input type="number" class="form-input item-field" data-field="largo" value="${item.largo || ''}" min="0" placeholder="Ej: 220" style="padding:8px">
+              <label class="form-label-sm">Largo (m)</label>
+              <input type="number" step="0.01" min="0" inputmode="decimal" class="form-input item-field" data-field="largo" value="${item.largo || ''}" placeholder="Ej: 1.20">
             </div>
             <div class="form-group mb-0">
-              <label class="form-label-sm">Ancho (cm)</label>
-              <input type="number" class="form-input item-field" data-field="ancho" value="${item.ancho || ''}" min="0" placeholder="Ej: 60" style="padding:8px">
+              <label class="form-label-sm">Ancho (m)</label>
+              <input type="number" step="0.01" min="0" inputmode="decimal" class="form-input item-field" data-field="ancho" value="${item.ancho || ''}" placeholder="Ej: 0.60">
             </div>
             <div class="form-group mb-0">
-              <label class="form-label-sm">Cantidad</label>
-              <input type="number" class="form-input item-field" data-field="cantidad" value="${item.cantidad || 1}" min="1" style="padding:8px">
-            </div>
-            <div class="form-group mb-0">
-              <label class="form-label-sm">Superficie</label>
-              <div class="item-m2-pill" style="justify-content:center;height:38px;padding:0 8px">
-                <span class="item-m2" style="font-weight:var(--font-bold)">${(item.m2 || 0).toFixed(2)}</span>&nbsp;m²
-              </div>
+              <label class="form-label-sm">Cant.</label>
+              <input type="number" step="1" min="1" inputmode="numeric" class="form-input item-field" data-field="cantidad" value="${item.cantidad || 1}">
             </div>
           </div>
 
-          <div class="pres-item-footer-bar" style="margin-top:8px;padding:6px 10px;font-size:12px;background:var(--color-stone-50);border-radius:var(--radius-md);display:flex;justify-content:space-between;align-items:center">
-            <span style="color:var(--color-stone-600)">${(item.m2 || 0).toFixed(2)} m² × ${formatCurrency(precioM2)}/m²</span>
-            <span class="item-subtotal-val" style="font-weight:var(--font-bold);color:var(--color-stone-900)">${formatCurrency(item.subtotal || 0)}</span>
+          <!-- Resumen de cálculo del ítem: m², Precio/m², Subtotal -->
+          <div class="pres-item-calc-footer">
+            <div class="pres-item-stat-pill">
+              <span class="pres-item-stat-label">m²</span>
+              <span class="pres-item-stat-val item-m2">${(item.m2 || 0).toFixed(2)}</span>
+            </div>
+            <div class="pres-item-stat-pill">
+              <span class="pres-item-stat-label">Precio / m²</span>
+              <span class="pres-item-stat-val item-precio-val">${formatCurrency(item.precioUnitario || 0)}</span>
+            </div>
+            <div class="pres-item-stat-pill subtotal-pill">
+              <span class="pres-item-stat-label">Subtotal</span>
+              <span class="pres-item-stat-val item-subtotal-val">${formatCurrency(item.subtotal || 0)}</span>
+            </div>
           </div>
         </div>
       `).join('');
 
       // Field events
       itemsBody.querySelectorAll('.item-field').forEach(input => {
-        input.addEventListener('input', () => {
+        const eventName = input.tagName === 'SELECT' ? 'change' : 'input';
+        input.addEventListener(eventName, () => {
           const card = input.closest('.pres-item-card');
           const idx = parseInt(card.dataset.idx);
           const field = input.dataset.field;
           let val = input.value;
-          if (['cantidad', 'largo', 'ancho'].includes(field)) {
-            val = parseFloat(val) || 0;
-          }
-          items[idx][field] = val;
-          calculateItem(items[idx]);
 
-          const m2El = card.querySelector('.item-m2');
-          if (m2El) m2El.textContent = (items[idx].m2 || 0).toFixed(2);
-          const subEl = card.querySelector('.item-subtotal-val');
-          if (subEl) subEl.textContent = formatCurrency(items[idx].subtotal || 0);
+          if (field === 'material') {
+            items[idx].material = val;
+            const mat = materiales.find(m => m.nombre === val);
+            items[idx].precioUnitario = mat ? (mat.precioM2 ?? mat.precioVenta ?? 0) : 0;
+            calculateItem(items[idx]);
+
+            const precioEl = card.querySelector('.item-precio-val');
+            if (precioEl) precioEl.textContent = formatCurrency(items[idx].precioUnitario || 0);
+            const m2El = card.querySelector('.item-m2');
+            if (m2El) m2El.textContent = (items[idx].m2 || 0).toFixed(2);
+            const subEl = card.querySelector('.item-subtotal-val');
+            if (subEl) subEl.textContent = formatCurrency(items[idx].subtotal || 0);
+          } else {
+            if (['cantidad', 'largo', 'ancho'].includes(field)) {
+              items[idx][field] = val;
+            } else {
+              items[idx][field] = val;
+            }
+            calculateItem(items[idx]);
+
+            const m2El = card.querySelector('.item-m2');
+            if (m2El) m2El.textContent = (items[idx].m2 || 0).toFixed(2);
+            const subEl = card.querySelector('.item-subtotal-val');
+            if (subEl) subEl.textContent = formatCurrency(items[idx].subtotal || 0);
+          }
 
           renderMaterialSummary();
           updateSummary();
@@ -494,32 +572,28 @@ export function renderPresupuestos(container, actionsEl, path) {
       });
     }
 
-    matSelect?.addEventListener('change', (e) => {
-      selectedMatName = e.target.value;
-      const mat = materiales.find(m => m.nombre === selectedMatName);
-      precioM2 = mat ? (mat.precioM2 ?? mat.precioVenta ?? 0) : 0;
-      items.forEach(it => calculateItem(it));
-      renderItems();
-      renderMaterialSummary();
-      updateSummary();
-    });
-
+    // Botón + Añadir ítem: Poder elegir el mismo material del ítem anterior o cualquier otro material
     document.getElementById('btn-add-item')?.addEventListener('click', () => {
+      const lastItem = items[items.length - 1];
+      const defaultMatName = lastItem?.material || (materiales[0]?.nombre || '');
+      const defaultMat = materiales.find(m => m.nombre === defaultMatName) || materiales[0];
+      const pM2 = defaultMat ? (defaultMat.precioM2 ?? defaultMat.precioVenta ?? 0) : 0;
+
       items.push({
         id: Date.now().toString(),
         descripcion: `Ítem ${items.length + 1}`,
-        material: selectedMatName,
+        material: defaultMatName,
         cantidad: 1,
-        largo: 0,
-        ancho: 0,
+        largo: '',
+        ancho: '',
         m2: 0,
-        precioUnitario: precioM2,
+        precioUnitario: pM2,
         subtotal: 0
       });
       renderItems();
       renderMaterialSummary();
       updateSummary();
-      Toast.info('Nuevo ítem añadido');
+      Toast.info(`Ítem ${items.length} añadido`);
     });
 
     function updateSummary() {
@@ -571,11 +645,13 @@ export function renderPresupuestos(container, actionsEl, path) {
       const adics = ['colocacion', 'manoDeObra', 'inglete', 'transporte', 'bacha', 'zocalos', 'extras'];
       const adicionales = {};
       adics.forEach(k => { adicionales[k] = parseFloat(data[`adic_${k}`]) || 0; });
+
+      const matList = [...new Set(items.map(i => i.material).filter(Boolean))].join(', ');
       const draftPres = {
         ...pres,
         ...data,
-        material: selectedMatName,
-        precioM2,
+        material: matList || items[0]?.material || '',
+        precioM2: items[0]?.precioUnitario || 0,
         items,
         adicionales,
         descuento: parseFloat(data.descuento) || 0,
@@ -621,10 +697,11 @@ export function renderPresupuestos(container, actionsEl, path) {
       const adicionales = {};
       adics.forEach(k => { adicionales[k] = parseFloat(data[`adic_${k}`]) || 0; delete data[`adic_${k}`]; });
 
+      const matList = [...new Set(items.map(i => i.material).filter(Boolean))].join(', ');
       const record = {
         ...data,
-        material: selectedMatName,
-        precioM2,
+        material: matList || items[0]?.material || '',
+        precioM2: items[0]?.precioUnitario || 0,
         items,
         adicionales,
         descuento: parseFloat(data.descuento) || 0,
@@ -836,6 +913,7 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
     <!-- Action buttons bar -->
     <div class="card mb-4">
       <div class="card-body" style="display:flex;gap:var(--space-2);flex-wrap:wrap">
+        <button class="btn btn-secondary" id="btn-agendar-pres" style="flex:1;min-width:140px;justify-content:center;font-weight:var(--font-semibold)">${Icons.calendar} Agendar trabajo</button>
         <button class="btn btn-success" id="btn-share-modal" style="flex:1;min-width:130px;justify-content:center;background:#25D366;color:#fff;border-color:#25D366;font-weight:var(--font-bold)">${Icons.whatsapp} Compartir</button>
         <button class="btn btn-pdf" id="btn-pdf" style="flex:1;min-width:130px;justify-content:center">${Icons['file-pdf']} Descargar PDF</button>
         <button class="btn btn-word" id="btn-word" style="flex:1;min-width:130px;justify-content:center">${Icons['file-word']} Descargar Word</button>
@@ -880,30 +958,38 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
       <div class="card-header"><h3 class="card-title">Ítems (${(pres.items || []).length})</h3></div>
       <div class="card-body">
         <div class="detail-items-list">
-          ${(pres.items || []).map((item, idx) => `
+          ${(pres.items || []).map((item, idx) => {
+            const formatMeasure = (val) => {
+              if (!val && val !== 0) return '-';
+              const n = parseFloat(val);
+              if (isNaN(n) || n === 0) return '-';
+              if (n > 10) return (n / 100).toFixed(2) + ' m';
+              return n.toFixed(2) + ' m';
+            };
+            return `
             <div class="detail-item-card">
               <div class="detail-item-card-top">
-                <span class="detail-item-card-desc"><strong>#${idx + 1}</strong> — ${escapeHtml(item.descripcion)}</span>
-                <span class="badge badge-neutral">${escapeHtml(item.material || 'Piedra')}</span>
+                <span class="detail-item-card-desc"><strong>#${idx + 1}</strong> — ${escapeHtml(item.descripcion || `Ítem ${idx + 1}`)}</span>
+                <span class="badge badge-neutral" style="font-weight:var(--font-bold)">${escapeHtml(item.material || 'Sin material')}</span>
               </div>
               <div class="detail-item-card-grid">
-                <div><span class="text-muted">Cantidad:</span> <strong>${item.cantidad} ${item.unidad === 'metros' ? 'tiras' : (item.unidad === 'unidades' ? 'un' : 'piezas')}</strong></div>
-                <div><span class="text-muted">Medidas:</span> <strong>${item.largo || '-'} × ${item.ancho || '-'} cm</strong></div>
-                <div><span class="text-muted">${item.unidad === 'metros' ? 'Metros lineales:' : (item.unidad === 'unidades' ? 'Unidades:' : 'Superficie total:')}</span> <strong>${item.unidad === 'metros' ? `${(((item.largo || 0) / 100) * (item.cantidad || 1)).toFixed(2)} ml` : `${(item.m2 || 0).toFixed(2)} m²`}</strong></div>
-                <div><span class="text-muted">${item.unidad === 'metros' ? 'Precio por ml:' : (item.unidad === 'unidades' ? 'Precio unitario:' : 'Precio por m²:')}</span> <strong>${formatCurrency(item.precioUnitario)}</strong></div>
+                <div><span class="text-muted">Cantidad:</span> <strong>${item.cantidad || 1} ${item.cantidad > 1 ? 'piezas' : 'pieza'}</strong></div>
+                <div><span class="text-muted">Medidas:</span> <strong>${formatMeasure(item.largo)} × ${formatMeasure(item.ancho)}</strong></div>
+                <div><span class="text-muted">Superficie total:</span> <strong>${(item.m2 || 0).toFixed(2)} m²</strong></div>
+                <div><span class="text-muted">Precio por m²:</span> <strong>${formatCurrency(item.precioUnitario || 0)}</strong></div>
               </div>
               <div class="detail-item-card-subtotal">
                 <span class="text-muted">Subtotal ítem:</span>
-                <strong>${formatCurrency(item.subtotal)}</strong>
+                <strong>${formatCurrency(item.subtotal || 0)}</strong>
               </div>
             </div>
-          `).join('')}
+          `}).join('')}
         </div>
       </div>
     </div>
 
     <div class="summary-box mb-4">
-      <div class="summary-row"><span class="summary-row-label">Subtotal ítems</span><span class="summary-row-value">${formatCurrency(pres.items.reduce((s, i) => s + (i.subtotal || 0), 0))}</span></div>
+      <div class="summary-row"><span class="summary-row-label">Subtotal ítems</span><span class="summary-row-value">${formatCurrency((pres.items || []).reduce((s, i) => s + (i.subtotal || 0), 0))}</span></div>
       ${adicEntries.map(([k, v]) => `<div class="summary-row"><span class="summary-row-label">${k}</span><span class="summary-row-value">${formatCurrency(v)}</span></div>`).join('')}
       ${pres.descuento > 0 ? `<div class="summary-row"><span class="summary-row-label">Descuento (${pres.descuento}%)</span><span class="summary-row-value" style="color:var(--color-error)">-${formatCurrency(DataService.getPresupuestoTotal({ ...pres, descuento: 0, impuestos: 0 }) * pres.descuento / 100)}</span></div>` : ''}
       <div class="summary-row total"><span class="summary-row-label">Total</span><span class="summary-row-value">${formatCurrency(total, pres.moneda)}</span></div>
@@ -916,6 +1002,21 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
     </div>` : ''}
   `;
 
+  // Agendar trabajo
+  document.getElementById('btn-agendar-pres')?.addEventListener('click', () => {
+    const matList = [...new Set((pres.items || []).map(i => i.material).filter(Boolean))].join(', ');
+    openEventoForm({
+      clienteId: pres.clienteId,
+      clienteNombre: pres.clienteNombre || (cliente ? `${cliente.nombre} ${cliente.apellido || ''}`.trim() : ''),
+      presupuestoId: pres.id,
+      direccion: pres.direccion || (cliente?.direccion || ''),
+      notas: matList ? `Materiales: ${matList}` : (pres.descripcion || ''),
+      tipo: 'instalacion'
+    }, () => {
+      Toast.success('Trabajo agendado en el calendario');
+    });
+  });
+
   // Approve action
   document.getElementById('btn-aprobar')?.addEventListener('click', async () => {
     DataService.update('presupuestos', presId, { estado: 'aprobado' });
@@ -925,10 +1026,11 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
 
   // Create obra
   document.getElementById('btn-crear-obra')?.addEventListener('click', () => {
+    const matList = [...new Set((pres.items || []).map(i => i.material).filter(Boolean))].join(', ');
     const obra = DataService.create('obras', {
       clienteId: pres.clienteId, presupuestoId: pres.id,
       direccion: pres.direccion, descripcion: pres.descripcion,
-      material: pres.items?.[0]?.material || '',
+      material: matList || pres.material || '',
       fechaInicio: new Date().toISOString().split('T')[0],
       fechaEstimada: '', responsable: '', estado: 'pendiente', observaciones: '', archivos: []
     });

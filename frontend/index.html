@@ -27,10 +27,30 @@
 <body>
   <div id="app" class="app-container"></div>
 
+  <!-- Error boundary overlay -->
+  <script>
+    window.addEventListener('error', function(e) {
+      console.error('GLOBAL APPLICATION ERROR:', e);
+      var box = document.getElementById('global-err-box');
+      if (!box) {
+        box = document.createElement('div');
+        box.id = 'global-err-box';
+        box.style = 'position:fixed;top:0;left:0;right:0;background:#FFF1F2;border-bottom:2px solid #E11D48;color:#9F1239;padding:16px;z-index:999999;font-family:sans-serif;box-shadow:0 4px 6px rgba(0,0,0,0.1);';
+        document.body.prepend(box);
+      }
+      box.innerHTML = '<div style="font-weight:bold;font-size:15px;margin-bottom:6px">⚠️ Error al iniciar la aplicación:</div>' +
+        '<div style="font-family:monospace;font-size:13px;white-space:pre-wrap;background:#FFE4E6;padding:8px;border-radius:4px">' + (e.message || e.error || 'Error desconocido') + ' (' + (e.filename || '') + ':' + (e.lineno || '') + ')</div>' +
+        '<div style="margin-top:10px;display:flex;gap:8px">' +
+        '<button onclick="location.reload()" style="padding:6px 12px;background:#E11D48;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold">Recargar página</button>' +
+        '<button onclick="localStorage.clear();location.reload()" style="padding:6px 12px;background:#475569;color:white;border:none;border-radius:4px;cursor:pointer">Restablecer datos locales y caché</button>' +
+        '</div>';
+    });
+  </script>
+
   <!-- Libraries -->
   <script src="js/lib/html2pdf.bundle.min.js"></script>
 
-  <!-- App Entry Point -->
-  <script type="module" src="js/app.js"></script>
+  <!-- App Entry Point (v2 cache buster) -->
+  <script type="module" src="js/app.js?v=2"></script>
 </body>
 </html>

@@ -73,6 +73,7 @@ export function updateMobileFab(path) {
   }
 
   const fabConfigs = {
+    calendario: { label: 'Evento', targetId: 'btn-new-event' },
     presupuestos: { label: 'Presupuesto', targetId: 'btn-new-pres' },
     obras: { label: 'Obra', targetId: 'btn-new-obra' },
     clientes: { label: 'Cliente', targetId: 'btn-new-cliente' },

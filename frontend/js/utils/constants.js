@@ -225,9 +225,66 @@ export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 // ── Pagination ──
 export const DEFAULT_PAGE_SIZE = 20;
 
+// ── Event Types (Calendario Operativo) ──
+export const EVENTO_TIPOS = {
+  MEDICION: 'medicion',
+  VISITA: 'visita',
+  INICIO_TRABAJO: 'inicio_trabajo',
+  FABRICACION: 'fabricacion',
+  INSTALACION: 'instalacion',
+  ENTREGA: 'entrega',
+  COBRO: 'cobro',
+  RECORDATORIO: 'recordatorio',
+  OTRO: 'otro'
+};
+
+export const EVENTO_TIPO_LABELS = {
+  medicion: 'Medición',
+  visita: 'Visita',
+  inicio_trabajo: 'Inicio de trabajo',
+  fabricacion: 'Fabricación / Preparación',
+  instalacion: 'Instalación / Colocación',
+  entrega: 'Entrega',
+  cobro: 'Cobro',
+  recordatorio: 'Recordatorio',
+  otro: 'Otro'
+};
+
+export const EVENTO_TIPO_COLORS = {
+  medicion: 'info',
+  visita: 'accent',
+  inicio_trabajo: 'warning',
+  fabricacion: 'neutral',
+  instalacion: 'accent',
+  entrega: 'success',
+  cobro: 'success',
+  recordatorio: 'warning',
+  otro: 'neutral'
+};
+
+// ── Event States ──
+export const EVENTO_ESTADOS = {
+  PENDIENTE: 'pendiente',
+  REALIZADO: 'realizado',
+  CANCELADO: 'cancelado'
+};
+
+export const EVENTO_ESTADO_LABELS = {
+  pendiente: 'Pendiente',
+  realizado: 'Realizado',
+  cancelado: 'Cancelado'
+};
+
+export const EVENTO_ESTADO_COLORS = {
+  pendiente: 'warning',
+  realizado: 'success',
+  cancelado: 'error'
+};
+
 // ── Navigation Items ──
 export const NAV_ITEMS = [
   { id: 'dashboard', label: 'Inicio', icon: 'home', path: '/dashboard' },
+  { id: 'calendario', label: 'Calendario', icon: 'calendar', path: '/calendario' },
   { id: 'presupuestos', label: 'Presupuestos', icon: 'file-text', path: '/presupuestos' },
   { id: 'clientes', label: 'Clientes', icon: 'users', path: '/clientes' },
   { id: 'obras', label: 'Obras', icon: 'hard-hat', path: '/obras' },

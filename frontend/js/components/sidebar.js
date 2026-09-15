@@ -72,9 +72,13 @@ export function initSidebar() {
     });
   }
 
-  // Close sidebar when navigating on mobile
+  // Close sidebar and ensure navigation even if clicking active hash
   sidebar.querySelectorAll('.sidebar-nav-item').forEach(item => {
     item.addEventListener('click', () => {
+      const href = item.getAttribute('href');
+      if (href && window.location.hash === href) {
+        window.dispatchEvent(new Event('hashchange'));
+      }
       if (window.innerWidth <= 1024) {
         sidebar.classList.remove('open');
         overlay.classList.remove('visible');
