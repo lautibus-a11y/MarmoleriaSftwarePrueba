@@ -93,7 +93,7 @@ r2://marmoleria-benjamin/
 ├────────────────────────────────────────────────────────┤
 │  ✅ FASE 1: Frontend Operativo Mobile-First            │
 │  ✅ FASE 2: Backend Cloudflare Worker + R2 Storage     │
-│  ⏳ FASE 3: Automatizaciones y Control Operativo       │
+│  ✅ FASE 3: Automatizaciones y Control Operativo       │
 │  ⏳ FASE 4: Roles y Accesos (Admin vs Taller/Obra)     │
 │  ⏳ FASE 5: Puesta en Marcha en Taller & Datos Reales  │
 └────────────────────────────────────────────────────────┘
@@ -121,19 +121,20 @@ r2://marmoleria-benjamin/
 
 ---
 
-### ⏳ FASE 3: Automatizaciones de Negocio y Control Operativo (Próxima Fase)
+### ✅ FASE 3: Automatizaciones de Negocio y Control Operativo (Completada 100%)
 *Objetivo: Conectar los módulos entre sí para evitar tareas manuales duplicadas y alertar proactivamente.*
 
 1. **Descuento Automático de Stock por Obra Aprobada:**
-   - Al cambiar un presupuesto a "Aprobado" o generar una Obra, permitir en 1 clic dar salida al stock de los m² o placas correspondientes.
+   - Al cambiar un presupuesto a "Aprobado" o generar una Obra, permite en 1 clic dar salida al stock de los m² o placas correspondientes en el taller. En la ficha de Obra se visualiza la tabla de consumo y el badge `✅ Stock descontado`.
 2. **Motor de Alertas Proactivas en Dashboard y Cabecera:**
-   - **Alerta de Stock Crítico:** Aviso visual cuando un material quede por debajo de su `stockMinimo`.
-   - **Vencimientos de Facturas:** Alertas a 7 y 3 días de facturas de proveedores por vencer o vencidas.
-   - **Presupuestos Vencidos:** Aviso sobre presupuestos sin respuesta después del período de validez comercial.
+   - Ícono de campana interactivo con badge contador en tiempo real en la barra superior.
+   - **Alerta de Stock Crítico:** Aviso visual cuando un material queda por debajo de su `stockMinimo`.
+   - **Vencimientos de Facturas:** Alertas a 7 días y vencidas sin cancelar con acceso directo a pagos.
+   - **Presupuestos Vencidos:** Alerta sobre presupuestos enviados con más de 15 días sin respuesta.
 3. **Actualizador Masivo de Precios por m²:**
-   - Permite aplicar aumentos porcentuales generales o por categoría de material (ej. +10% en Granitos Importados por variación cambiaria) de forma instantánea.
-4. **Centro de Resguardo & Descarga de Backups:**
-   - Descarga en 1 clic de un archivo ZIP/JSON con todas las colecciones para resguardo físico en disco local y opción de restauración.
+   - Botón `[ ⚡ Actualizar precios ]` en Stock: permite aplicar aumentos porcentuales generales o por categoría de material con previsualización interactiva y redondeo configurable.
+4. **Centro de Resguardo & Descarga / Restauración de Backups:**
+   - Descarga en 1 clic del backup consolidado desde Cloudflare R2 y **Restaurador completo en 1 clic** con selector de archivo JSON, validación de integridad y sincronización atómica.
 
 ---
 
