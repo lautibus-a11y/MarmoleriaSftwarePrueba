@@ -4,10 +4,12 @@
 
 import { Icons } from '../components/ui.js';
 import { Toast } from '../components/toast.js';
+import { Modal } from '../components/modal.js';
 import { CONDICIONES_COMERCIALES_DEFAULT } from '../utils/constants.js';
 import { escapeHtml } from '../utils/helpers.js';
 import { LOGO_URL } from '../utils/logo.js';
 import { Api } from '../services/api.js';
+import { DataService } from '../services/mockData.js';
 
 const CONFIG_KEY = 'mb_config';
 
@@ -102,11 +104,23 @@ export function renderConfiguracion(container, actionsEl) {
     </div>
 
     <div class="config-section">
-      <div class="config-section-header"><h3 class="config-section-title">${Icons.download} Backups</h3></div>
+      <div class="config-section-header"><h3 class="config-section-title">${Icons.download} Copias de seguridad y Restauración</h3></div>
       <div class="config-section-body">
-        <p style="color:var(--color-stone-600);margin-bottom:var(--space-4)">Descargá una copia de seguridad de todos los datos del sistema.</p>
-        <button class="btn btn-secondary" id="btn-download-backup">${Icons.download} Descargar backup completo</button>
-        <p class="form-hint mt-2">La descarga incluye todos los datos (clientes, presupuestos, obras, materiales, stock, proveedores, facturas, pagos, cobros, eventos de calendario y configuración) en formato JSON.</p>
+        <p style="color:var(--color-stone-600);margin-bottom:var(--space-4)">
+          Descargá un resguardo completo de todos los datos en formato JSON o restaurá una copia previa con 1 clic.
+        </p>
+
+        <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-3)">
+          <button class="btn btn-secondary" id="btn-download-backup">${Icons.download} Descargar backup completo</button>
+          <label class="btn btn-secondary" for="input-restore-backup" style="cursor:pointer;margin:0;display:inline-flex;align-items:center;gap:6px">
+            ${Icons.upload} Restaurar desde archivo JSON
+          </label>
+          <input type="file" id="input-restore-backup" accept=".json" style="display:none">
+        </div>
+
+        <p class="form-hint">
+          La copia de seguridad incluye todos los registros (clientes, presupuestos, obras, materiales, stock, proveedores, facturas, pagos, cobros, eventos y configuración) generados directamente desde Cloudflare R2.
+        </p>
       </div>
     </div>
   `;
@@ -209,6 +223,102 @@ export function renderConfiguracion(container, actionsEl) {
       Toast.success('Backup descargado correctamente');
     } catch (err) {
       Toast.error('Error al generar backup: ' + err.message);
+    }
+  });
+
+  // Restore backup from JSON file
+  document.getElementById('input-restore-backup')?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+
+      const backupData = parsed.data || parsed;
+      if (!backupData || typeof backupData !== 'object') {
+        throw new Error('El archivo no contiene un formato de backup válido');
+      }
+
+      const summary = [
+        { label: 'Clientes', count: backupData.clientes?.length || 0 },
+        { label: 'Presupuestos', count: backupData.presupuestos?.length || 0 },
+        { label: 'Obras', count: backupData.obras?.length || 0 },
+        { label: 'Materiales', count: backupData.materiales?.length || 0 },
+        { label: 'Movimientos de Stock', count: backupData.stockMovimientos?.length || 0 },
+        { label: 'Proveedores', count: backupData.proveedores?.length || 0 },
+        { label: 'Facturas', count: backupData.facturas?.length || 0 },
+        { label: 'Pagos', count: backupData.pagos?.length || 0 },
+        { label: 'Cobros', count: backupData.cobros?.length || 0 },
+        { label: 'Eventos de Calendario', count: backupData.eventos?.length || 0 }
+      ];
+
+      const totalItems = summary.reduce((sum, s) => sum + s.count, 0);
+
+      Modal.open({
+        title: '⚠️ Confirmar Restauración de Datos',
+        size: 'md',
+        content: `
+          <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+            <div style="padding:12px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:var(--radius-md);color:#991B1B;font-size:var(--text-xs)">
+              <strong>Atención:</strong> Esta acción reemplazará los datos actuales por los contenidos en este archivo de respaldo (total: <strong>${totalItems} registros</strong>).
+            </div>
+
+            <div style="font-size:var(--text-xs);color:var(--color-stone-700)">
+              <strong>Registros detectados en el archivo:</strong>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:var(--text-xs);background:var(--color-stone-100);padding:10px;border-radius:var(--radius-md)">
+              ${summary.map(s => `
+                <div>${s.label}: <strong>${s.count}</strong></div>
+              `).join('')}
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-3)">
+              <button type="button" class="btn btn-secondary" id="btn-cancel-restore">Cancelar</button>
+              <button type="button" class="btn btn-primary" id="btn-confirm-restore" style="background:#DC2626;border-color:#DC2626">
+                ${Icons.check} Sí, restaurar todo
+              </button>
+            </div>
+          </div>
+        `
+      });
+
+      document.getElementById('btn-cancel-restore')?.addEventListener('click', () => {
+        Modal.close();
+        e.target.value = '';
+      });
+
+      document.getElementById('btn-confirm-restore')?.addEventListener('click', async () => {
+        Modal.close();
+        Toast.info('Restaurando copia', 'Guardando datos en Cloudflare R2...');
+
+        try {
+          // Send to Worker restore API
+          await Api.post('/backups/restore', { data: backupData });
+
+          // Synchronize local memory with new R2 data
+          await DataService.syncAll();
+
+          // If backup had config, restore it locally as well
+          if (backupData.config) {
+            saveConfig(backupData.config);
+          }
+
+          Toast.success('¡Copia de seguridad restaurada con éxito!');
+          setTimeout(() => {
+            window.location.reload();
+          }, 800);
+        } catch (err) {
+          console.error('Restore failed:', err);
+          Toast.error('Error al restaurar: ' + err.message);
+        } finally {
+          e.target.value = '';
+        }
+      });
+    } catch (err) {
+      Toast.error('Error al leer archivo JSON: ' + err.message);
+      e.target.value = '';
     }
   });
 }

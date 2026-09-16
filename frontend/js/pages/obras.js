@@ -11,6 +11,7 @@ import { confirmDialog } from '../components/confirmDialog.js';
 import { DocumentModal } from '../components/documentModal.js';
 import { generateObraHtml, exportToPdf, exportToWord } from '../services/documentExporter.js';
 import { OBRA_ESTADO_LABELS, OBRA_ESTADO_COLORS } from '../utils/constants.js';
+import { openDescontarStockObraModal } from '../services/stockAutomation.js';
 
 export function renderObras(container, actionsEl, path) {
   const parts = path.split('/');
@@ -137,6 +138,7 @@ function renderObraDetail(container, actionsEl, obraId) {
   const total = DataService.getObraTotal(obraId);
   const cobrado = DataService.getObraCobrado(obraId);
   const cobros = DataService.getAll('cobros').filter(c => c.obraId === obraId);
+  const stockMovimientosObra = DataService.getAll('stockMovimientos').filter(m => m.obraId === obraId || (m.referencia && m.referencia.includes('#' + obraId)));
 
   actionsEl.innerHTML = `
     <a href="#/obras" class="btn btn-secondary">${Icons['chevron-left']} Volver</a>
@@ -218,6 +220,47 @@ function renderObraDetail(container, actionsEl, obraId) {
       </div>
     </div>` : ''}
 
+    <!-- Consumo de Materiales y Stock -->
+    <div class="card mb-4">
+      <div class="card-header flex justify-between items-center" style="flex-wrap:wrap;gap:var(--space-2)">
+        <h3 class="card-title" style="display:flex;align-items:center;gap:var(--space-2)">
+          ${Icons.box} Consumo de Stock y Materiales
+        </h3>
+        ${obra.stockDescontado ? `
+          <span class="badge badge-success">${Icons.check} Stock descontado</span>
+        ` : `
+          <button class="btn btn-sm btn-primary" id="btn-obra-descontar-stock">
+            ${Icons.box} Descontar materiales de stock
+          </button>
+        `}
+      </div>
+      <div class="card-body">
+        ${stockMovimientosObra.length > 0 ? `
+          <table class="data-table">
+            <thead>
+              <tr><th>Material</th><th style="text-align:right">Cantidad</th><th>Fecha</th><th>Referencia</th></tr>
+            </thead>
+            <tbody>
+              ${stockMovimientosObra.map(m => {
+                const mat = DataService.getById('materiales', m.materialId);
+                const u = mat ? (mat.unidad === 'm2' ? 'm²' : (mat.unidad === 'metros' ? 'ml' : mat.unidad)) : '';
+                return `<tr>
+                  <td><strong>${escapeHtml(mat?.nombre || 'Material #' + m.materialId)}</strong></td>
+                  <td style="text-align:right;font-weight:var(--font-semibold);color:var(--color-error)">-${m.cantidad} ${u}</td>
+                  <td>${formatDate(m.fecha)}</td>
+                  <td class="cell-secondary">${escapeHtml(m.referencia || '-')}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        ` : `
+          <p class="text-muted" style="margin:0;font-size:var(--text-sm)">
+            ${obra.stockDescontado ? 'Stock marcado como descontado para esta obra.' : 'Aún no se registró la salida de stock para esta obra. Podés descontar los materiales presupuestados automáticamente con el botón superior.'}
+          </p>
+        `}
+      </div>
+    </div>
+
     <div class="card mb-4">
       <div class="card-header"><h3 class="card-title">Cobros asociados (${cobros.length})</h3></div>
       ${cobros.length > 0 ? renderDataTable({ columns: [
@@ -261,6 +304,16 @@ function renderObraDetail(container, actionsEl, obraId) {
     Toast.info('Generando PDF', 'Preparando ficha técnica de obra...');
     const ok = await exportToPdf(getDocHtml(), docFilename);
     if (ok) Toast.success('Ficha en PDF descargada');
+  });
+
+  document.getElementById('btn-obra-descontar-stock')?.addEventListener('click', () => {
+    openDescontarStockObraModal({
+      obra,
+      presupuesto: pres,
+      onDone: () => {
+        renderObraDetail(container, actionsEl, obraId);
+      }
+    });
   });
 
   document.getElementById('btn-obra-word')?.addEventListener('click', () => {

@@ -16,6 +16,8 @@ import { renderPagos } from './pages/pagos.js';
 import { renderCobros } from './pages/cobros.js';
 import { renderConfiguracion } from './pages/configuracion.js';
 import { DataService } from './services/mockData.js';
+import { Icons } from './components/ui.js';
+import { getSystemAlerts, openNotificationsModal } from './components/notificationsModal.js';
 
 import { escapeHtml } from './utils/helpers.js';
 
@@ -35,6 +37,7 @@ class App {
     DataService.syncAll().then((res) => {
       if (res && res.success) {
         this.navigate();
+        this.updateNotificationsBadge();
       }
     });
   }
@@ -49,15 +52,38 @@ class App {
           <div class="page-header-left">
             <h1 class="page-title" id="page-title">Inicio</h1>
           </div>
-          <div class="page-header-actions" id="page-header-actions"></div>
+          <div style="display:flex;align-items:center;gap:var(--space-2)">
+            <button class="btn btn-ghost btn-icon" id="btn-header-notifs" title="Centro de alertas operativas" aria-label="Notificaciones" style="position:relative;padding:8px">
+              ${Icons.bell}
+              <span id="header-notifs-badge" style="display:none;position:absolute;top:2px;right:2px;background:#DC2626;color:#ffffff;font-size:10px;font-weight:700;border-radius:10px;min-width:18px;height:18px;line-height:14px;text-align:center;padding:1px 4px;border:2px solid var(--color-stone-100)">0</span>
+            </button>
+            <div class="page-header-actions" id="page-header-actions"></div>
+          </div>
         </header>
         <div class="page-content" id="page-content"></div>
       </main>
       ${renderMobileNav(currentPath)}
     `;
 
+    document.getElementById('btn-header-notifs')?.addEventListener('click', () => {
+      openNotificationsModal();
+    });
+
     initSidebar();
     initMobileNav();
+  }
+
+  updateNotificationsBadge() {
+    const alerts = getSystemAlerts();
+    const badge = document.getElementById('header-notifs-badge');
+    if (badge) {
+      if (alerts.totalCount > 0) {
+        badge.textContent = alerts.totalCount > 99 ? '99+' : alerts.totalCount;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
   }
 
   setupRouter() {
@@ -128,6 +154,7 @@ class App {
     try {
       route.render(contentEl, actionsEl, path);
       contentEl.style.opacity = '1';
+      this.updateNotificationsBadge();
     } catch (err) {
       console.error('Error rendering route:', path, err);
       contentEl.innerHTML = `

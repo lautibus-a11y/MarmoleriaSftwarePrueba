@@ -13,6 +13,7 @@ import { MATERIAL_CATEGORIAS, UNIDADES, MOVIMIENTO_TIPO_LABELS, MOVIMIENTO_TIPO_
 
 export function renderStock(container, actionsEl) {
   actionsEl.innerHTML = `
+    <button class="btn btn-secondary" id="btn-actualizar-precios" style="color:var(--color-primary);font-weight:var(--font-semibold)">${Icons.settings} Actualizar precios</button>
     <button class="btn btn-secondary" id="btn-new-mov">${Icons.plus} Movimiento</button>
     <button class="btn btn-primary" id="btn-new-mat">${Icons.plus} Nuevo material</button>
   `;
@@ -293,9 +294,205 @@ export function renderStock(container, actionsEl) {
     if(confirmed){DataService.remove('materiales',id);Toast.success('Material eliminado');materiales=DataService.getAll('materiales');render();}
   }
 
+  function openActualizarPreciosModal() {
+    let catFilter = '';
+    let tipoAumento = 'porcentaje';
+    let valorAumento = 10;
+    let redondeo = '100';
+
+    const allMats = DataService.getAll('materiales');
+
+    function calculateNewPrice(currentPrice) {
+      const p = Number(currentPrice) || 0;
+      if (p <= 0) return 0;
+      let nuevo = p;
+      if (tipoAumento === 'porcentaje') {
+        nuevo = p * (1 + (Number(valorAumento) || 0) / 100);
+      } else {
+        nuevo = p + (Number(valorAumento) || 0);
+      }
+
+      if (redondeo === '100') {
+        nuevo = Math.round(nuevo / 100) * 100;
+      } else if (redondeo === '1000') {
+        nuevo = Math.round(nuevo / 1000) * 1000;
+      } else {
+        nuevo = Math.round(nuevo * 100) / 100;
+      }
+      return Math.max(0, nuevo);
+    }
+
+    function getAffectedMats() {
+      if (!catFilter) return allMats;
+      return allMats.filter(m => m.categoria === catFilter);
+    }
+
+    function renderModalBody() {
+      const affected = getAffectedMats();
+
+      return `
+        <div style="display:flex;flex-direction:column;gap:var(--space-4)">
+          <div style="padding:10px 14px;background:var(--color-stone-100);border-radius:var(--radius-md);font-size:var(--text-xs);color:var(--color-stone-600)">
+            Esta herramienta aplica aumentos porcentuales o fijos a los precios por m² del catálogo y se sincroniza en tiempo real con Cloudflare R2.
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label">Categoría a actualizar</label>
+              <select class="form-select" id="bulk-cat">
+                <option value="">Todas las categorías (${allMats.length} materiales)</option>
+                ${MATERIAL_CATEGORIAS.map(c => `
+                  <option value="${c.value}" ${catFilter === c.value ? 'selected' : ''}>
+                    ${c.label} (${allMats.filter(m => m.categoria === c.value).length})
+                  </option>
+                `).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tipo de incremento</label>
+              <select class="form-select" id="bulk-tipo">
+                <option value="porcentaje" ${tipoAumento === 'porcentaje' ? 'selected' : ''}>Porcentaje (+ %)</option>
+                <option value="monto" ${tipoAumento === 'monto' ? 'selected' : ''}>Monto fijo (+ $ ARS)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" id="bulk-val-label">${tipoAumento === 'porcentaje' ? 'Porcentaje de aumento (%)' : 'Monto de aumento ($)'}</label>
+              <input type="number" class="form-input" id="bulk-val" value="${valorAumento}" step="any" min="0" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Criterio de redondeo</label>
+              <select class="form-select" id="bulk-redondeo">
+                <option value="100" ${redondeo === '100' ? 'selected' : ''}>Redondear a centenas ($100)</option>
+                <option value="1000" ${redondeo === '1000' ? 'selected' : ''}>Redondear a miles ($1.000)</option>
+                <option value="ninguno" ${redondeo === 'ninguno' ? 'selected' : ''}>Sin redondeo (exacto)</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <label class="form-label" style="margin:0">Previsualización (${affected.length} materiales afectados)</label>
+              <span class="text-muted" style="font-size:var(--text-xs)">Cálculo en vivo antes de guardar</span>
+            </div>
+            <div style="max-height:220px;overflow-y:auto;border:1px solid var(--color-stone-200);border-radius:var(--radius-md)">
+              <table class="data-table" style="font-size:var(--text-xs);margin:0">
+                <thead>
+                  <tr>
+                    <th>Material</th>
+                    <th style="text-align:right">Precio actual</th>
+                    <th style="text-align:right">Nuevo precio</th>
+                    <th style="text-align:right">Variación</th>
+                  </tr>
+                </thead>
+                <tbody id="bulk-preview-rows">
+                  ${affected.map(m => {
+                    const current = Number(m.precioM2 ?? m.precioVenta) || 0;
+                    const nuevo = calculateNewPrice(current);
+                    const diff = nuevo - current;
+                    return `
+                      <tr>
+                        <td><strong>${escapeHtml(m.nombre)}</strong></td>
+                        <td style="text-align:right">${formatCurrency(current)}</td>
+                        <td style="text-align:right;font-weight:var(--font-bold);color:var(--color-stone-900)">${formatCurrency(nuevo)}</td>
+                        <td style="text-align:right;color:${diff >= 0 ? '#15803D' : '#DC2626'};font-weight:var(--font-semibold)">+${formatCurrency(diff)}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-2)">
+            <button type="button" class="btn btn-secondary" id="btn-bulk-cancel">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="btn-bulk-apply">
+              ${Icons.check} Aplicar aumento a ${affected.length} materiales
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    Modal.open({
+      title: '⚡ Actualización Masiva de Precios por m²',
+      size: 'lg',
+      content: renderModalBody()
+    });
+
+    const updatePreview = () => {
+      catFilter = document.getElementById('bulk-cat')?.value || '';
+      tipoAumento = document.getElementById('bulk-tipo')?.value || 'porcentaje';
+      valorAumento = parseFloat(document.getElementById('bulk-val')?.value) || 0;
+      redondeo = document.getElementById('bulk-redondeo')?.value || '100';
+
+      const valLabel = document.getElementById('bulk-val-label');
+      if (valLabel) {
+        valLabel.textContent = tipoAumento === 'porcentaje' ? 'Porcentaje de aumento (%)' : 'Monto de aumento ($)';
+      }
+
+      const affected = getAffectedMats();
+      const tbody = document.getElementById('bulk-preview-rows');
+      if (tbody) {
+        tbody.innerHTML = affected.map(m => {
+          const current = Number(m.precioM2 ?? m.precioVenta) || 0;
+          const nuevo = calculateNewPrice(current);
+          const diff = nuevo - current;
+          return `
+            <tr>
+              <td><strong>${escapeHtml(m.nombre)}</strong></td>
+              <td style="text-align:right">${formatCurrency(current)}</td>
+              <td style="text-align:right;font-weight:var(--font-bold);color:var(--color-stone-900)">${formatCurrency(nuevo)}</td>
+              <td style="text-align:right;color:${diff >= 0 ? '#15803D' : '#DC2626'};font-weight:var(--font-semibold)">+${formatCurrency(diff)}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      const applyBtn = document.getElementById('btn-bulk-apply');
+      if (applyBtn) {
+        applyBtn.innerHTML = `${Icons.check} Aplicar aumento a ${affected.length} materiales`;
+      }
+    };
+
+    document.getElementById('bulk-cat')?.addEventListener('change', updatePreview);
+    document.getElementById('bulk-tipo')?.addEventListener('change', updatePreview);
+    document.getElementById('bulk-val')?.addEventListener('input', updatePreview);
+    document.getElementById('bulk-redondeo')?.addEventListener('change', updatePreview);
+
+    document.getElementById('btn-bulk-cancel')?.addEventListener('click', () => Modal.close());
+
+    document.getElementById('btn-bulk-apply')?.addEventListener('click', () => {
+      const affected = getAffectedMats();
+      if (affected.length === 0) {
+        Toast.info('Aviso', 'No hay materiales seleccionados');
+        return;
+      }
+
+      let updatedCount = 0;
+      affected.forEach(m => {
+        const current = Number(m.precioM2 ?? m.precioVenta) || 0;
+        const nuevo = calculateNewPrice(current);
+        DataService.update('materiales', m.id, {
+          precioM2: nuevo,
+          precioVenta: nuevo
+        });
+        updatedCount++;
+      });
+
+      Toast.success(`¡Se actualizaron los precios de ${updatedCount} materiales!`);
+      Modal.close();
+      materiales = DataService.getAll('materiales');
+      render();
+    });
+  }
+
   setTimeout(()=>{
     document.getElementById('btn-new-mat')?.addEventListener('click',()=>openMaterialForm());
     document.getElementById('btn-new-mov')?.addEventListener('click',()=>openMovimientoForm());
+    document.getElementById('btn-actualizar-precios')?.addEventListener('click',()=>openActualizarPreciosModal());
   },100);
   render();
 }

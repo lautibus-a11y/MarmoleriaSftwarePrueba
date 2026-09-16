@@ -13,6 +13,7 @@ import { DocumentModal } from '../components/documentModal.js';
 import { generatePresupuestoHtml, exportToPdf, exportToWord } from '../services/documentExporter.js';
 import { PRESUPUESTO_ESTADO_LABELS, PRESUPUESTO_ESTADO_COLORS, CONDICIONES_COMERCIALES_DEFAULT, MONEDAS } from '../utils/constants.js';
 import { openEventoForm } from './calendario.js';
+import { openDescontarStockObraModal } from '../services/stockAutomation.js';
 
 export function renderPresupuestos(container, actionsEl, path) {
   const parts = path.split('/');
@@ -1040,7 +1041,18 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
     });
     DataService.update('presupuestos', presId, { obraId: obra.id });
     Toast.success('Obra creada desde presupuesto');
-    window.location.hash = `#/obras/${obra.id}`;
+
+    if (pres.items && pres.items.length > 0) {
+      openDescontarStockObraModal({
+        obra,
+        presupuesto: pres,
+        onDone: () => {
+          window.location.hash = `#/obras/${obra.id}`;
+        }
+      });
+    } else {
+      window.location.hash = `#/obras/${obra.id}`;
+    }
   });
 
   // Document actions
