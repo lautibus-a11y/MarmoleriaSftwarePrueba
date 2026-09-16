@@ -81,9 +81,9 @@ button:active, .btn:active, .mobile-nav-item:active, .mobile-fab:active {
   color: var(--color-stone-900);
 }
 
-/* ── Floating Action Button (FAB) on Mobile ── */
+/* ── Floating Action Button (FAB) on Mobile (Hidden on Desktop) ── */
 .mobile-fab {
-  display: none;
+  display: none !important;
   position: fixed;
   bottom: calc(72px + env(safe-area-inset-bottom, 8px));
   right: 18px;
@@ -95,12 +95,20 @@ button:active, .btn:active, .mobile-nav-item:active, .mobile-fab:active {
   padding: 12px 20px 12px 16px;
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
-  display: flex;
   align-items: center;
   gap: 8px;
   box-shadow: 0 8px 24px rgba(28, 25, 23, 0.25);
   cursor: pointer;
   transition: all var(--transition-fast);
+}
+
+@media (min-width: 769px) {
+  .mobile-fab,
+  #mobile-fab-container,
+  #mobile-fab-action,
+  .mobile-bottom-nav {
+    display: none !important;
+  }
 }
 
 /* Hide navigation and FAB when any drawer, modal or document preview is active */
@@ -228,11 +236,11 @@ body.doc-modal-open .mobile-fab {
 
   /* Show Bottom Navigation & FAB */
   .mobile-bottom-nav {
-    display: flex;
+    display: flex !important;
   }
 
   .mobile-fab {
-    display: flex;
+    display: flex !important;
   }
 
   /* Prevent horizontal scrolling & clipping on mobile */

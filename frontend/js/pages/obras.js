@@ -30,28 +30,41 @@ export function renderObras(container, actionsEl, path) {
 
     const clientes = DataService.getAll('clientes');
     const columns = [
-      { label: 'Obra', render: (o) => `<span class="cell-mono cell-primary">#${o.id}</span>` },
       { label: 'Cliente', render: (o) => {
         const c = clientes.find(c => String(c.id) === String(o.clienteId));
-        if (c) return `<span class="cell-primary">${escapeHtml(c.nombre)} ${escapeHtml(c.apellido || '')}</span>`;
-        if (o.clienteNombre) return `<span class="cell-primary">${escapeHtml(o.clienteNombre)}</span>`;
-        return '-';
+        const cliName = c ? `${c.nombre} ${c.apellido || ''}`.trim() : (o.clienteNombre || 'Cliente sin asignar');
+        const shortId = (o.id && o.id.length > 8) ? o.id.slice(-5).toUpperCase() : o.id;
+        return `<div>
+          <span class="cell-primary" style="font-weight:var(--font-semibold);display:block">${escapeHtml(cliName)}</span>
+          <span class="cell-mono" style="font-size:11px;color:var(--color-stone-400)">Obra #${shortId}</span>
+        </div>`;
       }},
       { label: 'Presupuesto', render: (o) => {
-        if (o.presupuestoNumero) return `<a href="#/presupuestos/${o.presupuestoId}" class="badge badge-neutral" style="font-family:var(--font-mono);font-size:11px">${escapeHtml(o.presupuestoNumero)}</a>`;
-        if (o.presupuestoId) return `<a href="#/presupuestos/${o.presupuestoId}" class="badge badge-neutral">Presup. #${o.presupuestoId}</a>`;
+        if (o.presupuestoNumero) return `<a href="#/presupuestos/${o.presupuestoId}" class="badge badge-neutral" style="font-family:var(--font-mono);font-size:11px;font-weight:var(--font-bold);text-decoration:none">${escapeHtml(o.presupuestoNumero)}</a>`;
+        if (o.presupuestoId) return `<a href="#/presupuestos/${o.presupuestoId}" class="badge badge-neutral">#${o.presupuestoId}</a>`;
         return '<span class="text-muted" style="font-size:11px">Directa</span>';
       }},
-      { label: 'Dirección', render: (o) => `<span class="text-truncate" style="max-width:160px;display:inline-block">${escapeHtml(o.direccion || '-')}</span>` },
-      { label: 'Material', render: (o) => escapeHtml(o.material || '-'), className: 'cell-secondary' },
+      { label: 'Dirección', render: (o) => `<span class="text-truncate" style="max-width:180px;display:inline-block" title="${escapeHtml(o.direccion || '')}">${escapeHtml(o.direccion || '-')}</span>` },
+      { label: 'Material', render: (o) => `<span class="text-truncate cell-secondary" style="max-width:150px;display:inline-block" title="${escapeHtml(o.material || '')}">${escapeHtml(o.material || '-')}</span>` },
       { label: 'Estado', render: (o) => renderBadge(OBRA_ESTADO_LABELS[o.estado] || o.estado, OBRA_ESTADO_COLORS[o.estado] || 'neutral') },
-      { label: 'Progreso', render: (o) => { const total = DataService.getObraTotal(o.id); const cobrado = DataService.getObraCobrado(o.id); return total > 0 ? `<div style="min-width:80px">${renderProgressBar(cobrado, total)}<span style="font-size:var(--text-xs);color:var(--color-stone-500)">${Math.round(cobrado/total*100)}%</span></div>` : '-'; }},
-      { label: 'Saldo', align: 'right', render: (o) => { const t = DataService.getObraTotal(o.id); const c = DataService.getObraCobrado(o.id); return `<span class="cell-currency">${formatCurrency(t - c)}</span>`; }},
-      { label: '', align: 'right', className: 'cell-actions', render: (o) => `
-        <button class="btn btn-ghost btn-icon btn-sm" data-action="view" data-id="${o.id}" title="Ver">${Icons.eye}</button>
-        <button class="btn btn-ghost btn-icon btn-sm" data-action="export" data-id="${o.id}" title="Exportar Ficha / Orden">${Icons.download}</button>
-        <button class="btn btn-ghost btn-icon btn-sm" data-action="edit" data-id="${o.id}" title="Planificar / Editar">${Icons.edit}</button>
-        <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-id="${o.id}" title="Eliminar">${Icons.trash}</button>
+      { label: 'Saldo', align: 'right', render: (o) => {
+        const t = DataService.getObraTotal(o.id);
+        const c = DataService.getObraCobrado(o.id);
+        const saldo = t - c;
+        return `<div>
+          <span class="cell-currency" style="font-weight:var(--font-bold);color:${saldo > 0 ? 'var(--color-stone-900)' : 'var(--color-success)'}">${formatCurrency(saldo)}</span>
+          ${t > 0 ? `<div style="font-size:10.5px;color:var(--color-stone-500)">Cobrado: ${Math.round(c / t * 100)}%</div>` : ''}
+        </div>`;
+      }},
+      { label: 'Acciones', align: 'right', className: 'cell-actions', render: (o) => `
+        <div style="display:inline-flex;align-items:center;justify-content:flex-end;gap:5px">
+          <button class="btn btn-outline-primary btn-sm" data-action="edit" data-id="${o.id}" title="Planificar / Editar obra" style="padding:4px 10px;gap:5px;font-size:12px;font-weight:var(--font-semibold);display:inline-flex;align-items:center;color:var(--color-primary);border-color:var(--color-primary)">
+            ${Icons.edit} <span>Editar</span>
+          </button>
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="view" data-id="${o.id}" title="Ver">${Icons.eye}</button>
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="export" data-id="${o.id}" title="Exportar Ficha / Orden">${Icons.download}</button>
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-id="${o.id}" title="Eliminar" style="color:var(--color-error)">${Icons.trash}</button>
+        </div>
       `}
     ];
 

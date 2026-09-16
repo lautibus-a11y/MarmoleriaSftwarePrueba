@@ -485,14 +485,23 @@
 .data-table .cell-actions {
   text-align: right;
   white-space: nowrap;
+  min-width: 150px;
 }
 
-.data-table .cell-actions .btn-icon {
-  opacity: 0;
-  transition: opacity var(--transition-fast);
+.data-table .cell-actions .btn-icon,
+.data-table .cell-actions .btn {
+  opacity: 0.85;
+  transition: all var(--transition-fast);
 }
 
-.data-table tbody tr:hover .cell-actions .btn-icon {
+.data-table .cell-actions .btn-icon:hover,
+.data-table .cell-actions .btn:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.data-table tbody tr:hover .cell-actions .btn-icon,
+.data-table tbody tr:hover .cell-actions .btn {
   opacity: 1;
 }
 

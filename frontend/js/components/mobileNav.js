@@ -63,6 +63,12 @@ export function updateMobileFab(path) {
   const fabContainer = document.getElementById('mobile-fab-container');
   if (!fabContainer) return;
 
+  // Don't show create FAB on desktop (screens > 768px)
+  if (typeof window !== 'undefined' && window.innerWidth > 768) {
+    fabContainer.innerHTML = '';
+    return;
+  }
+
   const basePath = path.split('/')[1] || '';
   const isDetail = path.split('/').length > 2 && path.split('/')[2];
 
@@ -103,5 +109,11 @@ export function updateMobileFab(path) {
     if (targetBtn) {
       targetBtn.click();
     }
+  });
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('resize', () => {
+    updateMobileFab(window.location.hash.slice(1) || '/');
   });
 }
