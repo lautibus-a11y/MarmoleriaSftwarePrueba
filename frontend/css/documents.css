@@ -139,6 +139,17 @@
   vertical-align: middle;
 }
 
+.doc-brand-img {
+  height: 62px;
+  width: auto;
+  max-width: 95px;
+  object-fit: contain;
+  margin-right: 14px;
+  vertical-align: middle;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
 .doc-brand-title {
   font-size: 17pt;
   font-weight: 800;

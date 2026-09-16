@@ -6,6 +6,7 @@ import { Icons } from '../components/ui.js';
 import { Toast } from '../components/toast.js';
 import { CONDICIONES_COMERCIALES_DEFAULT } from '../utils/constants.js';
 import { escapeHtml } from '../utils/helpers.js';
+import { LOGO_URL } from '../utils/logo.js';
 
 // Simple local storage for config
 const CONFIG_KEY = 'mb_config';
@@ -27,6 +28,13 @@ export function renderConfiguracion(container, actionsEl) {
     <div class="config-section">
       <div class="config-section-header"><h3 class="config-section-title">${Icons.settings} Datos de la empresa</h3></div>
       <div class="config-section-body">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:var(--space-4);padding:14px;background:var(--color-stone-100);border-radius:var(--radius-md);border:1px solid var(--color-stone-200)">
+          <img src="${LOGO_URL}" alt="Logo oficial" style="height:64px;width:64px;object-fit:contain;background:#ffffff;padding:4px;border-radius:var(--radius-md);border:1px solid var(--color-stone-200);box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+          <div>
+            <strong style="display:block;font-size:14px;color:var(--color-stone-900)">Logo oficial del sistema</strong>
+            <span style="font-size:12px;color:var(--color-stone-500)">Se aplica automáticamente en la barra lateral, favicons y en los membretes oficiales de Presupuestos, Fichas de Obra y Recibos (PDF y Word).</span>
+          </div>
+        </div>
         <form id="config-empresa">
           <div class="form-row-2">
             <div class="form-group"><label class="form-label">Nombre</label><input type="text" class="form-input" name="empresa_nombre" value="${escapeHtml(config.empresa_nombre||'Marmolería Benjamin')}"></div>

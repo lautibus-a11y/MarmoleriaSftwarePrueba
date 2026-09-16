@@ -9,6 +9,7 @@
 
 import { formatCurrency, formatDate, escapeHtml } from '../utils/helpers.js';
 import { PRESUPUESTO_ESTADO_LABELS, OBRA_ESTADO_LABELS, COBRO_ESTADO_LABELS, FACTURA_TIPO_LABELS, METODOS_PAGO } from '../utils/constants.js';
+import { LOGO_BASE64 } from '../utils/logo.js';
 
 // Retrieve company information from configuration
 export function getCompanyInfo() {
@@ -21,6 +22,7 @@ export function getCompanyInfo() {
       direccion: cfg.empresa_direccion || 'Av. Los Canteros 1420, Córdoba',
       telefono: cfg.empresa_telefono || '+54 9 351 555-0192',
       email: cfg.empresa_email || 'contacto@marmoleriabenjamin.com.ar',
+      logoSrc: cfg.empresa_logo || LOGO_BASE64,
       logoText: 'MB'
     };
   } catch (e) {
@@ -31,6 +33,7 @@ export function getCompanyInfo() {
       direccion: 'Av. Los Canteros 1420, Córdoba',
       telefono: '+54 9 351 555-0192',
       email: 'contacto@marmoleriabenjamin.com.ar',
+      logoSrc: LOGO_BASE64,
       logoText: 'MB'
     };
   }
@@ -91,7 +94,7 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
         <tr>
           <td style="width:60%">
             <div style="display:flex;align-items:center">
-              <div class="doc-brand-badge">${company.logoText}</div>
+              <img src="${company.logoSrc}" alt="${escapeHtml(company.nombre)}" class="doc-brand-img">
               <div>
                 <h1 class="doc-brand-title">${escapeHtml(company.nombre)}</h1>
                 <p class="doc-brand-subtitle">${escapeHtml(company.subtitulo)}</p>
@@ -271,7 +274,7 @@ export function generateObraHtml(obra, cliente = null, pres = null, cobros = [])
         <tr>
           <td style="width:60%">
             <div style="display:flex;align-items:center">
-              <div class="doc-brand-badge">${company.logoText}</div>
+              <img src="${company.logoSrc}" alt="${escapeHtml(company.nombre)}" class="doc-brand-img">
               <div>
                 <h1 class="doc-brand-title">${escapeHtml(company.nombre)}</h1>
                 <p class="doc-brand-subtitle">ORDEN DE TRABAJO & FICHA TÉCNICA DE TALLER</p>
@@ -386,7 +389,7 @@ export function generateCobroHtml(cobro, cliente = null, obra = null) {
         <tr>
           <td style="width:60%">
             <div style="display:flex;align-items:center">
-              <div class="doc-brand-badge">${company.logoText}</div>
+              <img src="${company.logoSrc}" alt="${escapeHtml(company.nombre)}" class="doc-brand-img">
               <div>
                 <h1 class="doc-brand-title">${escapeHtml(company.nombre)}</h1>
                 <p class="doc-brand-subtitle">COMPROBANTE OFICIAL DE COBRO</p>
@@ -467,7 +470,7 @@ export function generateFacturaHtml(fac, prov = null) {
         <tr>
           <td style="width:60%">
             <div style="display:flex;align-items:center">
-              <div class="doc-brand-badge">${company.logoText}</div>
+              <img src="${company.logoSrc}" alt="${escapeHtml(company.nombre)}" class="doc-brand-img">
               <div>
                 <h1 class="doc-brand-title">${escapeHtml(company.nombre)}</h1>
                 <p class="doc-brand-subtitle">REGISTRO DE COMPROBANTE COMERCIAL</p>
@@ -597,6 +600,12 @@ export function exportToWord(htmlContent, filename = 'documento') {
         }
         td.num, th.num {
           text-align: right;
+        }
+        .doc-brand-img {
+          height: 48pt;
+          max-width: 80pt;
+          margin-right: 10pt;
+          vertical-align: middle;
         }
         .doc-brand-title {
           font-size: 16pt;

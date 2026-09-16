@@ -4,6 +4,7 @@
 
 import { Icons } from './ui.js';
 import { NAV_ITEMS } from '../utils/constants.js';
+import { LOGO_URL } from '../utils/logo.js';
 
 export function renderSidebar(activePath = '/dashboard') {
   const navItems = NAV_ITEMS.map(item => {
@@ -20,7 +21,7 @@ export function renderSidebar(activePath = '/dashboard') {
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <a href="#/dashboard" class="sidebar-logo">
-          <div class="sidebar-logo-icon">MB</div>
+          <img src="${LOGO_URL}" alt="Marmolería Benjamin" class="sidebar-logo-img">
           <div class="sidebar-logo-text">
             <span class="sidebar-logo-name">Marmolería Benjamin</span>
             <span class="sidebar-logo-sub">Sistema Administrativo</span>
