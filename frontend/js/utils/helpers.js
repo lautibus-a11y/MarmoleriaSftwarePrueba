@@ -274,3 +274,25 @@ export function parseLocaleNumber(str) {
   if (!str) return 0;
   return parseFloat(str.replace(/\./g, '').replace(',', '.')) || 0;
 }
+
+/**
+ * Resolve relative or storage file key to accessible URL
+ */
+export function resolveFileUrl(urlOrKey) {
+  if (!urlOrKey) return '';
+  if (urlOrKey.startsWith('data:') || urlOrKey.startsWith('blob:') || urlOrKey.startsWith('http://') || urlOrKey.startsWith('https://')) {
+    return urlOrKey;
+  }
+  const isLocal = typeof window !== 'undefined' && 
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const workerBase = isLocal ? '' : 'https://marmoleria-benjamin-api.davidlaid1998.workers.dev';
+  
+  if (urlOrKey.startsWith('/api/')) {
+    return `${workerBase}${urlOrKey}`;
+  }
+  if (urlOrKey.startsWith('uploads/')) {
+    return `${workerBase}/api/${urlOrKey}`;
+  }
+  return `${workerBase}/api/uploads/${urlOrKey}`;
+}
+

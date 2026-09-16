@@ -3,9 +3,11 @@
    ======================================== */
 
 import { DataService } from '../services/mockData.js';
-import { formatCurrency, formatDate, escapeHtml, debounce } from '../utils/helpers.js';
+import { Api } from '../services/api.js';
+import { formatCurrency, formatDate, escapeHtml, debounce, resolveFileUrl } from '../utils/helpers.js';
 import { Icons, renderDataTable, renderSearchInput, renderBadge, renderFileUpload } from '../components/ui.js';
 import { Drawer } from '../components/drawer.js';
+import { Modal, previewAttachment } from '../components/modal.js';
 import { Toast } from '../components/toast.js';
 import { confirmDialog } from '../components/confirmDialog.js';
 import { METODOS_PAGO, PAGO_ESTADO_LABELS, PAGO_ESTADO_COLORS } from '../utils/constants.js';
@@ -40,12 +42,22 @@ export function renderPagos(container, actionsEl) {
         }
       },
       { label: 'Fecha', render: (p) => formatDate(p.fecha), className: 'cell-secondary' },
-      { label: 'Método', render: (p) => { const m=METODOS_PAGO.find(x=>x.value===p.metodoPago); return escapeHtml(m?.label||p.metodoPago); }},
+      { label: 'Método', render: (p) => { const m = METODOS_PAGO.find(x => x.value === p.metodoPago); return escapeHtml(m?.label || p.metodoPago); }},
       { label: 'Importe', align: 'right', render: (p) => `<span class="cell-currency">${formatCurrency(p.importe)}</span>` },
-      { label: 'Estado', render: (p) => renderBadge(PAGO_ESTADO_LABELS[p.estado]||p.estado, PAGO_ESTADO_COLORS[p.estado]||'neutral') },
+      { label: 'Estado', render: (p) => renderBadge(PAGO_ESTADO_LABELS[p.estado] || p.estado, PAGO_ESTADO_COLORS[p.estado] || 'neutral') },
+      {
+        label: 'Comprobante',
+        align: 'center',
+        render: (p) => {
+          if (p.comprobanteUrl || p.comprobanteKey) {
+            return `<button class="btn btn-ghost btn-icon btn-sm" data-action="view-file" data-id="${p.id}" title="Ver comprobante adjunto" style="color:#2563eb">${Icons.image}</button>`;
+          }
+          return '<span class="text-muted" style="font-size:12px">-</span>';
+        }
+      },
       { label: '', align: 'right', className: 'cell-actions', render: (p) => `
-        <button class="btn btn-ghost btn-icon btn-sm" data-action="edit" data-id="${p.id}">${Icons.edit}</button>
-        <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-id="${p.id}">${Icons.trash}</button>
+        <button class="btn btn-ghost btn-icon btn-sm" data-action="edit" data-id="${p.id}" title="Editar">${Icons.edit}</button>
+        <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-id="${p.id}" title="Eliminar">${Icons.trash}</button>
       `}
     ];
 
@@ -61,26 +73,37 @@ export function renderPagos(container, actionsEl) {
       ${renderDataTable({ columns, data: filtered.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)), emptyMessage: 'No hay pagos registrados' })}
     </div>`;
 
-    const si=container.querySelector('#search-input');
-    if(si){si.value=searchTerm;si.addEventListener('input',debounce(e=>{searchTerm=e.target.value;render();},300));}
-    container.querySelector('#filter-estado')?.addEventListener('change',e=>{filterEstado=e.target.value;render();});
-    container.querySelector('#filter-metodo')?.addEventListener('change',e=>{filterMetodo=e.target.value;render();});
-    container.addEventListener('click',e=>{
-      const btn=e.target.closest('[data-action]');if(!btn)return;
-      if(btn.dataset.action==='edit')openForm(btn.dataset.id);
-      if(btn.dataset.action==='delete')handleDelete(btn.dataset.id);
+    const si = container.querySelector('#search-input');
+    if (si) { si.value = searchTerm; si.addEventListener('input', debounce(e => { searchTerm = e.target.value; render(); }, 300)); }
+    container.querySelector('#filter-estado')?.addEventListener('change', e => { filterEstado = e.target.value; render(); });
+    container.querySelector('#filter-metodo')?.addEventListener('change', e => { filterMetodo = e.target.value; render(); });
+    container.addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]'); if (!btn) return;
+      if (btn.dataset.action === 'view-file') {
+        const p = DataService.getById('pagos', btn.dataset.id);
+        if (p && (p.comprobanteUrl || p.comprobanteKey)) {
+          previewAttachment({ url: p.comprobanteUrl, key: p.comprobanteKey, filename: `Comprobante_Pago_${p.destinatarioConcepto || p.id}` });
+        }
+      }
+      if (btn.dataset.action === 'edit') openForm(btn.dataset.id);
+      if (btn.dataset.action === 'delete') handleDelete(btn.dataset.id);
     });
   }
 
-  function openForm(editId=null){
-    const pago=editId?DataService.getById('pagos',editId):{};const isEdit=!!editId;
-    const proveedores=DataService.getAll('proveedores');
-    const facturasDisp=DataService.getAll('facturas').filter(f=>f.tipo==='factura'&&(f.estado==='pendiente'||f.estado==='parcial'));
+  function openForm(editId = null) {
+    const pago = (editId ? DataService.getById('pagos', editId) : null) || {};
+    const isEdit = !!editId && !!pago.id;
+    const proveedores = DataService.getAll('proveedores');
+    const facturasDisp = DataService.getAll('facturas').filter(f => f.tipo === 'factura' && (f.estado === 'pendiente' || f.estado === 'parcial'));
 
-    const existingDest = pago.destinatarioConcepto || pago.concepto || (proveedores.find(p=>p.id===pago.proveedorId)?.nombre || '');
+    const existingDest = (pago && (pago.destinatarioConcepto || pago.concepto)) || (pago.proveedorId ? proveedores.find(p => p.id === pago.proveedorId)?.nombre : '') || '';
 
-    Drawer.open({title:isEdit?'Editar pago':'Nuevo pago',
-      content:`<form id="pago-form">
+    let selectedFile = null;
+    let removeExistingFile = false;
+
+    Drawer.open({
+      title: isEdit ? 'Editar pago' : 'Nuevo pago',
+      content: `<form id="pago-form">
         <div class="form-group">
           <label class="form-label">Destinatario / Concepto <span class="required">*</span></label>
           <input type="text" class="form-input" name="destinatarioConcepto" id="pago-destinatario-concepto" list="destinatarios-sugeridos" value="${escapeHtml(existingDest)}" placeholder="Ej: Cantera San Luis, Flete, Servicios, Sueldos..." required>
@@ -99,35 +122,144 @@ export function renderPagos(container, actionsEl) {
           <div class="form-group"><label class="form-label">Estado</label><select class="form-select" name="estado">${Object.entries(PAGO_ESTADO_LABELS).map(([k,v])=>`<option value="${k}" ${(pago.estado||'pagado')===k?'selected':''}>${v}</option>`).join('')}</select></div>
         </div>
         <div class="form-group"><label class="form-label">Observaciones</label><textarea class="form-textarea" name="observaciones" rows="2">${escapeHtml(pago.observaciones||'')}</textarea></div>
-        <div class="form-group"><label class="form-label">Comprobante</label>${renderFileUpload('pago-file')}</div>
+        <div class="form-group">
+          <label class="form-label">Comprobante adjunto (Foto o PDF)</label>
+          ${renderFileUpload('pago-file')}
+        </div>
       </form>`,
-      footer:`<button class="btn btn-secondary" id="drawer-cancel">Cancelar</button><button class="btn btn-primary" id="drawer-save">${isEdit?'Guardar':'Registrar pago'}</button>`
+      footer: `<button class="btn btn-secondary" id="drawer-cancel">Cancelar</button><button class="btn btn-primary" id="drawer-save">${isEdit ? 'Guardar' : 'Registrar pago'}</button>`
     });
 
-    const zone=document.getElementById('pago-file-zone');const fileInput=document.getElementById('pago-file');
-    if(zone&&fileInput){zone.addEventListener('click',()=>fileInput.click());}
+    const zone = document.getElementById('pago-file-zone');
+    const fileInput = document.getElementById('pago-file');
+    const prev = document.getElementById('pago-file-preview');
 
-    document.getElementById('drawer-cancel').addEventListener('click',()=>Drawer.close());
-    document.getElementById('drawer-save').addEventListener('click',()=>{
-      const data=Object.fromEntries(new FormData(document.getElementById('pago-form')));
+    function updatePreviewUI(name, size, url = null) {
+      if (!prev) return;
+      prev.style.display = 'block';
+      prev.innerHTML = `
+        <div class="file-upload-preview" style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--color-stone-100);border:1px solid var(--color-stone-200);border-radius:var(--radius-md);margin-top:8px">
+          <div style="display:flex;align-items:center;gap:10px;overflow:hidden">
+            <span style="color:#2563eb">${Icons.image}</span>
+            <div>
+              <strong style="display:block;font-size:13px;color:var(--color-stone-900);text-overflow:ellipsis;white-space:nowrap;overflow:hidden;max-width:220px">${escapeHtml(name)}</strong>
+              ${size ? `<span style="font-size:11px;color:var(--color-stone-500)">${size}</span>` : ''}
+            </div>
+          </div>
+          <div style="display:flex;gap:6px">
+            ${url ? `<button type="button" class="btn btn-ghost btn-sm" id="btn-view-preview-file" style="color:#2563eb">${Icons.eye} Ver</button>` : ''}
+            <button type="button" class="btn btn-ghost btn-sm" id="remove-pago-file" style="color:var(--color-error)">${Icons.x}</button>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('btn-view-preview-file')?.addEventListener('click', () => {
+        previewAttachment({ url, filename: name });
+      });
+
+      document.getElementById('remove-pago-file')?.addEventListener('click', () => {
+        prev.style.display = 'none';
+        prev.innerHTML = '';
+        fileInput.value = '';
+        selectedFile = null;
+        removeExistingFile = true;
+      });
+    }
+
+    // Show existing attached file if editing
+    if (pago.comprobanteUrl || pago.comprobanteKey) {
+      const existingUrl = resolveFileUrl(pago.comprobanteUrl || pago.comprobanteKey);
+      updatePreviewUI('Comprobante actual', '', existingUrl);
+    }
+
+    if (zone && fileInput) {
+      zone.addEventListener('click', () => fileInput.click());
+      zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+      zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+      zone.addEventListener('drop', e => {
+        e.preventDefault();
+        zone.classList.remove('dragover');
+        if (e.dataTransfer.files[0]) handleFileChosen(e.dataTransfer.files[0]);
+      });
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files[0]) handleFileChosen(fileInput.files[0]);
+      });
+    }
+
+    function handleFileChosen(file) {
+      selectedFile = file;
+      removeExistingFile = false;
+      const sizeStr = (file.size / 1024).toFixed(0) + ' KB';
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        updatePreviewUI(file.name, sizeStr, e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    document.getElementById('drawer-cancel').addEventListener('click', () => Drawer.close());
+    document.getElementById('drawer-save').addEventListener('click', async () => {
+      const data = Object.fromEntries(new FormData(document.getElementById('pago-form')));
       const dest = (data.destinatarioConcepto || '').trim();
-      if(!dest || !data.importe){Toast.warning('Completá el destinatario/concepto y el importe');return;}
+      if (!dest || !data.importe) { Toast.warning('Completá el destinatario/concepto y el importe'); return; }
+
+      const saveBtn = document.getElementById('drawer-save');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Guardando...';
+
       data.destinatarioConcepto = dest;
       data.concepto = dest;
       const matched = proveedores.find(p => p.nombre.toLowerCase() === dest.toLowerCase());
       data.proveedorId = matched ? matched.id : (pago.proveedorId || null);
-      data.importe=parseFloat(data.importe);data.comprobanteKey=null;
-      if(isEdit){DataService.update('pagos',editId,data);Toast.success('Pago actualizado');}
-      else{DataService.create('pagos',data);Toast.success('Pago registrado');}
-      Drawer.close();pagos=DataService.getAll('pagos');render();
+      data.importe = parseFloat(data.importe);
+
+      // Handle file attachment
+      if (selectedFile) {
+        saveBtn.textContent = 'Subiendo comprobante a Cloudflare R2...';
+        try {
+          const uploadRes = await Api.upload(selectedFile, 'comprobantes');
+          data.comprobanteKey = uploadRes.key;
+          data.comprobanteUrl = uploadRes.url;
+        } catch (uErr) {
+          console.warn('Could not upload to worker R2, using local fallback:', uErr);
+          // Fallback to dataUrl so file is not lost
+          const reader = new FileReader();
+          data.comprobanteUrl = await new Promise(resolve => {
+            reader.onload = () => resolve(reader.result);
+            reader.readAsDataURL(selectedFile);
+          });
+        }
+      } else if (removeExistingFile) {
+        data.comprobanteKey = null;
+        data.comprobanteUrl = null;
+      } else {
+        data.comprobanteKey = pago.comprobanteKey || null;
+        data.comprobanteUrl = pago.comprobanteUrl || null;
+      }
+
+      if (isEdit) {
+        DataService.update('pagos', editId, data);
+        Toast.success('Pago actualizado');
+      } else {
+        DataService.create('pagos', data);
+        Toast.success('Pago registrado');
+      }
+      Drawer.close();
+      pagos = DataService.getAll('pagos');
+      render();
     });
   }
 
-  async function handleDelete(id){
-    const confirmed=await confirmDialog({title:'Eliminar pago',message:'¿Estás seguro?',confirmText:'Eliminar',type:'danger'});
-    if(confirmed){DataService.remove('pagos',id);Toast.success('Pago eliminado');pagos=DataService.getAll('pagos');render();}
+  async function handleDelete(id) {
+    const confirmed = await confirmDialog({ title: 'Eliminar pago', message: '¿Estás seguro?', confirmText: 'Eliminar', type: 'danger' });
+    if (confirmed) {
+      DataService.remove('pagos', id);
+      Toast.success('Pago eliminado');
+      pagos = DataService.getAll('pagos');
+      render();
+    }
   }
 
-  setTimeout(()=>{document.getElementById('btn-new-pago')?.addEventListener('click',()=>openForm());},100);
+  setTimeout(() => { document.getElementById('btn-new-pago')?.addEventListener('click', () => openForm()); }, 100);
   render();
 }

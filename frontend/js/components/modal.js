@@ -112,3 +112,45 @@ class ModalManager {
 }
 
 export const Modal = new ModalManager();
+
+import { resolveFileUrl, escapeHtml } from '../utils/helpers.js';
+
+export function previewAttachment({ url, key, filename = 'Comprobante', type = '' }) {
+  const fullUrl = resolveFileUrl(url || key);
+  if (!fullUrl) return;
+
+  const isPdf = fullUrl.toLowerCase().includes('.pdf') || (type && type.includes('pdf'));
+
+  if (isPdf) {
+    Modal.open({
+      title: `${escapeHtml(filename)}`,
+      size: 'xl',
+      content: `
+        <div style="width:100%;height:75vh;border-radius:6px;overflow:hidden;background:#f3f4f6">
+          <iframe src="${fullUrl}" style="width:100%;height:100%;border:none"></iframe>
+        </div>
+        <div style="margin-top:14px;display:flex;justify-content:flex-end;gap:8px">
+          <a href="${fullUrl}" target="_blank" download="${escapeHtml(filename)}.pdf" class="btn btn-primary btn-sm">
+            Descargar PDF
+          </a>
+        </div>
+      `
+    });
+  } else {
+    Modal.open({
+      title: `${escapeHtml(filename)}`,
+      size: 'lg',
+      content: `
+        <div style="text-align:center;padding:12px;background:#18181b;border-radius:8px">
+          <img src="${fullUrl}" alt="${escapeHtml(filename)}" style="max-width:100%;max-height:75vh;object-fit:contain;border-radius:4px;display:inline-block">
+        </div>
+        <div style="margin-top:14px;display:flex;justify-content:flex-end;gap:8px">
+          <a href="${fullUrl}" target="_blank" download="${escapeHtml(filename)}" class="btn btn-primary btn-sm">
+            Descargar / Abrir en pestaña nueva
+          </a>
+        </div>
+      `
+    });
+  }
+}
+
