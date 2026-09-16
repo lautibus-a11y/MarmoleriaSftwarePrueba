@@ -136,7 +136,9 @@ export function renderPresupuestos(container, actionsEl, path) {
   }
 
   function openPresupuestoForm(editId = null) {
-    const pres = editId ? { ...DataService.getById('presupuestos', editId) } : {
+    const found = editId ? DataService.getById('presupuestos', editId) : null;
+    const isEdit = !!editId && !!found;
+    const pres = found ? { ...found } : {
       numero: generateAutoNumber('PRES', DataService.getAll('presupuestos')),
       fecha: new Date().toISOString().split('T')[0],
       moneda: 'ARS', estado: 'borrador',
@@ -145,13 +147,13 @@ export function renderPresupuestos(container, actionsEl, path) {
       descuento: 0, impuestos: 21, condiciones: CONDICIONES_COMERCIALES_DEFAULT.join('\n')
     };
 
-    const clientes = DataService.getAll('clientes');
-    const materiales = DataService.getAll('materiales');
+    const clientes = DataService.getAll('clientes').filter(Boolean);
+    const materiales = DataService.getAll('materiales').filter(Boolean);
 
     const isNuevoInicial = !pres.clienteId && !!pres.clienteNombre;
 
     Drawer.open({
-      title: editId ? `Editar ${pres.numero}` : 'Nuevo presupuesto',
+      title: isEdit ? `Editar ${pres.numero || 'presupuesto'}` : 'Nuevo presupuesto',
       size: 'xl',
       content: `
         <form id="pres-form">

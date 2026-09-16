@@ -104,8 +104,8 @@ export function renderClientes(container, actionsEl, path) {
   }
 
   function openClienteForm(editId = null) {
-    const cliente = editId ? DataService.getById('clientes', editId) : {};
-    const isEdit = !!editId;
+    const cliente = (editId ? DataService.getById('clientes', editId) : null) || {};
+    const isEdit = !!editId && !!cliente.id;
 
     Drawer.open({
       title: isEdit ? 'Editar cliente' : 'Nuevo cliente',

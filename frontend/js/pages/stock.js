@@ -115,8 +115,8 @@ export function renderStock(container, actionsEl) {
   }
 
   function openMaterialForm(editId=null){
-    const mat=editId?DataService.getById('materiales',editId):{};
-    const isEdit=!!editId;
+    const mat = (editId ? DataService.getById('materiales', editId) : null) || {};
+    const isEdit = !!editId;
     const proveedores=DataService.getAll('proveedores');
     const valorPrecio = (mat.precioM2 ?? mat.precioVenta) ?? '';
 

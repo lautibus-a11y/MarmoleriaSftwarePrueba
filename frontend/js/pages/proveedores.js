@@ -56,7 +56,8 @@ export function renderProveedores(container, actionsEl, path) {
   }
 
   function openForm(editId=null){
-    const prov=editId?DataService.getById('proveedores',editId):{};const isEdit=!!editId;
+    const prov = (editId ? DataService.getById('proveedores', editId) : null) || {};
+    const isEdit = !!editId;
     Drawer.open({title:isEdit?'Editar proveedor':'Nuevo proveedor',
       content:`<form id="prov-form">
         <div class="form-row-2"><div class="form-group"><label class="form-label">Nombre <span class="required">*</span></label><input type="text" class="form-input" name="nombre" value="${escapeHtml(prov.nombre||'')}" required></div>

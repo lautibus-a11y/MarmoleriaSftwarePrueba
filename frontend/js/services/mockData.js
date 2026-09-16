@@ -111,17 +111,19 @@ export const DataService = {
 
   // ── Generic CRUD ──
   getAll(collection) {
-    return [...(store[collection] || [])];
+    return [...(store[collection] || [])].filter(Boolean);
   },
 
   getById(collection, id) {
-    return store[collection]?.find(item => item.id === id) || null;
+    if (!id) return null;
+    return store[collection]?.find(item => item && item.id === id) || null;
   },
 
   create(collection, data) {
+    const id = data.id || (collection.substring(0, 3) + '-' + generateId());
     const record = {
       ...data,
-      id: data.id || generateId(),
+      id,
       createdAt: new Date().toISOString()
     };
     
@@ -130,14 +132,14 @@ export const DataService = {
     
     try { localStorage.setItem(`mb_${collection}`, JSON.stringify(store[collection])); } catch (e) {}
 
-    // Async sync to Cloudflare Worker R2
+    // Async sync to Cloudflare Worker R2, keeping the same stable ID
     const route = COLLECTION_ROUTES[collection];
     if (route) {
       Api.post(route, record).then(serverItem => {
-        if (serverItem && serverItem.id) {
-          const idx = store[collection].findIndex(i => i.id === record.id);
+        if (serverItem) {
+          const idx = store[collection].findIndex(i => i && i.id === id);
           if (idx !== -1) {
-            store[collection][idx] = { ...record, ...serverItem };
+            store[collection][idx] = { ...record, ...serverItem, id };
             try { localStorage.setItem(`mb_${collection}`, JSON.stringify(store[collection])); } catch (e) {}
           }
         }

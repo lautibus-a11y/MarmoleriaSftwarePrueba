@@ -83,9 +83,9 @@ export function renderObras(container, actionsEl, path) {
   }
 
   function openObraForm(editId = null) {
-    const obra = editId ? DataService.getById('obras', editId) : {};
-    const isEdit = !!editId;
-    const clientes = DataService.getAll('clientes');
+    const obra = (editId ? DataService.getById('obras', editId) : null) || {};
+    const isEdit = !!editId && !!obra.id;
+    const clientes = DataService.getAll('clientes').filter(Boolean);
 
     Drawer.open({
       title: isEdit ? 'Editar obra' : 'Nueva obra', size: 'lg',
