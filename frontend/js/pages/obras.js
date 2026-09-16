@@ -18,6 +18,7 @@ export function renderObras(container, actionsEl, path) {
   if (parts.length > 2 && parts[2]) { renderObraDetail(container, actionsEl, parts[2]); return; }
 
   actionsEl.innerHTML = `<button class="btn btn-primary" id="btn-new-obra">${Icons.plus} Nueva obra</button>`;
+  actionsEl.querySelector('#btn-new-obra')?.addEventListener('click', () => openObraForm());
 
   let obras = DataService.getAll('obras');
   let searchTerm = '', filterEstado = '';
@@ -25,12 +26,23 @@ export function renderObras(container, actionsEl, path) {
   function render() {
     let filtered = obras;
     if (filterEstado) filtered = filtered.filter(o => o.estado === filterEstado);
-    if (searchTerm) filtered = searchFilter(filtered, searchTerm, ['direccion', 'descripcion', 'material']);
+    if (searchTerm) filtered = searchFilter(filtered, searchTerm, ['direccion', 'descripcion', 'material', 'clienteNombre', 'presupuestoNumero']);
 
     const clientes = DataService.getAll('clientes');
     const columns = [
-      { label: 'Cliente', render: (o) => { const c = clientes.find(c => c.id === o.clienteId); return c ? `<span class="cell-primary">${escapeHtml(c.nombre)} ${escapeHtml(c.apellido || '')}</span>` : '-'; }},
-      { label: 'Dirección', render: (o) => `<span class="text-truncate" style="max-width:180px;display:inline-block">${escapeHtml(o.direccion)}</span>` },
+      { label: 'Obra', render: (o) => `<span class="cell-mono cell-primary">#${o.id}</span>` },
+      { label: 'Cliente', render: (o) => {
+        const c = clientes.find(c => String(c.id) === String(o.clienteId));
+        if (c) return `<span class="cell-primary">${escapeHtml(c.nombre)} ${escapeHtml(c.apellido || '')}</span>`;
+        if (o.clienteNombre) return `<span class="cell-primary">${escapeHtml(o.clienteNombre)}</span>`;
+        return '-';
+      }},
+      { label: 'Presupuesto', render: (o) => {
+        if (o.presupuestoNumero) return `<a href="#/presupuestos/${o.presupuestoId}" class="badge badge-neutral" style="font-family:var(--font-mono);font-size:11px">${escapeHtml(o.presupuestoNumero)}</a>`;
+        if (o.presupuestoId) return `<a href="#/presupuestos/${o.presupuestoId}" class="badge badge-neutral">Presup. #${o.presupuestoId}</a>`;
+        return '<span class="text-muted" style="font-size:11px">Directa</span>';
+      }},
+      { label: 'Dirección', render: (o) => `<span class="text-truncate" style="max-width:160px;display:inline-block">${escapeHtml(o.direccion || '-')}</span>` },
       { label: 'Material', render: (o) => escapeHtml(o.material || '-'), className: 'cell-secondary' },
       { label: 'Estado', render: (o) => renderBadge(OBRA_ESTADO_LABELS[o.estado] || o.estado, OBRA_ESTADO_COLORS[o.estado] || 'neutral') },
       { label: 'Progreso', render: (o) => { const total = DataService.getObraTotal(o.id); const cobrado = DataService.getObraCobrado(o.id); return total > 0 ? `<div style="min-width:80px">${renderProgressBar(cobrado, total)}<span style="font-size:var(--text-xs);color:var(--color-stone-500)">${Math.round(cobrado/total*100)}%</span></div>` : '-'; }},
@@ -38,7 +50,7 @@ export function renderObras(container, actionsEl, path) {
       { label: '', align: 'right', className: 'cell-actions', render: (o) => `
         <button class="btn btn-ghost btn-icon btn-sm" data-action="view" data-id="${o.id}" title="Ver">${Icons.eye}</button>
         <button class="btn btn-ghost btn-icon btn-sm" data-action="export" data-id="${o.id}" title="Exportar Ficha / Orden">${Icons.download}</button>
-        <button class="btn btn-ghost btn-icon btn-sm" data-action="edit" data-id="${o.id}" title="Editar">${Icons.edit}</button>
+        <button class="btn btn-ghost btn-icon btn-sm" data-action="edit" data-id="${o.id}" title="Planificar / Editar">${Icons.edit}</button>
         <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-id="${o.id}" title="Eliminar">${Icons.trash}</button>
       `}
     ];
@@ -47,7 +59,7 @@ export function renderObras(container, actionsEl, path) {
       <div class="table-container">
         <div class="table-toolbar">
           <div class="table-toolbar-left">
-            ${renderSearchInput('Buscar obra...')}
+            ${renderSearchInput('Buscar obra, cliente, material...')}
             <select class="filter-select" id="filter-estado">
               <option value="">Todos los estados</option>
               ${Object.entries(OBRA_ESTADO_LABELS).map(([k,v]) => `<option value="${k}" ${filterEstado===k?'selected':''}>${v}</option>`).join('')}
@@ -60,72 +72,175 @@ export function renderObras(container, actionsEl, path) {
     `;
 
     const si = container.querySelector('#search-input');
-    if (si) { si.value = searchTerm; si.addEventListener('input', debounce(e => { searchTerm = e.target.value; render(); }, 300)); }
-    container.querySelector('#filter-estado')?.addEventListener('change', e => { filterEstado = e.target.value; render(); });
-    container.addEventListener('click', e => {
-      const btn = e.target.closest('[data-action]'); if (!btn) return;
-      const {action, id} = btn.dataset;
-      if (action==='view') window.location.hash=`#/obras/${id}`;
-      if (action==='export') {
+    if (si) { si.value = searchTerm; si.oninput = debounce(e => { searchTerm = e.target.value; render(); }, 300); }
+    const filterEl = container.querySelector('#filter-estado');
+    if (filterEl) { filterEl.onchange = e => { filterEstado = e.target.value; render(); }; }
+  }
+
+  // Delegated single click handler on container (prevents duplicate listeners on render)
+  container.onclick = e => {
+    const btn = e.target.closest('[data-action]');
+    if (btn) {
+      const { action, id } = btn.dataset;
+      if (action === 'view') { window.location.hash = `#/obras/${id}`; return; }
+      if (action === 'export') {
         const o = DataService.getById('obras', id);
         if (!o) return;
         const cli = o.clienteId ? DataService.getById('clientes', o.clienteId) : null;
         const pr = o.presupuestoId ? DataService.getById('presupuestos', o.presupuestoId) : null;
-        const cobs = DataService.getAll('cobros').filter(c => c.obraId === id);
+        const cobs = DataService.getAll('cobros').filter(c => String(c.obraId) === String(id));
         DocumentModal.open({
           title: `Ficha Técnica — Obra #${o.id}`,
           filename: `Ficha_Obra_${o.id}`,
           htmlContent: generateObraHtml(o, cli, pr, cobs)
         });
+        return;
       }
-      if (action==='edit') openObraForm(id);
-      if (action==='delete') handleDelete(id);
-    });
-    container.querySelectorAll('.data-table tbody tr').forEach(r => r.addEventListener('click', e => { if (!e.target.closest('[data-action]') && r.dataset.id) window.location.hash=`#/obras/${r.dataset.id}`; }));
-  }
+      if (action === 'edit') { openObraForm(id); return; }
+      if (action === 'delete') { handleDelete(id); return; }
+      return;
+    }
+    const r = e.target.closest('.data-table tbody tr');
+    if (r && r.dataset.id && !e.target.closest('a, button')) {
+      window.location.hash = `#/obras/${r.dataset.id}`;
+    }
+  };
 
-  function openObraForm(editId = null) {
+  function openObraForm(editId = null, onSaved = null) {
     const obra = (editId ? DataService.getById('obras', editId) : null) || {};
     const isEdit = !!editId && !!obra.id;
     const clientes = DataService.getAll('clientes').filter(Boolean);
 
     Drawer.open({
-      title: isEdit ? 'Editar obra' : 'Nueva obra', size: 'lg',
-      content: `<form id="obra-form">
-        <div class="form-group"><label class="form-label">Cliente <span class="required">*</span></label><select class="form-select" name="clienteId"><option value="">Seleccionar...</option>${clientes.map(c=>`<option value="${c.id}" ${obra.clienteId===c.id?'selected':''}>${c.nombre} ${c.apellido||''}</option>`).join('')}</select></div>
-        <div class="form-group"><label class="form-label">Dirección</label><input type="text" class="form-input" name="direccion" value="${escapeHtml(obra.direccion||'')}"></div>
-        <div class="form-group"><label class="form-label">Descripción</label><input type="text" class="form-input" name="descripcion" value="${escapeHtml(obra.descripcion||'')}"></div>
-        <div class="form-group"><label class="form-label">Material</label><input type="text" class="form-input" name="material" value="${escapeHtml(obra.material||'')}"></div>
-        <div class="form-row-2">
-          <div class="form-group"><label class="form-label">Fecha inicio</label><input type="date" class="form-input" name="fechaInicio" value="${obra.fechaInicio||''}"></div>
-          <div class="form-group"><label class="form-label">Fecha estimada</label><input type="date" class="form-input" name="fechaEstimada" value="${obra.fechaEstimada||''}"></div>
-        </div>
-        <div class="form-row-2">
-          <div class="form-group"><label class="form-label">Responsable</label><input type="text" class="form-input" name="responsable" value="${escapeHtml(obra.responsable||'')}"></div>
-          <div class="form-group"><label class="form-label">Estado</label><select class="form-select" name="estado">${Object.entries(OBRA_ESTADO_LABELS).map(([k,v])=>`<option value="${k}" ${obra.estado===k?'selected':''}>${v}</option>`).join('')}</select></div>
-        </div>
-        <div class="form-group"><label class="form-label">Observaciones</label><textarea class="form-textarea" name="observaciones" rows="3">${escapeHtml(obra.observaciones||'')}</textarea></div>
-      </form>`,
-      footer: `<button class="btn btn-secondary" id="drawer-cancel">Cancelar</button><button class="btn btn-primary" id="drawer-save">${isEdit?'Guardar':'Crear obra'}</button>`
+      title: isEdit ? `Planificar / Editar Obra #${obra.id}` : 'Nueva obra',
+      size: 'lg',
+      content: `
+        <form id="obra-form">
+          ${(obra.presupuestoNumero || obra.presupuestoId) ? `
+            <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:var(--radius-md);padding:10px 14px;margin-bottom:var(--space-4);display:flex;align-items:center;justify-content:space-between;gap:8px">
+              <div>
+                <span style="font-weight:var(--font-bold);color:#1E40AF">Vinculada a Presupuesto:</span>
+                <a href="#/presupuestos/${obra.presupuestoId}" style="font-weight:var(--font-bold);text-decoration:underline;color:#1D4ED8;margin-left:4px">
+                  ${escapeHtml(obra.presupuestoNumero || '#' + obra.presupuestoId)}
+                </a>
+              </div>
+              <span class="badge badge-success" style="font-weight:var(--font-bold)">Importe: ${formatCurrency(obra.importe || DataService.getObraTotal(obra.id))}</span>
+            </div>
+          ` : ''}
+
+          <div class="form-group">
+            <label class="form-label">Cliente <span class="required">*</span></label>
+            <select class="form-select" name="clienteId">
+              <option value="">Seleccionar cliente...</option>
+              ${clientes.map(c => `<option value="${c.id}" ${String(obra.clienteId) === String(c.id) ? 'selected' : ''}>${escapeHtml(c.nombre)} ${escapeHtml(c.apellido || '')}</option>`).join('')}
+            </select>
+            ${obra.clienteNombre && !obra.clienteId ? `<small class="text-muted" style="display:block;margin-top:4px">Cliente registrado originalmente: <strong>${escapeHtml(obra.clienteNombre)}</strong></small>` : ''}
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label">Contacto / Teléfono</label>
+              <input type="text" class="form-input" name="contacto" value="${escapeHtml(obra.contacto || obra.telefono || '')}" placeholder="Teléfono o WhatsApp">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Dirección de obra</label>
+              <input type="text" class="form-input" name="direccion" value="${escapeHtml(obra.direccion || '')}" placeholder="Dirección de colocación">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Descripción del trabajo</label>
+            <input type="text" class="form-input" name="descripcion" value="${escapeHtml(obra.descripcion || '')}" placeholder="Descripción de los trabajos">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Material/es</label>
+            <input type="text" class="form-input" name="material" value="${escapeHtml(obra.material || '')}" placeholder="Ej: Granito Negro Boreal, Silestone Blanco">
+          </div>
+
+          <!-- Bloque de Planificación -->
+          <div style="background:var(--color-stone-50);border:1px solid var(--color-stone-200);border-radius:var(--radius-md);padding:var(--space-3);margin-bottom:var(--space-3)">
+            <h4 style="font-size:var(--text-sm);font-weight:var(--font-bold);margin-bottom:var(--space-2);color:var(--color-stone-700);display:flex;align-items:center;gap:6px">
+              ${Icons.calendar} Planificación de Taller e Instalación
+            </h4>
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="form-label">Fecha de inicio</label>
+                <input type="date" class="form-input" name="fechaInicio" value="${obra.fechaInicio || new Date().toISOString().split('T')[0]}">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Fecha estimada de entrega</label>
+                <input type="date" class="form-input" name="fechaEstimada" value="${obra.fechaEstimada || ''}">
+              </div>
+            </div>
+            <div class="form-row-2">
+              <div class="form-group mb-0">
+                <label class="form-label">Responsable / Taller</label>
+                <input type="text" class="form-input" name="responsable" value="${escapeHtml(obra.responsable || '')}" placeholder="Encargado o instalador asignado">
+              </div>
+              <div class="form-group mb-0">
+                <label class="form-label">Estado de la obra</label>
+                <select class="form-select" name="estado">
+                  ${Object.entries(OBRA_ESTADO_LABELS).map(([k, v]) => `<option value="${k}" ${(obra.estado || 'pendiente') === k ? 'selected' : ''}>${v}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Observaciones técnicas / Instrucciones para el taller</label>
+            <textarea class="form-textarea" name="observaciones" rows="3" placeholder="Detalles de bacha, inglete, plantilla, notas de colocación...">${escapeHtml(obra.observaciones || '')}</textarea>
+          </div>
+        </form>
+      `,
+      footer: `
+        <button class="btn btn-secondary" id="drawer-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="drawer-save">${isEdit ? 'Guardar cambios' : 'Crear obra'}</button>
+      `
     });
 
-    document.getElementById('drawer-cancel').addEventListener('click',()=>Drawer.close());
-    document.getElementById('drawer-save').addEventListener('click',()=>{
+    document.getElementById('drawer-cancel').addEventListener('click', () => Drawer.close());
+    document.getElementById('drawer-save').addEventListener('click', () => {
       const fd = new FormData(document.getElementById('obra-form'));
       const data = Object.fromEntries(fd);
-      if(!data.clienteId){Toast.warning('Seleccioná un cliente');return;}
-      if(isEdit){DataService.update('obras',editId,data);Toast.success('Obra actualizada');}
-      else{data.archivos=[];DataService.create('obras',data);Toast.success('Obra creada');}
-      Drawer.close();obras=DataService.getAll('obras');render();
+      if (!data.clienteId && !obra.clienteNombre) {
+        Toast.warning('Seleccioná un cliente para la obra');
+        return;
+      }
+      if (data.contacto) {
+        data.telefono = data.contacto;
+      }
+      let saved;
+      if (isEdit) {
+        // Preserva datos presupuestados originales como items, presupuestoId, importe, archivos
+        saved = DataService.update('obras', editId, { ...obra, ...data });
+        Toast.success('Obra actualizada con éxito');
+      } else {
+        data.archivos = [];
+        data.estado = data.estado || 'pendiente';
+        saved = DataService.create('obras', data);
+        Toast.success('Obra creada con éxito');
+      }
+      Drawer.close();
+      if (onSaved) {
+        onSaved(saved);
+      } else {
+        obras = DataService.getAll('obras');
+        render();
+      }
     });
   }
 
-  async function handleDelete(id){
-    const confirmed=await confirmDialog({title:'Eliminar obra',message:'¿Estás seguro?',confirmText:'Eliminar',type:'danger'});
-    if(confirmed){DataService.remove('obras',id);Toast.success('Obra eliminada');obras=DataService.getAll('obras');render();}
+  async function handleDelete(id) {
+    const confirmed = await confirmDialog({ title: 'Eliminar obra', message: '¿Estás seguro de eliminar esta obra?', confirmText: 'Eliminar', type: 'danger' });
+    if (confirmed) {
+      DataService.remove('obras', id);
+      Toast.success('Obra eliminada');
+      obras = DataService.getAll('obras');
+      render();
+    }
   }
 
-  setTimeout(()=>{document.getElementById('btn-new-obra')?.addEventListener('click',()=>openObraForm());},100);
   render();
 }
 
@@ -141,6 +256,7 @@ function renderObraDetail(container, actionsEl, obraId) {
   const stockMovimientosObra = DataService.getAll('stockMovimientos').filter(m => m.obraId === obraId || (m.referencia && m.referencia.includes('#' + obraId)));
 
   actionsEl.innerHTML = `
+    <button class="btn btn-primary" id="btn-obra-edit-top">${Icons.edit} Planificar / Editar obra</button>
     <a href="#/obras" class="btn btn-secondary">${Icons['chevron-left']} Volver</a>
   `;
 
@@ -148,10 +264,11 @@ function renderObraDetail(container, actionsEl, obraId) {
     <!-- Action buttons bar -->
     <div class="card mb-4">
       <div class="card-body" style="display:flex;gap:var(--space-2);flex-wrap:wrap">
+        <button class="btn btn-primary" id="btn-obra-edit-action" style="flex:1;min-width:130px;justify-content:center">${Icons.edit} Planificar</button>
         <button class="btn btn-pdf" id="btn-obra-pdf" style="flex:1;min-width:130px;justify-content:center">${Icons['file-pdf']} Ficha PDF</button>
         <button class="btn btn-word" id="btn-obra-word" style="flex:1;min-width:130px;justify-content:center">${Icons['file-word']} Ficha Word</button>
         <button class="btn btn-secondary" id="btn-obra-preview" style="flex:1;min-width:130px;justify-content:center">${Icons.eye} Vista previa</button>
-        ${cliente?.whatsapp ? `<button class="btn btn-secondary" id="btn-obra-whatsapp" style="flex:1;min-width:130px;justify-content:center">${Icons.whatsapp} WhatsApp</button>` : ''}
+        ${(cliente?.whatsapp || obra.contacto || obra.telefono) ? `<button class="btn btn-secondary" id="btn-obra-whatsapp" style="flex:1;min-width:130px;justify-content:center">${Icons.whatsapp} WhatsApp</button>` : ''}
       </div>
     </div>
 
@@ -159,18 +276,26 @@ function renderObraDetail(container, actionsEl, obraId) {
       <div class="card-body">
         <div class="flex justify-between items-start mb-4">
           <div>
-            <h2 style="font-size:var(--text-xl);font-weight:var(--font-bold)">${escapeHtml(obra.descripcion)}</h2>
-            <p class="text-muted">${escapeHtml(obra.direccion)}</p>
+            <h2 style="font-size:var(--text-xl);font-weight:var(--font-bold)">${escapeHtml(obra.descripcion || `Obra #${obra.id}`)}</h2>
+            <p class="text-muted">${escapeHtml(obra.direccion || 'Sin dirección registrada')}</p>
           </div>
-          ${renderBadge(OBRA_ESTADO_LABELS[obra.estado], OBRA_ESTADO_COLORS[obra.estado])}
+          ${renderBadge(OBRA_ESTADO_LABELS[obra.estado] || obra.estado, OBRA_ESTADO_COLORS[obra.estado] || 'neutral')}
         </div>
         <div class="detail-list">
           <div class="detail-item">
             <span class="detail-label">Cliente</span>
-            <span class="detail-value">${cliente ? `<a href="#/clientes/${cliente.id}">${escapeHtml(cliente.nombre)} ${escapeHtml(cliente.apellido || '')}</a>` : '-'}</span>
+            <span class="detail-value">${cliente ? `<a href="#/clientes/${cliente.id}">${escapeHtml(cliente.nombre)} ${escapeHtml(cliente.apellido || '')}</a>` : escapeHtml(obra.clienteNombre || '-')}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Material</span>
+            <span class="detail-label">Contacto / Teléfono</span>
+            <span class="detail-value">${escapeHtml(obra.contacto || obra.telefono || cliente?.telefono || cliente?.whatsapp || '-')}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Dirección</span>
+            <span class="detail-value">${escapeHtml(obra.direccion || '-')}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Material/es</span>
             <span class="detail-value">${escapeHtml(obra.material || '-')}</span>
           </div>
           <div class="detail-item">
@@ -179,20 +304,57 @@ function renderObraDetail(container, actionsEl, obraId) {
           </div>
           <div class="detail-item">
             <span class="detail-label">Fecha estimada</span>
-            <span class="detail-value">${formatDate(obra.fechaEstimada)}</span>
+            <span class="detail-value">${obra.fechaEstimada ? formatDate(obra.fechaEstimada) : '<span class="text-muted" style="font-style:italic">A definir en planificación</span>'}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Responsable</span>
-            <span class="detail-value">${escapeHtml(obra.responsable || '-')}</span>
+            <span class="detail-value">${obra.responsable ? escapeHtml(obra.responsable) : '<span class="text-muted" style="font-style:italic">A asignar</span>'}</span>
           </div>
           ${pres ? `
           <div class="detail-item">
-            <span class="detail-label">Presupuesto</span>
-            <span class="detail-value"><a href="#/presupuestos/${pres.id}">${pres.numero}</a></span>
+            <span class="detail-label">Presupuesto vinculado</span>
+            <span class="detail-value"><a href="#/presupuestos/${pres.id}" style="font-weight:var(--font-bold);color:var(--color-primary)">${escapeHtml(pres.numero || '#' + pres.id)}</a></span>
+          </div>` : (obra.presupuestoNumero ? `
+          <div class="detail-item">
+            <span class="detail-label">Presupuesto vinculado</span>
+            <span class="detail-value"><a href="#/presupuestos/${obra.presupuestoId || ''}" style="font-weight:var(--font-bold);color:var(--color-primary)">${escapeHtml(obra.presupuestoNumero)}</a></span>
+          </div>` : '')}
+          ${obra.fechaAprobacion ? `
+          <div class="detail-item">
+            <span class="detail-label">Fecha de aprobación</span>
+            <span class="detail-value">${formatDate(obra.fechaAprobacion)}</span>
           </div>` : ''}
         </div>
       </div>
     </div>
+
+    <!-- Ítems / Trabajos presupuestados a fabricar -->
+    ${((obra.items && obra.items.length > 0) || (pres && pres.items && pres.items.length > 0)) ? `
+    <div class="card mb-4">
+      <div class="card-header flex justify-between items-center">
+        <h3 class="card-title" style="display:flex;align-items:center;gap:var(--space-2)">
+          ${Icons.file} Ítems y Trabajos Presupuestados (${(obra.items || pres.items).length})
+        </h3>
+      </div>
+      <div class="card-body">
+        <div class="detail-items-list">
+          ${(obra.items || pres.items).map((item, idx) => `
+            <div class="detail-item-card" style="padding:12px 14px;border:1px solid var(--color-stone-200);border-radius:var(--radius-md);margin-bottom:8px;background:var(--color-surface)">
+              <div class="detail-item-card-top" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <span class="detail-item-card-desc"><strong>#${idx + 1}</strong> — ${escapeHtml(item.descripcion || `Ítem ${idx + 1}`)}</span>
+                <span class="badge badge-neutral" style="font-weight:var(--font-bold)">${escapeHtml(item.material || obra.material || 'Material s/ diseño')}</span>
+              </div>
+              <div class="detail-item-card-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:8px;font-size:var(--text-sm)">
+                <div><span class="text-muted">Cantidad:</span> <strong>${item.cantidad || 1}</strong></div>
+                <div><span class="text-muted">Medidas:</span> <strong>${item.largo ? item.largo + ' m' : '-'} × ${item.ancho ? item.ancho + ' m' : '-'}</strong></div>
+                <div><span class="text-muted">Superficie:</span> <strong>${(item.m2 || 0).toFixed(2)} m²</strong></div>
+                ${item.subtotal ? `<div><span class="text-muted">Subtotal:</span> <strong>${formatCurrency(item.subtotal)}</strong></div>` : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>` : ''}
 
     <div class="detail-stats-row mb-4">
       <div class="detail-stat-mini">
@@ -325,4 +487,12 @@ function renderObraDetail(container, actionsEl, obraId) {
       Toast.error('Error al generar archivo Word');
     }
   });
+
+  const handleEditObra = () => {
+    openObraForm(obraId, () => {
+      renderObraDetail(container, actionsEl, obraId);
+    });
+  };
+  document.getElementById('btn-obra-edit-top')?.addEventListener('click', handleEditObra);
+  document.getElementById('btn-obra-edit-action')?.addEventListener('click', handleEditObra);
 }

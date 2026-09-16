@@ -252,18 +252,19 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
 // ── 2. Obra / Orden de Trabajo HTML Generator ──
 export function generateObraHtml(obra, cliente = null, pres = null, cobros = []) {
   const company = getCompanyInfo();
-  const total = pres ? (pres.items || []).reduce((s, i) => s + (i.subtotal || 0), 0) : 0;
+  const total = pres ? (pres.items || []).reduce((s, i) => s + (i.subtotal || 0), 0) : (Number(obra.importe) || 0);
   const cobrado = cobros.reduce((s, c) => s + (Number(c.importe) || 0), 0);
   const saldo = total - cobrado;
 
-  const itemsHtml = pres?.items?.map((it, idx) => `
+  const itemsList = (pres && pres.items && pres.items.length > 0) ? pres.items : (obra.items || []);
+  const itemsHtml = itemsList.map((it, idx) => `
     <tr>
       <td style="text-align:center">${idx + 1}</td>
-      <td><strong>${escapeHtml(it.descripcion)}</strong></td>
+      <td><strong>${escapeHtml(it.descripcion || 'Pieza #' + (idx + 1))}</strong></td>
       <td>${escapeHtml(it.material || obra.material || '-')}</td>
-      <td class="num">${it.cantidad}</td>
-      <td class="num">${it.largo ? it.largo + ' cm' : '-'}</td>
-      <td class="num">${it.ancho ? it.ancho + ' cm' : '-'}</td>
+      <td class="num">${it.cantidad || 1}</td>
+      <td class="num">${it.largo ? it.largo + ' m' : '-'}</td>
+      <td class="num">${it.ancho ? it.ancho + ' m' : '-'}</td>
       <td class="num">${(Number(it.m2) || 0).toFixed(2)} m²</td>
     </tr>
   `).join('') || '';
@@ -301,8 +302,8 @@ export function generateObraHtml(obra, cliente = null, pres = null, cobros = [])
       <div class="doc-info-grid">
         <div class="doc-info-card">
           <div class="doc-info-card-title">Datos del Cliente</div>
-          <div class="doc-info-row"><span class="doc-info-label">Cliente:</span><span class="doc-info-val">${cliente ? escapeHtml(`${cliente.nombre} ${cliente.apellido || ''}`) : '-'}</span></div>
-          <div class="doc-info-row"><span class="doc-info-label">Teléfono:</span><span class="doc-info-val">${escapeHtml(cliente?.telefono || cliente?.whatsapp || '-')}</span></div>
+          <div class="doc-info-row"><span class="doc-info-label">Cliente:</span><span class="doc-info-val">${cliente ? escapeHtml(`${cliente.nombre} ${cliente.apellido || ''}`) : escapeHtml(obra.clienteNombre || '-')}</span></div>
+          <div class="doc-info-row"><span class="doc-info-label">Teléfono:</span><span class="doc-info-val">${escapeHtml(cliente?.telefono || cliente?.whatsapp || obra.contacto || obra.telefono || '-')}</span></div>
           <div class="doc-info-row"><span class="doc-info-label">Dirección Obra:</span><span class="doc-info-val">${escapeHtml(obra.direccion || '-')}</span></div>
         </div>
 

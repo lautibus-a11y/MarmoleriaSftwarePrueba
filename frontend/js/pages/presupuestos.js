@@ -15,6 +15,120 @@ import { PRESUPUESTO_ESTADO_LABELS, PRESUPUESTO_ESTADO_COLORS, CONDICIONES_COMER
 import { openEventoForm } from './calendario.js';
 import { openDescontarStockObraModal } from '../services/stockAutomation.js';
 
+let isApprovingPresupuesto = false;
+
+/**
+ * Aprueba un presupuesto de forma idempotente:
+ * - Evita doble ejecución / doble clic con flag mutex.
+ * - Muestra una única confirmación visual (Toast).
+ * - Crea automáticamente una Obra en estado "Pendiente" vinculada al presupuesto con todos los datos existentes.
+ */
+export function aprobarPresupuesto(presId, onDone = null) {
+  if (isApprovingPresupuesto) {
+    console.warn('Aprobación en curso, ignorando clic repetido');
+    return;
+  }
+  isApprovingPresupuesto = true;
+
+  try {
+    const pres = DataService.getById('presupuestos', presId);
+    if (!pres) {
+      Toast.error('Presupuesto no encontrado');
+      isApprovingPresupuesto = false;
+      return;
+    }
+
+    // Verificar si ya existe una obra vinculada a este presupuesto
+    const allObras = DataService.getAll('obras');
+    let existingObra = allObras.find(o => String(o.presupuestoId) === String(pres.id));
+    if (!existingObra && pres.obraId) {
+      existingObra = DataService.getById('obras', pres.obraId);
+    }
+
+    // Si ya está aprobado Y ya tiene obra vinculada, no duplicar la obra
+    if (pres.estado === 'aprobado' && existingObra) {
+      Toast.info('Presupuesto ya aprobado', `Ya cuenta con la Obra #${existingObra.id} vinculada.`);
+      isApprovingPresupuesto = false;
+      if (onDone) onDone(pres, existingObra);
+      return;
+    }
+
+    // Resolver datos del cliente
+    let cliente = pres.clienteId ? DataService.getById('clientes', pres.clienteId) : null;
+    if (!cliente && pres.clienteNombre) {
+      const allClientes = DataService.getAll('clientes');
+      cliente = allClientes.find(c => {
+        const full = `${c.nombre} ${c.apellido || ''}`.trim().toLowerCase();
+        return full === pres.clienteNombre.trim().toLowerCase() || c.nombre.trim().toLowerCase() === pres.clienteNombre.trim().toLowerCase();
+      });
+      if (cliente) {
+        DataService.update('presupuestos', pres.id, { clienteId: cliente.id });
+      }
+    }
+
+    const clienteNombre = cliente 
+      ? `${cliente.nombre} ${cliente.apellido || ''}`.trim() 
+      : (pres.clienteNombre || 'Cliente ocasional');
+    const contacto = cliente ? (cliente.telefono || cliente.whatsapp || '') : (pres.telefono || pres.contacto || '');
+    const direccion = pres.direccion || (cliente ? (cliente.direccion || '') : '');
+    const materialList = [...new Set((pres.items || []).map(i => i.material).filter(Boolean))].join(', ') || pres.material || '';
+    const importeTotal = DataService.getPresupuestoTotal(pres);
+    const today = new Date().toISOString().split('T')[0];
+
+    // Descripción para la orden de trabajo
+    const itemDescriptions = (pres.items || []).map(i => i.descripcion).filter(Boolean);
+    const descripcionObra = pres.descripcion || (itemDescriptions.length > 0 ? itemDescriptions.join(' | ') : `Trabajo s/ Presupuesto ${pres.numero || pres.id}`);
+
+    let obra = existingObra;
+    if (!obra) {
+      // 3. Crear automáticamente la Obra al aprobar presupuesto
+      const obraData = {
+        presupuestoId: pres.id,
+        presupuestoNumero: pres.numero || `PRES-${pres.id}`,
+        clienteId: cliente ? cliente.id : (pres.clienteId || null),
+        clienteNombre: clienteNombre,
+        contacto: contacto,
+        telefono: contacto,
+        direccion: direccion,
+        descripcion: descripcionObra,
+        material: materialList,
+        items: (pres.items || []).map(i => ({ ...i })),
+        importe: importeTotal,
+        fechaAprobacion: today,
+        fechaInicio: today,
+        fechaEstimada: '',
+        responsable: '',
+        estado: 'pendiente',
+        observaciones: pres.condiciones ? `Condiciones comerciales presupuestadas:\n${pres.condiciones}` : '',
+        archivos: []
+      };
+      obra = DataService.create('obras', obraData);
+    }
+
+    // Actualizar presupuesto a aprobado con referencia a la obra
+    const updatedPres = DataService.update('presupuestos', pres.id, {
+      estado: 'aprobado',
+      obraId: obra.id,
+      fechaAprobacion: today
+    });
+
+    // 2. Corregir aprobación duplicada: única confirmación visual
+    Toast.success('Presupuesto aprobado', `Se aprobó con éxito y se generó la Obra #${obra.id} en estado Pendiente.`);
+
+    if (onDone) {
+      onDone(updatedPres, obra);
+    }
+  } catch (err) {
+    console.error('Error al aprobar presupuesto y crear obra:', err);
+    Toast.error('Error al aprobar el presupuesto');
+  } finally {
+    // Liberar mutex tras un intervalo seguro para bloquear doble clics involuntarios
+    setTimeout(() => {
+      isApprovingPresupuesto = false;
+    }, 600);
+  }
+}
+
 export function renderPresupuestos(container, actionsEl, path) {
   const parts = path.split('/');
   if (parts.length > 2 && parts[2]) {
@@ -23,6 +137,7 @@ export function renderPresupuestos(container, actionsEl, path) {
   }
 
   actionsEl.innerHTML = `<button class="btn btn-primary" id="btn-new-pres">${Icons.plus} Nuevo presupuesto</button>`;
+  actionsEl.querySelector('#btn-new-pres')?.addEventListener('click', () => openPresupuestoForm());
 
   let presupuestos = DataService.getAll('presupuestos');
   let searchTerm = '';
@@ -86,27 +201,36 @@ export function renderPresupuestos(container, actionsEl, path) {
     const searchInput = container.querySelector('#search-input');
     if (searchInput) {
       searchInput.value = searchTerm;
-      searchInput.addEventListener('input', debounce((e) => { searchTerm = e.target.value; render(); }, 300));
+      searchInput.oninput = debounce((e) => { searchTerm = e.target.value; render(); }, 300);
     }
 
-    container.querySelector('#filter-estado')?.addEventListener('change', (e) => { filterEstado = e.target.value; render(); });
+    const filterEl = container.querySelector('#filter-estado');
+    if (filterEl) {
+      filterEl.onchange = (e) => { filterEstado = e.target.value; render(); };
+    }
+  }
 
-    container.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-action]');
-      if (!btn) return;
+  // Delegated single click handler on container (prevents duplicate listeners on render)
+  container.onclick = (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (btn) {
       const { action, id } = btn.dataset;
       if (action === 'approve') {
-        DataService.update('presupuestos', id, { estado: 'aprobado' });
-        Toast.success('Presupuesto aprobado con éxito');
-        presupuestos = DataService.getAll('presupuestos');
-        render();
+        aprobarPresupuesto(id, () => {
+          presupuestos = DataService.getAll('presupuestos');
+          render();
+        });
         return;
       }
       if (action === 'share') {
         const pres = DataService.getById('presupuestos', id);
         if (pres) openShareModal(pres);
+        return;
       }
-      if (action === 'view') window.location.hash = `#/presupuestos/${id}`;
+      if (action === 'view') {
+        window.location.hash = `#/presupuestos/${id}`;
+        return;
+      }
       if (action === 'export') {
         const pres = DataService.getById('presupuestos', id);
         if (!pres) return;
@@ -117,8 +241,12 @@ export function renderPresupuestos(container, actionsEl, path) {
           filename: `Presupuesto_${pres.numero || pres.id}`,
           htmlContent: generatePresupuestoHtml(pres, cli, tot)
         });
+        return;
       }
-      if (action === 'edit') openPresupuestoForm(id);
+      if (action === 'edit') {
+        openPresupuestoForm(id);
+        return;
+      }
       if (action === 'schedule') {
         const pres = DataService.getById('presupuestos', id);
         if (pres) {
@@ -132,18 +260,24 @@ export function renderPresupuestos(container, actionsEl, path) {
             tipo: 'instalacion'
           });
         }
+        return;
       }
-      if (action === 'duplicate') handleDuplicate(id);
-      if (action === 'delete') handleDelete(id);
-    });
+      if (action === 'duplicate') {
+        handleDuplicate(id);
+        return;
+      }
+      if (action === 'delete') {
+        handleDelete(id);
+        return;
+      }
+      return;
+    }
 
-    container.querySelectorAll('.data-table tbody tr').forEach(row => {
-      row.addEventListener('click', (e) => {
-        if (e.target.closest('[data-action]')) return;
-        if (row.dataset.id) window.location.hash = `#/presupuestos/${row.dataset.id}`;
-      });
-    });
-  }
+    const row = e.target.closest('.data-table tbody tr');
+    if (row && row.dataset.id && !e.target.closest('a, button')) {
+      window.location.hash = `#/presupuestos/${row.dataset.id}`;
+    }
+  };
 
   function openPresupuestoForm(editId = null, onSaved = null) {
     const found = editId ? DataService.getById('presupuestos', editId) : null;
@@ -749,12 +883,30 @@ export function renderPresupuestos(container, actionsEl, path) {
       let saved;
       if (editId) {
         saved = DataService.update('presupuestos', editId, record);
-        Toast.success(estadoFinal === 'aprobado' ? 'Presupuesto aprobado y guardado' : 'Presupuesto actualizado');
       } else {
         saved = DataService.create('presupuestos', record);
-        Toast.success(estadoFinal === 'aprobado' ? 'Presupuesto creado y aprobado' : 'Presupuesto guardado con éxito');
       }
       Drawer.close();
+
+      if (estadoFinal === 'aprobado') {
+        // Ejecuta aprobación única y crea la Obra automáticamente
+        aprobarPresupuesto(saved.id, (approvedPres) => {
+          if (onSaved) {
+            onSaved(approvedPres);
+          } else {
+            presupuestos = DataService.getAll('presupuestos');
+            render();
+          }
+          if (andShare && approvedPres) {
+            setTimeout(() => {
+              openShareModal(approvedPres);
+            }, 360);
+          }
+        });
+        return;
+      }
+
+      Toast.success(editId ? 'Presupuesto actualizado' : 'Presupuesto guardado con éxito');
       if (onSaved) {
         onSaved(saved);
       } else {
@@ -973,12 +1125,15 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
           <button class="btn btn-success" id="btn-aprobar" style="flex:1.5;min-width:160px;justify-content:center;background:#059669;color:#fff;border-color:#059669;font-weight:var(--font-bold);box-shadow:0 4px 12px rgba(5,150,105,0.25)">
             ${Icons.check} Aprobar presupuesto
           </button>
+        ` : (pres.obraId ? `
+          <a href="#/obras/${pres.obraId}" class="btn btn-primary" id="btn-ver-obra" style="flex:1.5;min-width:160px;justify-content:center;font-weight:var(--font-bold);box-shadow:0 4px 12px rgba(230,81,0,0.25)">
+            ${Icons['hard-hat']} Ver Obra vinculada #${pres.obraId}
+          </a>
         ` : `
-          <div style="flex:1;min-width:140px;display:flex;align-items:center;justify-content:center;background:#ecfdf5;border:1px solid #10b981;color:#065f46;border-radius:var(--radius-md);font-weight:var(--font-bold);padding:8px 14px;gap:6px">
-            ${Icons.check} Presupuesto Aprobado
-          </div>
-        `}
-        ${pres.estado === 'aprobado' && !pres.obraId ? `<button class="btn btn-primary" id="btn-crear-obra" style="flex:1.5;min-width:150px;justify-content:center;font-weight:var(--font-bold);box-shadow:0 4px 12px rgba(230,81,0,0.25)">${Icons['hard-hat']} Crear obra</button>` : ''}
+          <button class="btn btn-primary" id="btn-crear-obra" style="flex:1.5;min-width:160px;justify-content:center;font-weight:var(--font-bold);box-shadow:0 4px 12px rgba(230,81,0,0.25)">
+            ${Icons['hard-hat']} Generar Obra
+          </button>
+        `)}
       </div>
     </div>
 
@@ -1008,6 +1163,15 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
             <span class="detail-label">Moneda</span>
             <span class="detail-value">${pres.moneda}${pres.cotizacionDolar ? ` (TC: $${pres.cotizacionDolar})` : ''}</span>
           </div>
+          ${pres.obraId ? `
+          <div class="detail-item">
+            <span class="detail-label">Obra vinculada</span>
+            <span class="detail-value">
+              <a href="#/obras/${pres.obraId}" style="font-weight:var(--font-bold);color:var(--color-primary);display:inline-flex;align-items:center;gap:4px">
+                ${Icons['hard-hat']} Obra #${pres.obraId} (Pendiente)
+              </a>
+            </span>
+          </div>` : ''}
         </div>
       </div>
     </div>
@@ -1086,37 +1250,28 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
   document.getElementById('btn-edit-detail')?.addEventListener('click', handleEdit);
 
   // Approve action
-  document.getElementById('btn-aprobar')?.addEventListener('click', async () => {
-    DataService.update('presupuestos', presId, { estado: 'aprobado' });
-    Toast.success('Presupuesto aprobado con éxito');
-    renderPresupuestoDetail(container, actionsEl, presId);
-  });
+  const btnAprobar = document.getElementById('btn-aprobar');
+  if (btnAprobar) {
+    btnAprobar.onclick = () => {
+      aprobarPresupuesto(presId, () => {
+        renderPresupuestoDetail(container, actionsEl, presId);
+      });
+    };
+  }
 
-  // Create obra
-  document.getElementById('btn-crear-obra')?.addEventListener('click', () => {
-    const matList = [...new Set((pres.items || []).map(i => i.material).filter(Boolean))].join(', ');
-    const obra = DataService.create('obras', {
-      clienteId: pres.clienteId, presupuestoId: pres.id,
-      direccion: pres.direccion, descripcion: pres.descripcion,
-      material: matList || pres.material || '',
-      fechaInicio: new Date().toISOString().split('T')[0],
-      fechaEstimada: '', responsable: '', estado: 'pendiente', observaciones: '', archivos: []
-    });
-    DataService.update('presupuestos', presId, { obraId: obra.id });
-    Toast.success('Obra creada desde presupuesto');
-
-    if (pres.items && pres.items.length > 0) {
-      openDescontarStockObraModal({
-        obra,
-        presupuesto: pres,
-        onDone: () => {
+  // Create obra (fallback si quedó aprobado sin obra)
+  const btnCrearObra = document.getElementById('btn-crear-obra');
+  if (btnCrearObra) {
+    btnCrearObra.onclick = () => {
+      aprobarPresupuesto(presId, (p, obra) => {
+        if (obra) {
           window.location.hash = `#/obras/${obra.id}`;
+        } else {
+          renderPresupuestoDetail(container, actionsEl, presId);
         }
       });
-    } else {
-      window.location.hash = `#/obras/${obra.id}`;
-    }
-  });
+    };
+  }
 
   // Document actions
   const getDocHtml = () => generatePresupuestoHtml(pres, cliente, total);

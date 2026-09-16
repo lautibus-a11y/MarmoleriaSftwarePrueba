@@ -225,20 +225,22 @@ export const DataService = {
   },
 
   getObraTotal(obraId) {
-    const obra = store.obras.find(o => o.id === obraId);
-    if (!obra || !obra.presupuestoId) return 0;
-    const pres = store.presupuestos.find(p => p.id === obra.presupuestoId);
+    const obra = store.obras?.find(o => String(o.id) === String(obraId));
+    if (!obra) return 0;
+    if (obra.importe) return parseFloat(obra.importe) || 0;
+    if (!obra.presupuestoId) return 0;
+    const pres = store.presupuestos?.find(p => String(p.id) === String(obra.presupuestoId));
     return pres ? this.getPresupuestoTotal(pres) : 0;
   },
 
   getObraCobrado(obraId) {
-    return store.cobros
-      .filter(c => c.obraId === obraId && c.estado === 'cobrado')
-      .reduce((s, c) => s + c.importe, 0);
+    return (store.cobros || [])
+      .filter(c => String(c.obraId) === String(obraId) && c.estado === 'cobrado')
+      .reduce((s, c) => s + (parseFloat(c.importe) || 0), 0);
   },
 
   getClienteSaldo(clienteId) {
-    const obras = store.obras.filter(o => o.clienteId === clienteId);
+    const obras = (store.obras || []).filter(o => String(o.clienteId) === String(clienteId));
     let totalObras = 0;
     let totalCobrado = 0;
     obras.forEach(o => {
