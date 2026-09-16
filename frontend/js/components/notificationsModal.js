@@ -60,14 +60,30 @@ export function getSystemAlerts() {
     return { ...p, diasDesdeEnvio: diffDays, totalCalc: total };
   });
 
-  const totalCount = stockCritico.length + facturasVencidas.length + facturasPorVencer.length + presupuestosVencidos.length;
+  // 4. Clientes con información pendiente
+  const clientes = DataService.getAll('clientes') || [];
+  const clientesIncompletos = clientes.map(c => {
+    const missing = [];
+    if (!c.telefono && !c.whatsapp) missing.push('Teléfono / WhatsApp');
+    if (!c.direccion) missing.push('Dirección');
+    if (!c.cuit) missing.push('CUIT / DNI');
+    if (!c.email) missing.push('Email');
+    return {
+      cliente: c,
+      missing,
+      missingCount: missing.length
+    };
+  }).filter(c => c.missingCount > 0);
+
+  const totalCount = stockCritico.length + facturasVencidas.length + facturasPorVencer.length + presupuestosVencidos.length + clientesIncompletos.length;
 
   return {
     totalCount,
     stockCritico,
     facturasVencidas,
     facturasPorVencer,
-    presupuestosVencidos
+    presupuestosVencidos,
+    clientesIncompletos
   };
 }
 
@@ -190,6 +206,34 @@ export function openNotificationsModal() {
                 <a href="#/presupuestos/${p.id}" class="btn btn-sm btn-secondary notif-action-link" style="padding:3px 8px;font-size:12px">Contactar →</a>
               </div>
             `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- 5. Clientes con datos incompletos -->
+      ${alerts.clientesIncompletos && alerts.clientesIncompletos.length > 0 ? `
+        <div class="alert-group">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--space-2)">
+            <span style="color:#D97706;display:flex">⚠️</span>
+            <strong style="font-size:var(--text-sm);color:#92400E">Clientes con datos incompletos (${alerts.clientesIncompletos.length})</strong>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            ${alerts.clientesIncompletos.slice(0, 5).map(c => `
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:var(--radius-md)">
+                <div style="min-width:0;flex:1">
+                  <div style="font-weight:var(--font-semibold);font-size:var(--text-sm);color:#78350F">${escapeHtml(c.cliente.nombre)} ${escapeHtml(c.cliente.apellido || '')}</div>
+                  <div style="font-size:var(--text-xs);color:#92400E">
+                    Falta: <strong>${c.missing.join(', ')}</strong>
+                  </div>
+                </div>
+                <a href="#/clientes/${c.cliente.id}" class="btn btn-sm btn-secondary notif-action-link" style="padding:3px 8px;font-size:12px">Completar →</a>
+              </div>
+            `).join('')}
+            ${alerts.clientesIncompletos.length > 5 ? `
+              <div style="text-align:center;font-size:11.5px;color:var(--color-stone-500);margin-top:2px">
+                +${alerts.clientesIncompletos.length - 5} clientes más con datos pendientes en <a href="#/clientes" class="notif-action-link" style="color:var(--color-primary);font-weight:600">Clientes</a>
+              </div>
+            ` : ''}
           </div>
         </div>
       ` : ''}

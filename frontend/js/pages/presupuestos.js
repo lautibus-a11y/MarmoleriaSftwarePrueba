@@ -14,6 +14,7 @@ import { generatePresupuestoHtml, exportToPdf, exportToWord } from '../services/
 import { PRESUPUESTO_ESTADO_LABELS, PRESUPUESTO_ESTADO_COLORS, CONDICIONES_COMERCIALES_DEFAULT, MONEDAS } from '../utils/constants.js';
 import { openEventoForm } from './calendario.js';
 import { openDescontarStockObraModal } from '../services/stockAutomation.js';
+import { openClienteForm } from './clientes.js';
 
 let isApprovingPresupuesto = false;
 
@@ -342,8 +343,8 @@ export function renderPresupuestos(container, actionsEl, path) {
               <input type="hidden" name="tipoCliente" id="tipo-cliente-val" value="${isNuevoInicial ? 'nuevo' : 'habitual'}">
             </div>
 
-            <div class="form-row-2">
-              <div id="cliente-habitual-wrap" style="${isNuevoInicial ? 'display:none' : 'display:block'}">
+            <div id="cliente-habitual-wrap" style="${isNuevoInicial ? 'display:none' : 'display:block'}">
+              <div class="form-row-2">
                 <div class="form-group mb-0">
                   <label class="form-label">Cliente habitual registrado <span class="required">*</span></label>
                   <select class="form-select" name="clienteId" id="pres-cliente-select">
@@ -351,18 +352,44 @@ export function renderPresupuestos(container, actionsEl, path) {
                     ${clientes.map(c => `<option value="${c.id}" ${String(pres.clienteId) === String(c.id) ? 'selected' : ''}>${escapeHtml(c.nombre)} ${escapeHtml(c.apellido || '')}</option>`).join('')}
                   </select>
                 </div>
-              </div>
-
-              <div id="cliente-nuevo-wrap" style="${isNuevoInicial ? 'display:block' : 'display:none'}">
                 <div class="form-group mb-0">
-                  <label class="form-label">Nombre del cliente nuevo <span class="required">*</span></label>
-                  <input type="text" class="form-input" name="clienteNombre" id="pres-cliente-nuevo-input" value="${escapeHtml(pres.clienteNombre || '')}" placeholder="Ej: Juan Pérez">
+                  <label class="form-label">Dirección de obra</label>
+                  <input type="text" class="form-input" name="direccion" id="pres-direccion-input" value="${escapeHtml(pres.direccion || '')}" placeholder="Ej: San Martín 450">
                 </div>
               </div>
+            </div>
 
-              <div class="form-group mb-0">
-                <label class="form-label">Dirección de obra</label>
-                <input type="text" class="form-input" name="direccion" id="pres-direccion-input" value="${escapeHtml(pres.direccion || '')}" placeholder="Ej: San Martín 450">
+            <div id="cliente-nuevo-wrap" style="${isNuevoInicial ? 'display:block' : 'display:none'}">
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label class="form-label">Nombre y Apellido del cliente <span class="required">*</span></label>
+                  <input type="text" class="form-input" name="clienteNombre" id="pres-cliente-nuevo-input" value="${escapeHtml(pres.clienteNombre || '')}" placeholder="Ej: Juan Pérez">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Dirección de obra</label>
+                  <input type="text" class="form-input" name="direccionNuevo" id="pres-direccion-nuevo-input" value="${escapeHtml(pres.direccion || '')}" placeholder="Ej: San Martín 450">
+                </div>
+              </div>
+              <div class="form-row-2 mt-2">
+                <div class="form-group mb-0">
+                  <label class="form-label">Teléfono / WhatsApp</label>
+                  <input type="tel" class="form-input" name="clienteTelefono" id="pres-cliente-nuevo-tel" placeholder="Ej: 11 5566-7788">
+                </div>
+                <div class="form-group mb-0">
+                  <label class="form-label">Email <span class="text-muted" style="font-weight:normal">(opcional)</span></label>
+                  <input type="email" class="form-input" name="clienteEmail" id="pres-cliente-nuevo-email" placeholder="cliente@correo.com">
+                </div>
+              </div>
+              <div class="form-row-2 mt-2">
+                <div class="form-group mb-0">
+                  <label class="form-label">CUIT / DNI <span class="text-muted" style="font-weight:normal">(opcional)</span></label>
+                  <input type="text" class="form-input" name="clienteCuit" id="pres-cliente-nuevo-cuit" placeholder="XX-XXXXXXXX-X">
+                </div>
+                <div class="form-group mb-0" style="display:flex;align-items:flex-end">
+                  <div class="alert alert-info mb-0" style="padding:8px 12px;font-size:11.5px;display:flex;align-items:center;gap:6px;width:100%;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:var(--radius-md);color:#1e40af">
+                    ${Icons.info} Se creará automáticamente en <strong>Clientes</strong> al guardar.
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -900,11 +927,22 @@ export function renderPresupuestos(container, actionsEl, path) {
       const fd = new FormData(form);
       const data = Object.fromEntries(fd);
       const tipoCliente = data.tipoCliente || 'habitual';
+      const direccionFinal = (data.direccionNuevo || data.direccion || '').trim();
+      data.direccion = direccionFinal;
+      delete data.direccionNuevo;
+
       let cli = null;
       if (tipoCliente === 'habitual') {
         cli = clientes.find(c => String(c.id) === String(data.clienteId)) || null;
       } else {
-        cli = { nombre: data.clienteNombre || 'Cliente ocasional', apellido: '', direccion: data.direccion || '' };
+        cli = {
+          nombre: data.clienteNombre || 'Cliente ocasional',
+          apellido: '',
+          direccion: direccionFinal,
+          telefono: data.clienteTelefono || '',
+          email: data.clienteEmail || '',
+          cuit: data.clienteCuit || ''
+        };
       }
       const adics = ['colocacion', 'manoDeObra', 'inglete', 'transporte', 'bacha', 'zocalos', 'extras'];
       const adicionales = {};
@@ -937,6 +975,9 @@ export function renderPresupuestos(container, actionsEl, path) {
       const data = Object.fromEntries(fd);
 
       const tipoCliente = data.tipoCliente || 'habitual';
+      let createdClient = null;
+      let missingClientFields = [];
+
       if (tipoCliente === 'habitual') {
         if (!data.clienteId) {
           if (data.clienteNombre && data.clienteNombre.trim()) {
@@ -949,13 +990,78 @@ export function renderPresupuestos(container, actionsEl, path) {
           data.clienteNombre = null;
         }
       } else {
-        const nombre = (data.clienteNombre || '').trim();
-        if (!nombre) {
+        const nombreCompleto = (data.clienteNombre || '').trim();
+        if (!nombreCompleto) {
           Toast.warning('Ingresá el nombre del cliente nuevo');
           return;
         }
-        data.clienteNombre = nombre;
-        data.clienteId = null;
+
+        const direccion = (data.direccionNuevo || data.direccion || '').trim();
+        data.direccion = direccion;
+        delete data.direccionNuevo;
+
+        const telefono = (data.clienteTelefono || '').trim();
+        const whatsapp = (data.clienteWhatsapp || telefono).trim();
+        const email = (data.clienteEmail || '').trim();
+        const cuit = (data.clienteCuit || '').trim();
+
+        // 1. Buscar si ya existe un cliente con este nombre en el sistema
+        const allClientes = DataService.getAll('clientes') || [];
+        let existingCliente = allClientes.find(c => {
+          const full = `${c.nombre || ''} ${c.apellido || ''}`.trim().toLowerCase();
+          return full === nombreCompleto.toLowerCase() || (c.nombre || '').trim().toLowerCase() === nombreCompleto.toLowerCase();
+        });
+
+        if (existingCliente) {
+          data.clienteId = existingCliente.id;
+          data.clienteNombre = `${existingCliente.nombre} ${existingCliente.apellido || ''}`.trim();
+          // Actualizar datos de contacto si estaban vacíos
+          const updates = {};
+          if (!existingCliente.direccion && direccion) updates.direccion = direccion;
+          if (!existingCliente.telefono && telefono) updates.telefono = telefono;
+          if (!existingCliente.whatsapp && whatsapp) updates.whatsapp = whatsapp;
+          if (!existingCliente.email && email) updates.email = email;
+          if (!existingCliente.cuit && cuit) updates.cuit = cuit;
+          if (Object.keys(updates).length > 0) {
+            DataService.update('clientes', existingCliente.id, updates);
+            existingCliente = { ...existingCliente, ...updates };
+          }
+          createdClient = existingCliente;
+        } else {
+          // 2. Crear automáticamente el nuevo cliente en la colección Clientes
+          const parts = nombreCompleto.split(' ');
+          const nombre = parts[0] || nombreCompleto;
+          const apellido = parts.slice(1).join(' ') || '';
+
+          const nuevoCliente = DataService.create('clientes', {
+            nombre,
+            apellido,
+            telefono,
+            whatsapp,
+            email,
+            direccion,
+            cuit,
+            observaciones: `Cliente registrado automáticamente desde Presupuesto ${pres.numero || ''}`
+          });
+
+          data.clienteId = nuevoCliente.id;
+          data.clienteNombre = `${nombre} ${apellido}`.trim();
+          createdClient = nuevoCliente;
+        }
+
+        delete data.clienteTelefono;
+        delete data.clienteWhatsapp;
+        delete data.clienteEmail;
+        delete data.clienteCuit;
+      }
+
+      // Evaluar datos faltantes del cliente para emitir alertas ⚠️
+      const targetClient = data.clienteId ? DataService.getById('clientes', data.clienteId) : null;
+      if (targetClient) {
+        if (!targetClient.telefono && !targetClient.whatsapp) missingClientFields.push('Teléfono / WhatsApp');
+        if (!targetClient.direccion && !data.direccion) missingClientFields.push('Dirección');
+        if (!targetClient.cuit) missingClientFields.push('CUIT / DNI');
+        if (!targetClient.email) missingClientFields.push('Email');
       }
 
       if (!items || items.length === 0) {
@@ -1007,7 +1113,17 @@ export function renderPresupuestos(container, actionsEl, path) {
         return;
       }
 
-      Toast.success(editId ? 'Presupuesto actualizado' : 'Presupuesto guardado con éxito');
+      // Alerta proactiva si faltan datos en el cliente creado
+      if (createdClient && missingClientFields.length > 0) {
+        Toast.warning(
+          `Cliente "${data.clienteNombre}" creado en Clientes`,
+          `⚠️ Faltan completar datos: ${missingClientFields.join(', ')}. Podés completarlos en la ficha de Clientes.`
+        );
+      } else if (createdClient) {
+        Toast.success('Cliente creado', `Se dio de alta a "${data.clienteNombre}" en Clientes.`);
+      } else {
+        Toast.success(editId ? 'Presupuesto actualizado' : 'Presupuesto guardado con éxito');
+      }
       if (onSaved) {
         onSaved(saved);
       } else {
@@ -1238,6 +1354,34 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
       </div>
     </div>
 
+    ${(() => {
+      if (!cliente) return '';
+      const missing = [];
+      if (!cliente.telefono && !cliente.whatsapp) missing.push('Teléfono / WhatsApp');
+      if (!cliente.direccion && !pres.direccion) missing.push('Dirección de obra');
+      if (!cliente.cuit) missing.push('CUIT / DNI');
+      if (!cliente.email) missing.push('Email');
+      if (missing.length === 0) return '';
+      return `
+        <div class="card mb-4" style="border-left: 4px solid var(--color-warning); background: rgba(245, 158, 11, 0.08);">
+          <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap;padding:14px 18px">
+            <div style="display:flex;align-items:center;gap:12px;min-width:260px">
+              <span style="font-size:24px;line-height:1">⚠️</span>
+              <div>
+                <strong style="color:#92400E;font-size:var(--text-sm)">Ficha de cliente con datos pendientes</strong>
+                <div class="text-muted" style="font-size:var(--text-xs);margin-top:2px">
+                  Falta completar: <strong style="color:#B45309">${missing.join(', ')}</strong> en el perfil de <em>${escapeHtml(cliente.nombre)}</em>.
+                </div>
+              </div>
+            </div>
+            <button class="btn btn-warning btn-sm" id="btn-completar-cliente-pres" data-cliente-id="${cliente.id}" style="font-weight:var(--font-semibold);gap:6px">
+              ${Icons.edit} Completar datos del cliente
+            </button>
+          </div>
+        </div>
+      `;
+    })()}
+
     <div class="card mb-4">
       <div class="card-body">
         <div class="flex justify-between items-start" style="margin-bottom:var(--space-4)">
@@ -1350,6 +1494,16 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
   };
   document.getElementById('btn-edit-header')?.addEventListener('click', handleEdit);
   document.getElementById('btn-edit-detail')?.addEventListener('click', handleEdit);
+
+  // Completar datos de cliente desde el banner de alerta
+  document.getElementById('btn-completar-cliente-pres')?.addEventListener('click', (e) => {
+    const cid = e.currentTarget.dataset.clienteId;
+    if (cid) {
+      openClienteForm(cid, () => {
+        renderPresupuestoDetail(container, actionsEl, presId);
+      });
+    }
+  });
 
   // Approve action
   const btnAprobar = document.getElementById('btn-aprobar');

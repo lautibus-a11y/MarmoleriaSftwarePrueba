@@ -38,6 +38,19 @@ export function renderClientes(container, actionsEl, path) {
       { label: 'Teléfono', field: 'telefono', render: (item) => escapeHtml(item.telefono || '-') },
       { label: 'Email', field: 'email', render: (item) => escapeHtml(item.email || '-'), className: 'cell-secondary' },
       {
+        label: 'Estado ficha',
+        render: (item) => {
+          const missing = [];
+          if (!item.telefono && !item.whatsapp) missing.push('Teléfono');
+          if (!item.direccion) missing.push('Dirección');
+          if (!item.cuit) missing.push('CUIT');
+          if (missing.length > 0) {
+            return `<span class="badge badge-warning" title="Faltan datos: ${missing.join(', ')}" style="cursor:help;font-weight:600">⚠️ Faltan datos (${missing.length})</span>`;
+          }
+          return `<span class="badge badge-success" style="font-weight:600">Completa</span>`;
+        }
+      },
+      {
         label: 'Saldo pendiente', field: 'saldo', align: 'right',
         render: (item) => {
           const saldo = DataService.getClienteSaldo(item.id);
@@ -247,6 +260,33 @@ function renderClienteDetail(container, actionsEl, clienteId) {
       </div>
     </div>
 
+    ${(() => {
+      const missing = [];
+      if (!cliente.telefono && !cliente.whatsapp) missing.push('Teléfono / WhatsApp');
+      if (!cliente.direccion) missing.push('Dirección');
+      if (!cliente.cuit) missing.push('CUIT / DNI');
+      if (!cliente.email) missing.push('Email');
+      if (missing.length === 0) return '';
+      return `
+        <div class="card mb-4" style="border-left: 4px solid var(--color-warning); background: rgba(245, 158, 11, 0.08);">
+          <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap;padding:14px 18px">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="font-size:24px;line-height:1">⚠️</span>
+              <div>
+                <strong style="color:#92400E;font-size:var(--text-sm)">Perfil de cliente incompleto</strong>
+                <div class="text-muted" style="font-size:var(--text-xs);margin-top:2px">
+                  Falta completar: <strong style="color:#B45309">${missing.join(', ')}</strong>.
+                </div>
+              </div>
+            </div>
+            <button class="btn btn-warning btn-sm" id="btn-cliente-completar-banner" style="font-weight:var(--font-semibold);gap:6px">
+              ${Icons.edit} Completar datos ahora
+            </button>
+          </div>
+        </div>
+      `;
+    })()}
+
     <!-- Client profile card -->
     <div class="card mb-4">
       <div class="card-body">
@@ -429,6 +469,12 @@ function renderClienteDetail(container, actionsEl, clienteId) {
 
   // Edit button
   document.getElementById('btn-cliente-edit')?.addEventListener('click', () => {
+    openClienteForm(clienteId, () => {
+      renderClienteDetail(container, actionsEl, clienteId);
+    });
+  });
+
+  document.getElementById('btn-cliente-completar-banner')?.addEventListener('click', () => {
     openClienteForm(clienteId, () => {
       renderClienteDetail(container, actionsEl, clienteId);
     });
