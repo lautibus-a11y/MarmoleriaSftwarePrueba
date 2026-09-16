@@ -94,6 +94,7 @@ export function renderObras(container, actionsEl, path) {
   container.onclick = e => {
     const btn = e.target.closest('[data-action]');
     if (btn) {
+      e.stopPropagation();
       const { action, id } = btn.dataset;
       if (action === 'view') { window.location.hash = `#/obras/${id}`; return; }
       if (action === 'export') {

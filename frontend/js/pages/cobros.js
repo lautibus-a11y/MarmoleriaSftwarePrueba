@@ -79,31 +79,37 @@ export function renderCobros(container, actionsEl) {
     `;
 
     const si = container.querySelector('#search-input');
-    if (si) { si.value = searchTerm; si.addEventListener('input', debounce(e => { searchTerm = e.target.value; render(); }, 300)); }
-    container.querySelector('#filter-estado')?.addEventListener('change', e => { filterEstado = e.target.value; render(); });
-    container.addEventListener('click', e => {
-      const btn = e.target.closest('[data-action]'); if (!btn) return;
-      if (btn.dataset.action === 'view-file') {
-        const c = DataService.getById('cobros', btn.dataset.id);
-        if (c && (c.comprobanteUrl || c.comprobanteKey)) {
-          previewAttachment({ url: c.comprobanteUrl, key: c.comprobanteKey, filename: `Comprobante_Cobro_${c.id}` });
-        }
-      }
-      if (btn.dataset.action === 'export') {
-        const c = DataService.getById('cobros', btn.dataset.id);
-        if (!c) return;
-        const cli = c.clienteId ? DataService.getById('clientes', c.clienteId) : null;
-        const o = c.obraId ? DataService.getById('obras', c.obraId) : null;
-        DocumentModal.open({
-          title: `Recibo de Cobro #${c.id}`,
-          filename: `Recibo_${c.id}`,
-          htmlContent: generateCobroHtml(c, cli, o)
-        });
-      }
-      if (btn.dataset.action === 'edit') openForm(btn.dataset.id);
-      if (btn.dataset.action === 'delete') handleDelete(btn.dataset.id);
-    });
+    if (si) { si.value = searchTerm; si.oninput = debounce(e => { searchTerm = e.target.value; render(); }, 300); }
+    const fe = container.querySelector('#filter-estado');
+    if (fe) fe.onchange = e => { filterEstado = e.target.value; render(); };
   }
+
+  container.onclick = e => {
+    const btn = e.target.closest('[data-action]'); if (!btn) return;
+    e.stopPropagation();
+    const { action, id } = btn.dataset;
+    if (action === 'view-file') {
+      const c = DataService.getById('cobros', id);
+      if (c && (c.comprobanteUrl || c.comprobanteKey)) {
+        previewAttachment({ url: c.comprobanteUrl, key: c.comprobanteKey, filename: `Comprobante_Cobro_${c.id}` });
+      }
+      return;
+    }
+    if (action === 'export') {
+      const c = DataService.getById('cobros', id);
+      if (!c) return;
+      const cli = c.clienteId ? DataService.getById('clientes', c.clienteId) : null;
+      const o = c.obraId ? DataService.getById('obras', c.obraId) : null;
+      DocumentModal.open({
+        title: `Recibo de Cobro #${c.id}`,
+        filename: `Recibo_${c.id}`,
+        htmlContent: generateCobroHtml(c, cli, o)
+      });
+      return;
+    }
+    if (action === 'edit') { openForm(id); return; }
+    if (action === 'delete') { handleDelete(id); return; }
+  };
 
   function openForm(editId = null) {
     const cobro = (editId ? DataService.getById('cobros', editId) : null) || {};
@@ -281,6 +287,6 @@ export function renderCobros(container, actionsEl) {
     }
   }
 
-  setTimeout(() => { document.getElementById('btn-new-cobro')?.addEventListener('click', () => openForm()); }, 100);
+  actionsEl.querySelector('#btn-new-cobro')?.addEventListener('click', () => openForm());
   render();
 }

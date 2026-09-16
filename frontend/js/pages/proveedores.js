@@ -44,16 +44,24 @@ export function renderProveedores(container, actionsEl, path) {
     </div>`;
 
     const si = container.querySelector('#search-input');
-    if(si){si.value=searchTerm;si.addEventListener('input',debounce(e=>{searchTerm=e.target.value;render();},300));}
-    container.addEventListener('click',e=>{
-      const btn=e.target.closest('[data-action]');if(!btn)return;
-      const{action,id}=btn.dataset;
-      if(action==='view')window.location.hash=`#/proveedores/${id}`;
-      if(action==='edit')openForm(id);
-      if(action==='delete')handleDelete(id);
-    });
-    container.querySelectorAll('.data-table tbody tr').forEach(r=>r.addEventListener('click',e=>{if(!e.target.closest('[data-action]')&&r.dataset.id)window.location.hash=`#/proveedores/${r.dataset.id}`;}));
+    if (si) { si.value = searchTerm; si.oninput = debounce(e => { searchTerm = e.target.value; render(); }, 300); }
   }
+
+  container.onclick = e => {
+    const btn = e.target.closest('[data-action]');
+    if (btn) {
+      e.stopPropagation();
+      const { action, id } = btn.dataset;
+      if (action === 'view') { window.location.hash = `#/proveedores/${id}`; return; }
+      if (action === 'edit') { openForm(id); return; }
+      if (action === 'delete') { handleDelete(id); return; }
+      return;
+    }
+    const r = e.target.closest('.data-table tbody tr');
+    if (r && r.dataset.id && !e.target.closest('a, button')) {
+      window.location.hash = `#/proveedores/${r.dataset.id}`;
+    }
+  };
 
   function openForm(editId=null){
     const prov = (editId ? DataService.getById('proveedores', editId) : null) || {};
@@ -86,7 +94,7 @@ export function renderProveedores(container, actionsEl, path) {
     if(confirmed){DataService.remove('proveedores',id);Toast.success('Proveedor eliminado');proveedores=DataService.getAll('proveedores');render();}
   }
 
-  setTimeout(()=>{document.getElementById('btn-new-prov')?.addEventListener('click',()=>openForm());},100);
+  actionsEl.querySelector('#btn-new-prov')?.addEventListener('click', () => openForm());
   render();
 }
 

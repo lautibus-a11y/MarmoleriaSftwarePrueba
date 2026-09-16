@@ -104,16 +104,19 @@ export function renderStock(container, actionsEl) {
     `;
 
     const si = container.querySelector('#search-input');
-    if(si){si.value=searchTerm;si.addEventListener('input',debounce(e=>{searchTerm=e.target.value;render();},300));}
-    container.querySelector('#filter-cat')?.addEventListener('change',e=>{filterCat=e.target.value;render();});
-    container.addEventListener('click',e=>{
-      const btn=e.target.closest('[data-action]');if(!btn)return;
-      const{action,id}=btn.dataset;
-      if(action==='edit')openMaterialForm(id);
-      if(action==='delete')handleDelete(id);
-      if(action==='history')showHistory(id);
-    });
+    if (si) { si.value = searchTerm; si.oninput = debounce(e => { searchTerm = e.target.value; render(); }, 300); }
+    const fc = container.querySelector('#filter-cat');
+    if (fc) fc.onchange = e => { filterCat = e.target.value; render(); };
   }
+
+  container.onclick = e => {
+    const btn = e.target.closest('[data-action]'); if (!btn) return;
+    e.stopPropagation();
+    const { action, id } = btn.dataset;
+    if (action === 'edit') { openMaterialForm(id); return; }
+    if (action === 'delete') { handleDelete(id); return; }
+    if (action === 'history') { showHistory(id); return; }
+  };
 
   function openMaterialForm(editId=null){
     const mat = (editId ? DataService.getById('materiales', editId) : null) || {};
@@ -489,10 +492,8 @@ export function renderStock(container, actionsEl) {
     });
   }
 
-  setTimeout(()=>{
-    document.getElementById('btn-new-mat')?.addEventListener('click',()=>openMaterialForm());
-    document.getElementById('btn-new-mov')?.addEventListener('click',()=>openMovimientoForm());
-    document.getElementById('btn-actualizar-precios')?.addEventListener('click',()=>openActualizarPreciosModal());
-  },100);
+  actionsEl.querySelector('#btn-new-mat')?.addEventListener('click', () => openMaterialForm());
+  actionsEl.querySelector('#btn-new-mov')?.addEventListener('click', () => openMovimientoForm());
+  actionsEl.querySelector('#btn-actualizar-precios')?.addEventListener('click', () => openActualizarPreciosModal());
   render();
 }

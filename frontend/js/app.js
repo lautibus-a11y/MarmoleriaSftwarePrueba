@@ -17,6 +17,9 @@ import { renderCobros } from './pages/cobros.js';
 import { renderConfiguracion } from './pages/configuracion.js';
 import { DataService } from './services/mockData.js';
 import { Icons } from './components/ui.js';
+import { Drawer } from './components/drawer.js';
+import { Modal } from './components/modal.js';
+import { DocumentModal } from './components/documentModal.js';
 import { getSystemAlerts, openNotificationsModal } from './components/notificationsModal.js';
 
 import { escapeHtml } from './utils/helpers.js';
@@ -105,13 +108,35 @@ class App {
       path = '/dashboard';
     }
 
-    const contentEl = document.getElementById('page-content');
-    const titleEl = document.getElementById('page-title');
-    const actionsEl = document.getElementById('page-header-actions');
+    // Close any open drawers or modals when navigating between tabs
+    try {
+      if (Drawer && typeof Drawer.close === 'function') Drawer.close(true);
+      if (Modal && typeof Modal.close === 'function') Modal.close(true);
+      if (DocumentModal && typeof DocumentModal.close === 'function') DocumentModal.close();
+    } catch (e) {
+      console.warn('Error closing drawers/modals on navigate:', e);
+    }
 
-    if (!contentEl) {
+    const oldContentEl = document.getElementById('page-content');
+    const titleEl = document.getElementById('page-title');
+    let actionsEl = document.getElementById('page-header-actions');
+
+    if (!oldContentEl) {
       this.renderApp();
       return;
+    }
+
+    // Cleanly replace content container to strip any lingering event listeners from previous views
+    const contentEl = oldContentEl.cloneNode(false);
+    contentEl.onclick = null;
+    oldContentEl.parentNode.replaceChild(contentEl, oldContentEl);
+
+    // Cleanly reset actions container
+    if (actionsEl) {
+      const cleanActionsEl = actionsEl.cloneNode(false);
+      cleanActionsEl.onclick = null;
+      actionsEl.parentNode.replaceChild(cleanActionsEl, actionsEl);
+      actionsEl = cleanActionsEl;
     }
 
     updateSidebarActive(path);

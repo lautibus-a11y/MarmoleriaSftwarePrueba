@@ -214,6 +214,7 @@ export function renderPresupuestos(container, actionsEl, path) {
   container.onclick = (e) => {
     const btn = e.target.closest('[data-action]');
     if (btn) {
+      e.stopPropagation();
       const { action, id } = btn.dataset;
       if (action === 'approve') {
         aprobarPresupuesto(id, () => {

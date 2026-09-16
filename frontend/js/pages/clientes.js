@@ -74,111 +74,38 @@ export function renderClientes(container, actionsEl, path) {
     const searchInput = container.querySelector('#search-input');
     if (searchInput) {
       searchInput.value = searchTerm;
-      searchInput.addEventListener('input', debounce((e) => {
+      searchInput.oninput = debounce((e) => {
         searchTerm = e.target.value;
         render();
-      }, 300));
+      }, 300);
     }
+  }
 
-    // Actions
-    container.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-action]');
-      if (!btn) return;
-
+  // Delegated single click handler on container (prevents duplicate listeners on render and across tabs)
+  container.onclick = (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (btn) {
+      e.stopPropagation();
       const action = btn.dataset.action;
       const id = btn.dataset.id;
-
-      if (action === 'view') window.location.hash = `#/clientes/${id}`;
-      if (action === 'edit') openClienteForm(id);
-      if (action === 'delete') handleDelete(id);
-    });
-
-    // Row click
-    container.querySelectorAll('.data-table tbody tr').forEach(row => {
-      row.addEventListener('click', (e) => {
-        if (e.target.closest('[data-action]')) return;
-        const id = row.dataset.id;
-        if (id) window.location.hash = `#/clientes/${id}`;
-      });
-    });
-  }
-
-  function openClienteForm(editId = null) {
-    const cliente = (editId ? DataService.getById('clientes', editId) : null) || {};
-    const isEdit = !!editId && !!cliente.id;
-
-    Drawer.open({
-      title: isEdit ? 'Editar cliente' : 'Nuevo cliente',
-      content: `
-        <form id="cliente-form">
-          <div class="form-row-2">
-            <div class="form-group">
-              <label class="form-label">Nombre <span class="required">*</span></label>
-              <input type="text" class="form-input" name="nombre" value="${escapeHtml(cliente.nombre || '')}" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Apellido / Razón Social</label>
-              <input type="text" class="form-input" name="apellido" value="${escapeHtml(cliente.apellido || '')}">
-            </div>
-          </div>
-          <div class="form-row-2">
-            <div class="form-group">
-              <label class="form-label">Teléfono</label>
-              <input type="tel" class="form-input" name="telefono" value="${escapeHtml(cliente.telefono || '')}">
-            </div>
-            <div class="form-group">
-              <label class="form-label">WhatsApp</label>
-              <input type="tel" class="form-input" name="whatsapp" value="${escapeHtml(cliente.whatsapp || '')}" placeholder="5491100000000">
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Email</label>
-            <input type="email" class="form-input" name="email" value="${escapeHtml(cliente.email || '')}">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Dirección</label>
-            <input type="text" class="form-input" name="direccion" value="${escapeHtml(cliente.direccion || '')}">
-          </div>
-          <div class="form-group">
-            <label class="form-label">CUIT</label>
-            <input type="text" class="form-input" name="cuit" value="${escapeHtml(cliente.cuit || '')}" placeholder="XX-XXXXXXXX-X">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Observaciones</label>
-            <textarea class="form-textarea" name="observaciones" rows="3">${escapeHtml(cliente.observaciones || '')}</textarea>
-          </div>
-        </form>
-      `,
-      footer: `
-        <button class="btn btn-secondary" id="drawer-cancel">Cancelar</button>
-        <button class="btn btn-primary" id="drawer-save">${isEdit ? 'Guardar cambios' : 'Crear cliente'}</button>
-      `
-    });
-
-    document.getElementById('drawer-cancel').addEventListener('click', () => Drawer.close());
-    document.getElementById('drawer-save').addEventListener('click', () => {
-      const form = document.getElementById('cliente-form');
-      const formData = new FormData(form);
-      const data = Object.fromEntries(formData);
-
-      if (!data.nombre?.trim()) {
-        Toast.warning('Campo requerido', 'El nombre es obligatorio');
+      if (action === 'view') { window.location.hash = `#/clientes/${id}`; return; }
+      if (action === 'edit') {
+        openClienteForm(id, () => {
+          clientes = DataService.getAll('clientes');
+          render();
+        });
         return;
       }
+      if (action === 'delete') { handleDelete(id); return; }
+      return;
+    }
 
-      if (isEdit) {
-        DataService.update('clientes', editId, data);
-        Toast.success('Cliente actualizado');
-      } else {
-        DataService.create('clientes', data);
-        Toast.success('Cliente creado');
-      }
-
-      Drawer.close();
-      clientes = DataService.getAll('clientes');
-      render();
-    });
-  }
+    // Row click
+    const row = e.target.closest('.data-table tbody tr');
+    if (row && row.dataset.id && !e.target.closest('a, button')) {
+      window.location.hash = `#/clientes/${row.dataset.id}`;
+    }
+  };
 
   async function handleDelete(id) {
     const cliente = DataService.getById('clientes', id);
@@ -200,11 +127,90 @@ export function renderClientes(container, actionsEl, path) {
   }
 
   // New button
-  setTimeout(() => {
-    document.getElementById('btn-new-cliente')?.addEventListener('click', () => openClienteForm());
-  }, 100);
+  actionsEl.querySelector('#btn-new-cliente')?.addEventListener('click', () => {
+    openClienteForm(null, () => {
+      clientes = DataService.getAll('clientes');
+      render();
+    });
+  });
 
   render();
+}
+
+export function openClienteForm(editId = null, onSaved = null) {
+  const cliente = (editId ? DataService.getById('clientes', editId) : null) || {};
+  const isEdit = !!editId && !!cliente.id;
+
+  Drawer.open({
+    title: isEdit ? 'Editar cliente' : 'Nuevo cliente',
+    content: `
+      <form id="cliente-form">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">Nombre <span class="required">*</span></label>
+            <input type="text" class="form-input" name="nombre" value="${escapeHtml(cliente.nombre || '')}" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Apellido / Razón Social</label>
+            <input type="text" class="form-input" name="apellido" value="${escapeHtml(cliente.apellido || '')}">
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">Teléfono</label>
+            <input type="tel" class="form-input" name="telefono" value="${escapeHtml(cliente.telefono || '')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">WhatsApp</label>
+            <input type="tel" class="form-input" name="whatsapp" value="${escapeHtml(cliente.whatsapp || '')}" placeholder="5491100000000">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-input" name="email" value="${escapeHtml(cliente.email || '')}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dirección</label>
+          <input type="text" class="form-input" name="direccion" value="${escapeHtml(cliente.direccion || '')}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">CUIT</label>
+          <input type="text" class="form-input" name="cuit" value="${escapeHtml(cliente.cuit || '')}" placeholder="XX-XXXXXXXX-X">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observaciones</label>
+          <textarea class="form-textarea" name="observaciones" rows="3">${escapeHtml(cliente.observaciones || '')}</textarea>
+        </div>
+      </form>
+    `,
+    footer: `
+      <button class="btn btn-secondary" id="drawer-cancel">Cancelar</button>
+      <button class="btn btn-primary" id="drawer-save">${isEdit ? 'Guardar cambios' : 'Crear cliente'}</button>
+    `
+  });
+
+  document.getElementById('drawer-cancel').addEventListener('click', () => Drawer.close());
+  document.getElementById('drawer-save').addEventListener('click', () => {
+    const form = document.getElementById('cliente-form');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+
+    if (!data.nombre?.trim()) {
+      Toast.warning('Campo requerido', 'El nombre es obligatorio');
+      return;
+    }
+
+    if (isEdit) {
+      DataService.update('clientes', editId, data);
+      Toast.success('Cliente actualizado');
+    } else {
+      DataService.create('clientes', data);
+      Toast.success('Cliente creado');
+    }
+
+    Drawer.close();
+    if (typeof onSaved === 'function') onSaved();
+  });
 }
 
 // ── Client Detail View ──
@@ -423,11 +429,9 @@ function renderClienteDetail(container, actionsEl, clienteId) {
 
   // Edit button
   document.getElementById('btn-cliente-edit')?.addEventListener('click', () => {
-    // Navigate back to clients and trigger edit
-    window.location.hash = '#/clientes';
-    setTimeout(() => {
-      document.querySelector(`[data-action="edit"][data-id="${clienteId}"]`)?.click();
-    }, 150);
+    openClienteForm(clienteId, () => {
+      renderClienteDetail(container, actionsEl, clienteId);
+    });
   });
 
   // New presupuesto button

@@ -79,31 +79,38 @@ export function renderFacturas(container, actionsEl) {
     </div>`;
 
     const si = container.querySelector('#search-input');
-    if (si) { si.value = searchTerm; si.addEventListener('input', debounce(e => { searchTerm = e.target.value; render(); }, 300)); }
-    container.querySelector('#filter-tipo')?.addEventListener('change', e => { filterTipo = e.target.value; render(); });
-    container.querySelector('#filter-estado')?.addEventListener('change', e => { filterEstado = e.target.value; render(); });
-    container.addEventListener('click', e => {
-      const btn = e.target.closest('[data-action]'); if (!btn) return;
-      if (btn.dataset.action === 'view-file') {
-        const f = DataService.getById('facturas', btn.dataset.id);
-        if (f && (f.archivoUrl || f.archivoKey)) {
-          previewAttachment({ url: f.archivoUrl, key: f.archivoKey, filename: `Factura_${f.numero || f.id}` });
-        }
-      }
-      if (btn.dataset.action === 'export') {
-        const f = DataService.getById('facturas', btn.dataset.id);
-        if (!f) return;
-        const prov = f.proveedorId ? DataService.getById('proveedores', f.proveedorId) : null;
-        DocumentModal.open({
-          title: `Comprobante ${f.numero || f.id}`,
-          filename: `Comprobante_${f.numero || f.id}`,
-          htmlContent: generateFacturaHtml(f, prov)
-        });
-      }
-      if (btn.dataset.action === 'edit') openForm(btn.dataset.id);
-      if (btn.dataset.action === 'delete') handleDelete(btn.dataset.id);
-    });
+    if (si) { si.value = searchTerm; si.oninput = debounce(e => { searchTerm = e.target.value; render(); }, 300); }
+    const ft = container.querySelector('#filter-tipo');
+    if (ft) ft.onchange = e => { filterTipo = e.target.value; render(); };
+    const fe = container.querySelector('#filter-estado');
+    if (fe) fe.onchange = e => { filterEstado = e.target.value; render(); };
   }
+
+  container.onclick = e => {
+    const btn = e.target.closest('[data-action]'); if (!btn) return;
+    e.stopPropagation();
+    const { action, id } = btn.dataset;
+    if (action === 'view-file') {
+      const f = DataService.getById('facturas', id);
+      if (f && (f.archivoUrl || f.archivoKey)) {
+        previewAttachment({ url: f.archivoUrl, key: f.archivoKey, filename: `Factura_${f.numero || f.id}` });
+      }
+      return;
+    }
+    if (action === 'export') {
+      const f = DataService.getById('facturas', id);
+      if (!f) return;
+      const prov = f.proveedorId ? DataService.getById('proveedores', f.proveedorId) : null;
+      DocumentModal.open({
+        title: `Comprobante ${f.numero || f.id}`,
+        filename: `Comprobante_${f.numero || f.id}`,
+        htmlContent: generateFacturaHtml(f, prov)
+      });
+      return;
+    }
+    if (action === 'edit') { openForm(id); return; }
+    if (action === 'delete') { handleDelete(id); return; }
+  };
 
   function openForm(editId = null, defaultTipo = 'factura') {
     const fac = (editId ? DataService.getById('facturas', editId) : null) || { tipo: defaultTipo };
@@ -270,11 +277,9 @@ export function renderFacturas(container, actionsEl) {
     }
   }
 
-  setTimeout(() => {
-    document.getElementById('btn-new-fac')?.addEventListener('click', () => openForm(null, 'factura'));
-    document.getElementById('btn-new-nc')?.addEventListener('click', () => openForm(null, 'nota_credito'));
-    document.getElementById('btn-new-nd')?.addEventListener('click', () => openForm(null, 'nota_debito'));
-  }, 100);
+  actionsEl.querySelector('#btn-new-fac')?.addEventListener('click', () => openForm(null, 'factura'));
+  actionsEl.querySelector('#btn-new-nc')?.addEventListener('click', () => openForm(null, 'nota_credito'));
+  actionsEl.querySelector('#btn-new-nd')?.addEventListener('click', () => openForm(null, 'nota_debito'));
 
   render();
 }
