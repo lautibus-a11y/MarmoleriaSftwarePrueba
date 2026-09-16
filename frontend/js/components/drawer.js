@@ -10,7 +10,8 @@ class DrawerManager {
   }
 
   open({ title = '', content = '', size = '', onClose = null, footer = null, headerActions = null } = {}) {
-    this.close();
+    this.close(true);
+    document.querySelectorAll('.drawer, .drawer-overlay').forEach(el => el.remove());
     this.onCloseCallback = onClose;
 
     const sizeClass = size ? `drawer-${size}` : '';
@@ -64,19 +65,27 @@ class DrawerManager {
     return this.drawer;
   }
 
-  close() {
-    if (!this.drawer) return;
+  close(immediate = false) {
+    if (!this.drawer && !this.overlay) {
+      document.querySelectorAll('.drawer, .drawer-overlay').forEach(el => el.remove());
+      return;
+    }
 
     if (this.overlay) this.overlay.classList.remove('visible');
-    this.drawer.classList.remove('visible');
+    if (this.drawer) this.drawer.classList.remove('visible');
 
     const overlay = this.overlay;
     const drawer = this.drawer;
 
-    setTimeout(() => {
+    if (immediate) {
       if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
       if (drawer && drawer.parentNode) drawer.parentNode.removeChild(drawer);
-    }, 350);
+    } else {
+      setTimeout(() => {
+        if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        if (drawer && drawer.parentNode) drawer.parentNode.removeChild(drawer);
+      }, 350);
+    }
 
     document.body.style.overflow = '';
     document.body.classList.remove('drawer-open');

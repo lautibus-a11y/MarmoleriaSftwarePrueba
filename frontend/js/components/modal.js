@@ -10,7 +10,8 @@ class ModalManager {
   }
 
   open({ title = '', content = '', size = 'md', onClose = null, footer = null, closable = true } = {}) {
-    this.close();
+    this.close(true);
+    document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
 
     this.onCloseCallback = onClose;
 
@@ -64,15 +65,22 @@ class ModalManager {
     return this.overlay;
   }
 
-  close() {
-    if (!this.overlay) return;
+  close(immediate = false) {
+    if (!this.overlay) {
+      document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
+      return;
+    }
 
     this.overlay.classList.remove('visible');
     const overlay = this.overlay;
 
-    setTimeout(() => {
+    if (immediate) {
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-    }, 200);
+    } else {
+      setTimeout(() => {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      }, 200);
+    }
 
     document.body.style.overflow = '';
     document.body.classList.remove('modal-open');

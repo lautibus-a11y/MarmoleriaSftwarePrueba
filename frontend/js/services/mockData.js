@@ -116,7 +116,7 @@ export const DataService = {
 
   getById(collection, id) {
     if (!id) return null;
-    return store[collection]?.find(item => item && item.id === id) || null;
+    return store[collection]?.find(item => item && String(item.id) === String(id)) || null;
   },
 
   create(collection, data) {
@@ -137,7 +137,7 @@ export const DataService = {
     if (route) {
       Api.post(route, record).then(serverItem => {
         if (serverItem) {
-          const idx = store[collection].findIndex(i => i && i.id === id);
+          const idx = store[collection].findIndex(i => i && String(i.id) === String(id));
           if (idx !== -1) {
             store[collection][idx] = { ...record, ...serverItem, id };
             try { localStorage.setItem(`mb_${collection}`, JSON.stringify(store[collection])); } catch (e) {}
@@ -152,8 +152,8 @@ export const DataService = {
   },
 
   update(collection, id, data) {
-    const idx = store[collection]?.findIndex(item => item.id === id);
-    if (idx === -1) return null;
+    const idx = store[collection]?.findIndex(item => item && String(item.id) === String(id));
+    if (idx === -1 || idx === undefined) return null;
     
     store[collection][idx] = { ...store[collection][idx], ...data, updatedAt: new Date().toISOString() };
     try { localStorage.setItem(`mb_${collection}`, JSON.stringify(store[collection])); } catch (e) {}
@@ -170,8 +170,8 @@ export const DataService = {
   },
 
   remove(collection, id) {
-    const idx = store[collection]?.findIndex(item => item.id === id);
-    if (idx === -1) return false;
+    const idx = store[collection]?.findIndex(item => item && String(item.id) === String(id));
+    if (idx === -1 || idx === undefined) return false;
 
     store[collection].splice(idx, 1);
     try { localStorage.setItem(`mb_${collection}`, JSON.stringify(store[collection])); } catch (e) {}

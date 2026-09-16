@@ -50,9 +50,10 @@ export function renderPresupuestos(container, actionsEl, path) {
         return escapeHtml(cli ? `${cli.nombre} ${cli.apellido || ''}` : (p.clienteNombre || '-'));
       }},
       { label: 'Descripción', render: (p) => `<span class="text-truncate" style="max-width:200px;display:inline-block">${escapeHtml(p.descripcion)}</span>` },
-      { label: 'Estado', render: (p) => renderBadge(PRESUPUESTO_ESTADO_LABELS[p.estado] || p.estado, PRESUPUESTO_ESTADO_COLORS[p.estado] || 'neutral') },
+      { label: 'Estado', render: (p) => renderBadge(PRESUPUESTO_ESTADO_LABELS[p.estado] || p.estado || 'Borrador', PRESUPUESTO_ESTADO_COLORS[p.estado] || 'neutral') },
       { label: 'Total', align: 'right', render: (p) => `<span class="cell-currency">${formatCurrency(DataService.getPresupuestoTotal(p), p.moneda)}</span>` },
       { label: '', align: 'right', className: 'cell-actions', render: (p) => `
+        ${p.estado !== 'aprobado' ? `<button class="btn btn-ghost btn-icon btn-sm" data-action="approve" data-id="${p.id}" title="Aprobar presupuesto" style="color:var(--color-success)">${Icons.check}</button>` : ''}
         <button class="btn btn-ghost btn-icon btn-sm" data-action="schedule" data-id="${p.id}" title="Agendar en calendario">${Icons.calendar}</button>
         <button class="btn btn-ghost btn-icon btn-sm" data-action="share" data-id="${p.id}" title="Compartir (WhatsApp / PDF)" style="color:#25D366">${Icons.whatsapp}</button>
         <button class="btn btn-ghost btn-icon btn-sm" data-action="view" data-id="${p.id}" title="Ver">${Icons.eye}</button>
@@ -94,6 +95,13 @@ export function renderPresupuestos(container, actionsEl, path) {
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
       const { action, id } = btn.dataset;
+      if (action === 'approve') {
+        DataService.update('presupuestos', id, { estado: 'aprobado' });
+        Toast.success('Presupuesto aprobado con éxito');
+        presupuestos = DataService.getAll('presupuestos');
+        render();
+        return;
+      }
       if (action === 'share') {
         const pres = DataService.getById('presupuestos', id);
         if (pres) openShareModal(pres);
@@ -137,7 +145,7 @@ export function renderPresupuestos(container, actionsEl, path) {
     });
   }
 
-  function openPresupuestoForm(editId = null) {
+  function openPresupuestoForm(editId = null, onSaved = null) {
     const found = editId ? DataService.getById('presupuestos', editId) : null;
     const isEdit = !!editId && !!found;
     const pres = found ? { ...found } : {
@@ -154,26 +162,37 @@ export function renderPresupuestos(container, actionsEl, path) {
 
     const isNuevoInicial = !pres.clienteId && !!pres.clienteNombre;
 
-    Drawer.open({
+    const drawerEl = Drawer.open({
       title: isEdit ? `Editar ${pres.numero || 'presupuesto'}` : 'Nuevo presupuesto',
       size: 'xl',
       content: `
         <form id="pres-form">
           <div class="presupuesto-form-section">
             <h4 class="presupuesto-form-section-title">${Icons['file-text']} Datos generales</h4>
-            <div class="form-row-3">
+            <div class="form-row-2">
               <div class="form-group">
                 <label class="form-label">Número</label>
-                <input type="text" class="form-input" name="numero" value="${pres.numero}" readonly style="background:var(--color-stone-50)">
+                <input type="text" class="form-input" name="numero" value="${escapeHtml(pres.numero || '')}" readonly style="background:var(--color-stone-50)">
               </div>
               <div class="form-group">
                 <label class="form-label">Fecha</label>
-                <input type="date" class="form-input" name="fecha" value="${pres.fecha}">
+                <input type="date" class="form-input" name="fecha" value="${pres.fecha || ''}">
               </div>
+            </div>
+            <div class="form-row-2">
               <div class="form-group">
                 <label class="form-label">Moneda</label>
                 <select class="form-select" name="moneda">
                   ${MONEDAS.map(m => `<option value="${m.value}" ${pres.moneda === m.value ? 'selected' : ''}>${m.label}</option>`).join('')}
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Estado del presupuesto</label>
+                <select class="form-select" name="estado" id="pres-estado-select" style="font-weight:var(--font-semibold)">
+                  <option value="borrador" ${(pres.estado === 'borrador' || !pres.estado) ? 'selected' : ''}>Borrador (en confección)</option>
+                  <option value="enviado" ${pres.estado === 'enviado' ? 'selected' : ''}>Enviado al cliente</option>
+                  <option value="aprobado" ${pres.estado === 'aprobado' ? 'selected' : ''}>Aprobado</option>
+                  <option value="rechazado" ${pres.estado === 'rechazado' ? 'selected' : ''}>Rechazado</option>
                 </select>
               </div>
             </div>
@@ -194,7 +213,7 @@ export function renderPresupuestos(container, actionsEl, path) {
                   <label class="form-label">Cliente habitual registrado <span class="required">*</span></label>
                   <select class="form-select" name="clienteId" id="pres-cliente-select">
                     <option value="">Seleccionar cliente...</option>
-                    ${clientes.map(c => `<option value="${c.id}" ${pres.clienteId === c.id ? 'selected' : ''}>${c.nombre} ${c.apellido || ''}</option>`).join('')}
+                    ${clientes.map(c => `<option value="${c.id}" ${String(pres.clienteId) === String(c.id) ? 'selected' : ''}>${escapeHtml(c.nombre)} ${escapeHtml(c.apellido || '')}</option>`).join('')}
                   </select>
                 </div>
               </div>
@@ -301,6 +320,9 @@ export function renderPresupuestos(container, actionsEl, path) {
             <button type="button" class="btn btn-success btn-lg" id="btn-inline-save-share" style="width:100%;justify-content:center;background:#25D366;color:#fff;border-color:#25D366;font-weight:var(--font-bold);box-shadow:0 4px 12px rgba(37,211,102,0.25)">
               ${Icons.whatsapp} Guardar y Compartir presupuesto
             </button>
+            <button type="button" class="btn btn-success" id="btn-inline-approve" style="width:100%;justify-content:center;background:#059669;color:#fff;border-color:#059669;font-weight:var(--font-bold);box-shadow:0 3px 10px rgba(5,150,105,0.25)">
+              ${Icons.check} Guardar y Aprobar presupuesto
+            </button>
             <div style="display:flex;gap:var(--space-2)">
               <button type="button" class="btn btn-primary" id="btn-inline-save" style="flex:1;justify-content:center;font-weight:var(--font-semibold)">
                 ${Icons.check} Guardar
@@ -313,50 +335,55 @@ export function renderPresupuestos(container, actionsEl, path) {
         </form>
       `,
       headerActions: `
+        <button type="button" class="btn btn-outline-success btn-sm" id="drawer-header-approve" style="color:#059669;border-color:#059669;font-weight:var(--font-bold)">${Icons.check} Aprobar</button>
         <button type="button" class="btn btn-primary btn-sm" id="drawer-header-save" style="font-weight:var(--font-semibold)">${Icons.check} Guardar</button>
       `,
       footer: `
         <button type="button" class="btn btn-secondary" id="drawer-cancel">Cancelar</button>
         <button type="button" class="btn btn-secondary" id="drawer-preview-btn">${Icons.eye} Vista previa</button>
+        <button type="button" class="btn btn-outline-success" id="drawer-approve" style="color:#059669;border-color:#059669;font-weight:var(--font-bold)">${Icons.check} Aprobar</button>
         <button type="button" class="btn btn-primary" id="drawer-save">${Icons.check} Guardar</button>
         <button type="button" class="btn btn-success btn-full-mobile" id="drawer-save-share" style="background:#25D366;color:#fff;border-color:#25D366;font-weight:var(--font-bold)">${Icons.whatsapp} Guardar y Compartir</button>
       `
     });
 
+    // Helper to find inside drawerEl or fallback to document
+    const qEl = (sel) => drawerEl?.querySelector(sel) || document.querySelector(sel);
+
     // Setup Client Type Toggle
-    const toggleWrap = document.getElementById('client-type-toggle');
-    const tipoVal = document.getElementById('tipo-cliente-val');
-    const habWrap = document.getElementById('cliente-habitual-wrap');
-    const nueWrap = document.getElementById('cliente-nuevo-wrap');
-    const cliSelect = document.getElementById('pres-cliente-select');
-    const dirInput = document.getElementById('pres-direccion-input');
+    const toggleWrap = qEl('#client-type-toggle');
+    const tipoVal = qEl('#tipo-cliente-val');
+    const habWrap = qEl('#cliente-habitual-wrap');
+    const nueWrap = qEl('#cliente-nuevo-wrap');
+    const cliSelect = qEl('#pres-cliente-select');
+    const dirInput = qEl('#pres-direccion-input');
 
     toggleWrap?.querySelectorAll('.client-type-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const type = btn.dataset.type;
-        tipoVal.value = type;
+        if (tipoVal) tipoVal.value = type;
         toggleWrap.querySelectorAll('.client-type-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         if (type === 'habitual') {
-          habWrap.style.display = 'block';
-          nueWrap.style.display = 'none';
+          if (habWrap) habWrap.style.display = 'block';
+          if (nueWrap) nueWrap.style.display = 'none';
         } else {
-          habWrap.style.display = 'none';
-          nueWrap.style.display = 'block';
+          if (habWrap) habWrap.style.display = 'none';
+          if (nueWrap) nueWrap.style.display = 'block';
         }
       });
     });
 
     cliSelect?.addEventListener('change', (e) => {
-      const selectedCli = clientes.find(c => c.id === e.target.value);
+      const selectedCli = clientes.find(c => String(c.id) === String(e.target.value));
       if (selectedCli && dirInput && !dirInput.value) {
         dirInput.value = selectedCli.direccion || '';
       }
     });
 
     // Setup Items and Calculation
-    const itemsBody = document.getElementById('items-body');
-    const matSummaryEl = document.getElementById('material-summary-banner');
+    const itemsBody = qEl('#items-body');
+    const matSummaryEl = qEl('#material-summary-banner');
 
     const defaultFirstMat = materiales[0]?.nombre || '';
     const defaultFirstMatPrice = materiales[0] ? (materiales[0].precioM2 ?? materiales[0].precioVenta ?? 0) : 0;
@@ -407,7 +434,6 @@ export function renderPresupuestos(container, actionsEl, path) {
         it.m2 = 0;
       }
 
-      // Obtener precio por m² del material seleccionado desde Stock e Inventario
       const mat = materiales.find(m => m.nombre === it.material);
       if (mat) {
         it.precioUnitario = mat.precioM2 ?? mat.precioVenta ?? 0;
@@ -421,7 +447,8 @@ export function renderPresupuestos(container, actionsEl, path) {
     items.forEach(it => calculateItem(it));
 
     function renderMaterialSummary() {
-      if (!matSummaryEl) return;
+      const summaryBanner = qEl('#material-summary-banner');
+      if (!summaryBanner) return;
       const matGroups = {};
       items.forEach(it => {
         const matName = it.material || 'Sin material especificado';
@@ -436,7 +463,7 @@ export function renderPresupuestos(container, actionsEl, path) {
       const groupEntries = Object.entries(matGroups);
       const totalM2 = items.reduce((sum, it) => sum + (it.m2 || 0), 0);
 
-      matSummaryEl.innerHTML = `
+      summaryBanner.innerHTML = `
         <div class="material-breakdown-box">
           <div class="material-breakdown-header">
             <span>Materiales seleccionados (${groupEntries.length})</span>
@@ -461,7 +488,9 @@ export function renderPresupuestos(container, actionsEl, path) {
     }
 
     function renderItems() {
-      itemsBody.innerHTML = items.map((item, idx) => `
+      const bodyEl = qEl('#items-body');
+      if (!bodyEl) return;
+      bodyEl.innerHTML = items.map((item, idx) => `
         <div class="pres-item-card" data-idx="${idx}">
           <div class="pres-item-header">
             <div class="pres-item-title-wrap">
@@ -523,7 +552,7 @@ export function renderPresupuestos(container, actionsEl, path) {
       `).join('');
 
       // Field events
-      itemsBody.querySelectorAll('.item-field').forEach(input => {
+      bodyEl.querySelectorAll('.item-field').forEach(input => {
         const eventName = input.tagName === 'SELECT' ? 'change' : 'input';
         input.addEventListener(eventName, () => {
           const card = input.closest('.pres-item-card');
@@ -544,11 +573,7 @@ export function renderPresupuestos(container, actionsEl, path) {
             const subEl = card.querySelector('.item-subtotal-val');
             if (subEl) subEl.textContent = formatCurrency(items[idx].subtotal || 0);
           } else {
-            if (['cantidad', 'largo', 'ancho'].includes(field)) {
-              items[idx][field] = val;
-            } else {
-              items[idx][field] = val;
-            }
+            items[idx][field] = val;
             calculateItem(items[idx]);
 
             const m2El = card.querySelector('.item-m2');
@@ -563,7 +588,7 @@ export function renderPresupuestos(container, actionsEl, path) {
       });
 
       // Remove item
-      itemsBody.querySelectorAll('.row-remove').forEach(btn => {
+      bodyEl.querySelectorAll('.row-remove').forEach(btn => {
         btn.addEventListener('click', () => {
           if (items.length <= 1) return;
           const idx = parseInt(btn.dataset.idx);
@@ -577,7 +602,7 @@ export function renderPresupuestos(container, actionsEl, path) {
     }
 
     // Botón + Añadir ítem: Poder elegir el mismo material del ítem anterior o cualquier otro material
-    document.getElementById('btn-add-item')?.addEventListener('click', () => {
+    qEl('#btn-add-item')?.addEventListener('click', () => {
       const lastItem = items[items.length - 1];
       const defaultMatName = lastItem?.material || (materiales[0]?.nombre || '');
       const defaultMat = materiales.find(m => m.nombre === defaultMatName) || materiales[0];
@@ -601,7 +626,7 @@ export function renderPresupuestos(container, actionsEl, path) {
     });
 
     function updateSummary() {
-      const form = document.getElementById('pres-form');
+      const form = qEl('#pres-form');
       if (!form) return;
       const itemsTotal = items.reduce((s, i) => s + (i.subtotal || 0), 0);
       const adics = ['colocacion', 'manoDeObra', 'inglete', 'transporte', 'bacha', 'zocalos', 'extras'];
@@ -613,7 +638,7 @@ export function renderPresupuestos(container, actionsEl, path) {
       const impMonto = (subtotal - descMonto) * imp / 100;
       const total = subtotal - descMonto + impMonto;
 
-      const sumEl = document.getElementById('pres-summary');
+      const sumEl = qEl('#pres-summary');
       if (sumEl) {
         sumEl.innerHTML = `
           <div class="summary-row"><span class="summary-row-label">Subtotal materiales e ítems</span><span class="summary-row-value">${formatCurrency(itemsTotal)}</span></div>
@@ -629,20 +654,20 @@ export function renderPresupuestos(container, actionsEl, path) {
     renderMaterialSummary();
     updateSummary();
 
-    document.querySelectorAll('.calc-field').forEach(f => {
+    (drawerEl?.querySelectorAll('.calc-field') || document.querySelectorAll('.calc-field')).forEach(f => {
       f.addEventListener('input', updateSummary);
       f.addEventListener('change', updateSummary);
     });
 
     function previewDraft() {
-      const form = document.getElementById('pres-form');
+      const form = qEl('#pres-form');
       if (!form) return;
       const fd = new FormData(form);
       const data = Object.fromEntries(fd);
       const tipoCliente = data.tipoCliente || 'habitual';
       let cli = null;
       if (tipoCliente === 'habitual') {
-        cli = clientes.find(c => c.id === data.clienteId) || null;
+        cli = clientes.find(c => String(c.id) === String(data.clienteId)) || null;
       } else {
         cli = { nombre: data.clienteNombre || 'Cliente ocasional', apellido: '', direccion: data.direccion || '' };
       }
@@ -654,6 +679,7 @@ export function renderPresupuestos(container, actionsEl, path) {
       const draftPres = {
         ...pres,
         ...data,
+        estado: data.estado || pres.estado || 'borrador',
         material: matList || items[0]?.material || '',
         precioM2: items[0]?.precioUnitario || 0,
         items,
@@ -669,8 +695,8 @@ export function renderPresupuestos(container, actionsEl, path) {
       });
     }
 
-    function savePresupuesto(andShare = false) {
-      const form = document.getElementById('pres-form');
+    function savePresupuesto(andShare = false, forceEstado = null) {
+      const form = qEl('#pres-form');
       if (!form) return;
       const fd = new FormData(form);
       const data = Object.fromEntries(fd);
@@ -678,10 +704,15 @@ export function renderPresupuestos(container, actionsEl, path) {
       const tipoCliente = data.tipoCliente || 'habitual';
       if (tipoCliente === 'habitual') {
         if (!data.clienteId) {
-          Toast.warning('Seleccioná un cliente habitual para el presupuesto');
-          return;
+          if (data.clienteNombre && data.clienteNombre.trim()) {
+            data.clienteId = null;
+          } else {
+            Toast.warning('Seleccioná un cliente habitual o cambiá a "Cliente nuevo"');
+            return;
+          }
+        } else {
+          data.clienteNombre = null;
         }
-        data.clienteNombre = null;
       } else {
         const nombre = (data.clienteNombre || '').trim();
         if (!nombre) {
@@ -702,8 +733,11 @@ export function renderPresupuestos(container, actionsEl, path) {
       adics.forEach(k => { adicionales[k] = parseFloat(data[`adic_${k}`]) || 0; delete data[`adic_${k}`]; });
 
       const matList = [...new Set(items.map(i => i.material).filter(Boolean))].join(', ');
+      const estadoFinal = forceEstado || data.estado || pres.estado || 'borrador';
       const record = {
+        ...pres,
         ...data,
+        estado: estadoFinal,
         material: matList || items[0]?.material || '',
         precioM2: items[0]?.precioUnitario || 0,
         items,
@@ -715,14 +749,18 @@ export function renderPresupuestos(container, actionsEl, path) {
       let saved;
       if (editId) {
         saved = DataService.update('presupuestos', editId, record);
-        Toast.success('Presupuesto actualizado');
+        Toast.success(estadoFinal === 'aprobado' ? 'Presupuesto aprobado y guardado' : 'Presupuesto actualizado');
       } else {
         saved = DataService.create('presupuestos', record);
-        Toast.success('Presupuesto guardado con éxito');
+        Toast.success(estadoFinal === 'aprobado' ? 'Presupuesto creado y aprobado' : 'Presupuesto guardado con éxito');
       }
       Drawer.close();
-      presupuestos = DataService.getAll('presupuestos');
-      render();
+      if (onSaved) {
+        onSaved(saved);
+      } else {
+        presupuestos = DataService.getAll('presupuestos');
+        render();
+      }
 
       if (andShare && saved) {
         setTimeout(() => {
@@ -731,16 +769,22 @@ export function renderPresupuestos(container, actionsEl, path) {
       }
     }
 
-    document.getElementById('drawer-cancel')?.addEventListener('click', () => Drawer.close());
-    document.getElementById('drawer-save')?.addEventListener('click', () => savePresupuesto(false));
-    document.getElementById('drawer-header-save')?.addEventListener('click', () => savePresupuesto(false));
-    document.getElementById('btn-inline-save')?.addEventListener('click', () => savePresupuesto(false));
+    const attachBtn = (id, fn) => {
+      const btn = drawerEl?.querySelector(`#${id}`) || document.getElementById(id);
+      btn?.addEventListener('click', fn);
+    };
 
-    document.getElementById('drawer-save-share')?.addEventListener('click', () => savePresupuesto(true));
-    document.getElementById('btn-inline-save-share')?.addEventListener('click', () => savePresupuesto(true));
-
-    document.getElementById('drawer-preview-btn')?.addEventListener('click', previewDraft);
-    document.getElementById('btn-inline-preview')?.addEventListener('click', previewDraft);
+    attachBtn('drawer-cancel', () => Drawer.close());
+    attachBtn('drawer-save', () => savePresupuesto(false));
+    attachBtn('drawer-header-save', () => savePresupuesto(false));
+    attachBtn('btn-inline-save', () => savePresupuesto(false));
+    attachBtn('drawer-approve', () => savePresupuesto(false, 'aprobado'));
+    attachBtn('drawer-header-approve', () => savePresupuesto(false, 'aprobado'));
+    attachBtn('btn-inline-approve', () => savePresupuesto(false, 'aprobado'));
+    attachBtn('drawer-save-share', () => savePresupuesto(true));
+    attachBtn('btn-inline-save-share', () => savePresupuesto(true));
+    attachBtn('drawer-preview-btn', previewDraft);
+    attachBtn('btn-inline-preview', previewDraft);
   }
 
   function openShareModal(pres) {
@@ -901,6 +945,7 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
 
   actionsEl.innerHTML = `
     <a href="#/presupuestos" class="btn btn-secondary">${Icons['chevron-left']} Volver</a>
+    <button class="btn btn-primary" id="btn-edit-header">${Icons.edit} Editar presupuesto</button>
   `;
 
   const adic = pres.adicionales || {};
@@ -918,13 +963,22 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
     <!-- Action buttons bar -->
     <div class="card mb-4">
       <div class="card-body" style="display:flex;gap:var(--space-2);flex-wrap:wrap">
+        <button class="btn btn-secondary" id="btn-edit-detail" style="flex:1;min-width:120px;justify-content:center;font-weight:var(--font-semibold)">${Icons.edit} Editar</button>
         <button class="btn btn-secondary" id="btn-agendar-pres" style="flex:1;min-width:140px;justify-content:center;font-weight:var(--font-semibold)">${Icons.calendar} Agendar trabajo</button>
         <button class="btn btn-success" id="btn-share-modal" style="flex:1;min-width:130px;justify-content:center;background:#25D366;color:#fff;border-color:#25D366;font-weight:var(--font-bold)">${Icons.whatsapp} Compartir</button>
         <button class="btn btn-pdf" id="btn-pdf" style="flex:1;min-width:130px;justify-content:center">${Icons['file-pdf']} Descargar PDF</button>
         <button class="btn btn-word" id="btn-word" style="flex:1;min-width:130px;justify-content:center">${Icons['file-word']} Descargar Word</button>
         <button class="btn btn-secondary" id="btn-preview" style="flex:1;min-width:130px;justify-content:center">${Icons.eye} Vista previa</button>
-        ${pres.estado === 'borrador' || pres.estado === 'enviado' ? `<button class="btn btn-success" id="btn-aprobar" style="flex:1;min-width:130px;justify-content:center">${Icons.check} Aprobar</button>` : ''}
-        ${pres.estado === 'aprobado' && !pres.obraId ? `<button class="btn btn-primary" id="btn-crear-obra" style="flex:1;min-width:130px;justify-content:center">${Icons['hard-hat']} Crear obra</button>` : ''}
+        ${pres.estado !== 'aprobado' ? `
+          <button class="btn btn-success" id="btn-aprobar" style="flex:1.5;min-width:160px;justify-content:center;background:#059669;color:#fff;border-color:#059669;font-weight:var(--font-bold);box-shadow:0 4px 12px rgba(5,150,105,0.25)">
+            ${Icons.check} Aprobar presupuesto
+          </button>
+        ` : `
+          <div style="flex:1;min-width:140px;display:flex;align-items:center;justify-content:center;background:#ecfdf5;border:1px solid #10b981;color:#065f46;border-radius:var(--radius-md);font-weight:var(--font-bold);padding:8px 14px;gap:6px">
+            ${Icons.check} Presupuesto Aprobado
+          </div>
+        `}
+        ${pres.estado === 'aprobado' && !pres.obraId ? `<button class="btn btn-primary" id="btn-crear-obra" style="flex:1.5;min-width:150px;justify-content:center;font-weight:var(--font-bold);box-shadow:0 4px 12px rgba(230,81,0,0.25)">${Icons['hard-hat']} Crear obra</button>` : ''}
       </div>
     </div>
 
@@ -1022,10 +1076,19 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
     });
   });
 
+  // Edit actions
+  const handleEdit = () => {
+    openPresupuestoForm(presId, () => {
+      renderPresupuestoDetail(container, actionsEl, presId);
+    });
+  };
+  document.getElementById('btn-edit-header')?.addEventListener('click', handleEdit);
+  document.getElementById('btn-edit-detail')?.addEventListener('click', handleEdit);
+
   // Approve action
   document.getElementById('btn-aprobar')?.addEventListener('click', async () => {
     DataService.update('presupuestos', presId, { estado: 'aprobado' });
-    Toast.success('Presupuesto aprobado');
+    Toast.success('Presupuesto aprobado con éxito');
     renderPresupuestoDetail(container, actionsEl, presId);
   });
 
