@@ -1,0 +1,13 @@
+{
+  "name": "marmoleria-benjamin-api",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node test_api.js"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  }
+}

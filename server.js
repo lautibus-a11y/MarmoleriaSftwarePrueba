@@ -2,6 +2,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import workerHandler from './worker/src/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, 'frontend');
@@ -19,6 +20,38 @@ const MIME = {
 };
 
 const server = http.createServer((req, res) => {
+  // ── Dispatch API requests to Cloudflare Worker Handler ──
+  if (req.url.startsWith('/api')) {
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', async () => {
+      try {
+        const body = ['GET', 'HEAD'].includes(req.method) ? undefined : Buffer.concat(chunks);
+        const fullUrl = `http://${req.headers.host || 'localhost:' + PORT}${req.url}`;
+        const webReq = new Request(fullUrl, {
+          method: req.method,
+          headers: req.headers,
+          body
+        });
+
+        // Mock env for local execution
+        const env = {};
+        const webRes = await workerHandler.fetch(webReq, env, {});
+
+        const headers = Object.fromEntries(webRes.headers.entries());
+        res.writeHead(webRes.status, headers);
+        const resBuffer = Buffer.from(await webRes.arrayBuffer());
+        res.end(resBuffer);
+      } catch (err) {
+        console.error('Local API error:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: true, message: err.message }));
+      }
+    });
+    return;
+  }
+
+  // ── Static Frontend Files ──
   const urlPath = req.url.split('?')[0];
   const safePath = path.normalize(urlPath).replace(/^(\.\.[\/\\])+/, '');
   let filePath = path.join(ROOT, safePath === '/' ? 'index.html' : safePath);
@@ -48,4 +81,5 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running at http://localhost:${PORT}/`);
+  console.log(`API endpoints available at http://localhost:${PORT}/api/`);
 });

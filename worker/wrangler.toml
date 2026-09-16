@@ -1,0 +1,9 @@
+name = "marmoleria-benjamin-api"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+account_id = "a05a99124036aed984e63c8f8a66e30d"
+
+# Cloudflare R2 Bucket Binding
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "marmoleria-benjamin"

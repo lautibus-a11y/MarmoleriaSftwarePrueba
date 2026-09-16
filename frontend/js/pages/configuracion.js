@@ -7,8 +7,8 @@ import { Toast } from '../components/toast.js';
 import { CONDICIONES_COMERCIALES_DEFAULT } from '../utils/constants.js';
 import { escapeHtml } from '../utils/helpers.js';
 import { LOGO_URL } from '../utils/logo.js';
+import { Api } from '../services/api.js';
 
-// Simple local storage for config
 const CONFIG_KEY = 'mb_config';
 
 function loadConfig() {
@@ -19,10 +19,15 @@ function loadConfig() {
 
 function saveConfig(cfg) {
   localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
+  // Async update in Cloudflare Worker R2
+  Api.post('/config', cfg).catch(err => {
+    console.warn('Could not sync config to API:', err.message);
+  });
 }
 
 export function renderConfiguracion(container, actionsEl) {
   const config = loadConfig();
+  const currentApiUrl = Api.getBaseUrl();
 
   container.innerHTML = `
     <div class="config-section">
@@ -79,11 +84,29 @@ export function renderConfiguracion(container, actionsEl) {
     </div>
 
     <div class="config-section">
+      <div class="config-section-header"><h3 class="config-section-title">${Icons.settings} Servidor Cloudflare Worker & R2</h3></div>
+      <div class="config-section-body">
+        <form id="config-api">
+          <div class="form-group">
+            <label class="form-label">URL del Backend / API</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <input type="text" class="form-input" name="apiUrl" id="input-api-url" value="${escapeHtml(currentApiUrl)}" style="flex:1;min-width:260px" placeholder="/api o https://marmoleria-benjamin-api.workers.dev">
+              <button type="button" class="btn btn-secondary" id="btn-test-api">Probar conexión</button>
+              <button type="submit" class="btn btn-primary">Guardar URL</button>
+            </div>
+            <p class="form-hint">Por defecto <code>/api</code>. Si tu Cloudflare Worker tiene un subdominio propio en <code>workers.dev</code>, ingresalo aquí.</p>
+            <div id="api-test-result" style="margin-top:8px;font-size:13px"></div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="config-section">
       <div class="config-section-header"><h3 class="config-section-title">${Icons.download} Backups</h3></div>
       <div class="config-section-body">
         <p style="color:var(--color-stone-600);margin-bottom:var(--space-4)">Descargá una copia de seguridad de todos los datos del sistema.</p>
-        <button class="btn btn-secondary" id="btn-download-backup">${Icons.download} Descargar backup</button>
-        <p class="form-hint mt-2">La descarga incluye todos los datos en formato JSON. Los archivos adjuntos no se incluyen.</p>
+        <button class="btn btn-secondary" id="btn-download-backup">${Icons.download} Descargar backup completo</button>
+        <p class="form-hint mt-2">La descarga incluye todos los datos (clientes, presupuestos, obras, materiales, stock, proveedores, facturas, pagos, cobros, eventos de calendario y configuración) en formato JSON.</p>
       </div>
     </div>
   `;
@@ -94,7 +117,7 @@ export function renderConfiguracion(container, actionsEl) {
     const data = Object.fromEntries(new FormData(e.target));
     const cfg = loadConfig();
     saveConfig({ ...cfg, ...data });
-    Toast.success('Datos guardados');
+    Toast.success('Datos de empresa guardados');
   });
 
   // Save condiciones
@@ -115,14 +138,51 @@ export function renderConfiguracion(container, actionsEl) {
     Toast.success('Cotización guardada');
   });
 
-  // Download backup
-  document.getElementById('btn-download-backup').addEventListener('click', () => {
+  // Save API URL
+  document.getElementById('config-api').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const url = document.getElementById('input-api-url').value.trim();
+    Api.setBaseUrl(url || '/api');
+    Toast.success('Configuración de API guardada');
+  });
+
+  // Test API
+  document.getElementById('btn-test-api').addEventListener('click', async () => {
+    const resultEl = document.getElementById('api-test-result');
+    resultEl.innerHTML = '<span style="color:var(--color-stone-500)">Probando conexión...</span>';
+    const originalUrl = Api.getBaseUrl();
+    const testUrl = document.getElementById('input-api-url').value.trim() || '/api';
+    Api.setBaseUrl(testUrl);
+
     try {
-      // Import mock data
-      import('../services/mockData.js').then(({ DataService }) => {
-        const backup = {
+      const res = await Api.get('/health');
+      resultEl.innerHTML = `<span style="color:#15803d;font-weight:bold">✅ Conexión exitosa: ${escapeHtml(res.app || 'API Activa')} (${res.status})</span>`;
+      Toast.success('Conexión con Cloudflare Worker exitosa');
+    } catch (err) {
+      Api.setBaseUrl(originalUrl);
+      resultEl.innerHTML = `<span style="color:#b91c1c;font-weight:bold">⚠️ No se pudo conectar: ${escapeHtml(err.message)}</span>`;
+      Toast.error('Error al conectar con la API');
+    }
+  });
+
+  // Download backup
+  document.getElementById('btn-download-backup').addEventListener('click', async () => {
+    try {
+      let backupData = null;
+
+      // Try downloading from worker first
+      try {
+        backupData = await Api.get('/backups');
+      } catch (e) {
+        console.warn('API backup failed, generating from client DataService');
+      }
+
+      if (!backupData) {
+        const { DataService } = await import('../services/mockData.js');
+        backupData = {
+          empresa: 'Marmolería Benjamin',
           fecha: new Date().toISOString(),
-          version: '1.0',
+          version: '2.0',
           data: {
             clientes: DataService.getAll('clientes'),
             presupuestos: DataService.getAll('presupuestos'),
@@ -132,21 +192,23 @@ export function renderConfiguracion(container, actionsEl) {
             proveedores: DataService.getAll('proveedores'),
             facturas: DataService.getAll('facturas'),
             pagos: DataService.getAll('pagos'),
-            cobros: DataService.getAll('cobros')
+            cobros: DataService.getAll('cobros'),
+            eventos: DataService.getAll('eventos'),
+            config: loadConfig()
           }
         };
+      }
 
-        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `backup-marmoleria-benjamin-${new Date().toISOString().split('T')[0]}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        Toast.success('Backup descargado');
-      });
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup-marmoleria-benjamin-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      Toast.success('Backup descargado correctamente');
     } catch (err) {
-      Toast.error('Error al generar backup');
+      Toast.error('Error al generar backup: ' + err.message);
     }
   });
 }

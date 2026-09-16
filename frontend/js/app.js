@@ -15,6 +15,7 @@ import { renderFacturas } from './pages/facturas.js';
 import { renderPagos } from './pages/pagos.js';
 import { renderCobros } from './pages/cobros.js';
 import { renderConfiguracion } from './pages/configuracion.js';
+import { DataService } from './services/mockData.js';
 
 import { escapeHtml } from './utils/helpers.js';
 
@@ -29,6 +30,13 @@ class App {
     this.renderApp();
     this.setupRouter();
     this.navigate();
+
+    // Sincronizar datos con Cloudflare Worker R2 en segundo plano
+    DataService.syncAll().then((res) => {
+      if (res && res.success) {
+        this.navigate();
+      }
+    });
   }
 
   renderApp() {
