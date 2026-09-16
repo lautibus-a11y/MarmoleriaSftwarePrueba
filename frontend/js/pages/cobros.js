@@ -91,7 +91,8 @@ export function renderCobros(container, actionsEl) {
       }
       if (btn.dataset.action === 'export') {
         const c = DataService.getById('cobros', btn.dataset.id);
-        const cli = DataService.getById('clientes', c.clienteId);
+        if (!c) return;
+        const cli = c.clienteId ? DataService.getById('clientes', c.clienteId) : null;
         const o = c.obraId ? DataService.getById('obras', c.obraId) : null;
         DocumentModal.open({
           title: `Recibo de Cobro #${c.id}`,

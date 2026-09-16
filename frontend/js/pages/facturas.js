@@ -92,7 +92,8 @@ export function renderFacturas(container, actionsEl) {
       }
       if (btn.dataset.action === 'export') {
         const f = DataService.getById('facturas', btn.dataset.id);
-        const prov = DataService.getById('proveedores', f.proveedorId);
+        if (!f) return;
+        const prov = f.proveedorId ? DataService.getById('proveedores', f.proveedorId) : null;
         DocumentModal.open({
           title: `Comprobante ${f.numero || f.id}`,
           filename: `Comprobante_${f.numero || f.id}`,

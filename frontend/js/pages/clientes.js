@@ -182,9 +182,10 @@ export function renderClientes(container, actionsEl, path) {
 
   async function handleDelete(id) {
     const cliente = DataService.getById('clientes', id);
+    if (!cliente) return;
     const confirmed = await confirmDialog({
       title: 'Eliminar cliente',
-      message: `¿Estás seguro de eliminar a "${cliente.nombre} ${cliente.apellido || ''}"?`,
+      message: `¿Estás seguro de eliminar a "${(cliente.nombre || '')} ${(cliente.apellido || '')}".trim()?`,
       subMessage: 'Se eliminarán también sus presupuestos y cobros asociados.',
       confirmText: 'Eliminar',
       type: 'danger'
@@ -234,7 +235,7 @@ function renderClienteDetail(container, actionsEl, clienteId) {
       <div class="card-body" style="display:flex;gap:var(--space-2);flex-wrap:wrap">
         <button class="btn btn-primary" id="btn-cliente-new-pres" style="flex:1;min-width:140px;justify-content:center">${Icons.plus} Presupuesto</button>
         <button class="btn btn-secondary" id="btn-cliente-action-agendar" style="flex:1;min-width:140px;justify-content:center">${Icons.calendar} Agendar</button>
-        ${cliente.whatsapp ? `<a href="https://wa.me/${cliente.whatsapp}" target="_blank" class="btn btn-secondary" style="flex:1;min-width:130px;justify-content:center">${Icons.whatsapp} WhatsApp</a>` : ''}
+        ${cliente.whatsapp ? `<a href="https://wa.me/${cliente.whatsapp.replace(/\D/g, '')}" target="_blank" class="btn btn-secondary" style="flex:1;min-width:130px;justify-content:center">${Icons.whatsapp} WhatsApp</a>` : ''}
         ${cliente.telefono ? `<a href="tel:${cliente.telefono}" class="btn btn-secondary" style="flex:1;min-width:110px;justify-content:center">${Icons.phone} Llamar</a>` : ''}
         <button class="btn btn-secondary" id="btn-cliente-edit" style="flex:1;min-width:110px;justify-content:center">${Icons.edit} Editar</button>
       </div>

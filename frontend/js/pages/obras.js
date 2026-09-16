@@ -67,7 +67,8 @@ export function renderObras(container, actionsEl, path) {
       if (action==='view') window.location.hash=`#/obras/${id}`;
       if (action==='export') {
         const o = DataService.getById('obras', id);
-        const cli = DataService.getById('clientes', o.clienteId);
+        if (!o) return;
+        const cli = o.clienteId ? DataService.getById('clientes', o.clienteId) : null;
         const pr = o.presupuestoId ? DataService.getById('presupuestos', o.presupuestoId) : null;
         const cobs = DataService.getAll('cobros').filter(c => c.obraId === id);
         DocumentModal.open({
@@ -239,8 +240,13 @@ function renderObraDetail(container, actionsEl, obraId) {
   const docFilename = `Ficha_Obra_${obra.id}`;
 
   document.getElementById('btn-obra-whatsapp')?.addEventListener('click', () => {
-    const msg = `Hola! Te envío la información de tu obra #${obra.id} de Marmolería Benjamin.\n${obra.descripcion}\nDirección: ${obra.direccion}\nEstado: ${obra.estado}\n\n¡Saludos!`;
-    window.open(`https://wa.me/${cliente.whatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
+    const phone = (cliente?.whatsapp || cliente?.telefono || '').replace(/\D/g, '');
+    const msg = `Hola! Te envío la información de la obra #${obra.id} de Marmolería Benjamin.\n${obra.descripcion || ''}\nDirección: ${obra.direccion || ''}\nEstado: ${obra.estado || ''}\n\n¡Saludos!`;
+    if (phone) {
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+    } else {
+      Toast.info('WhatsApp', 'El cliente no tiene teléfono o WhatsApp registrado');
+    }
   });
 
   document.getElementById('btn-obra-preview')?.addEventListener('click', () => {

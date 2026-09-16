@@ -100,11 +100,12 @@ export function renderPresupuestos(container, actionsEl, path) {
       if (action === 'view') window.location.hash = `#/presupuestos/${id}`;
       if (action === 'export') {
         const pres = DataService.getById('presupuestos', id);
-        const cli = DataService.getById('clientes', pres.clienteId);
+        if (!pres) return;
+        const cli = pres.clienteId ? DataService.getById('clientes', pres.clienteId) : null;
         const tot = DataService.getPresupuestoTotal(pres);
         DocumentModal.open({
-          title: `Presupuesto ${pres.numero}`,
-          filename: `Presupuesto_${pres.numero}`,
+          title: `Presupuesto ${pres.numero || pres.id}`,
+          filename: `Presupuesto_${pres.numero || pres.id}`,
           htmlContent: generatePresupuestoHtml(pres, cli, tot)
         });
       }
@@ -875,7 +876,8 @@ export function renderPresupuestos(container, actionsEl, path) {
 
   async function handleDelete(id) {
     const pres = DataService.getById('presupuestos', id);
-    const confirmed = await confirmDialog({ title: 'Eliminar presupuesto', message: `¿Eliminar ${pres.numero}?`, confirmText: 'Eliminar', type: 'danger' });
+    if (!pres) return;
+    const confirmed = await confirmDialog({ title: 'Eliminar presupuesto', message: `¿Eliminar ${pres.numero || 'este presupuesto'}?`, confirmText: 'Eliminar', type: 'danger' });
     if (confirmed) {
       DataService.remove('presupuestos', id);
       Toast.success('Presupuesto eliminado');
@@ -1079,7 +1081,12 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
 
   // WhatsApp
   document.getElementById('btn-whatsapp')?.addEventListener('click', () => {
-    const msg = `Hola! Te envío el presupuesto ${pres.numero} de Marmolería Benjamin.\n\n${pres.descripcion}\nTotal: ${formatCurrency(total, pres.moneda)}\n\n¡Saludos!`;
-    window.open(`https://wa.me/${cliente.whatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
+    const phone = (cliente?.whatsapp || cliente?.telefono || '').replace(/\D/g, '');
+    const msg = `Hola! Te envío el presupuesto ${pres.numero} de Marmolería Benjamin.\n\n${pres.descripcion || ''}\nTotal: ${formatCurrency(total, pres.moneda)}\n\n¡Saludos!`;
+    if (phone) {
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    }
   });
 }

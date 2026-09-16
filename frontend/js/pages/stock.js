@@ -273,12 +273,13 @@ export function renderStock(container, actionsEl) {
   }
 
   function showHistory(materialId){
-    const mat=DataService.getById('materiales',materialId);
-    const movs=DataService.getAll('stockMovimientos').filter(m=>m.materialId===materialId).sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
-    const actual=DataService.getStockActual(materialId);
-    const uText = mat.unidad === 'm2' ? 'm²' : (mat.unidad === 'metros' ? 'ml' : (mat.unidad === 'unidades' ? 'un' : mat.unidad));
+    const mat = DataService.getById('materiales', materialId);
+    if (!mat) return;
+    const movs = DataService.getAll('stockMovimientos').filter(m => m.materialId === materialId).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    const actual = DataService.getStockActual(materialId);
+    const uText = (mat.unidad === 'm2' ? 'm²' : (mat.unidad === 'metros' ? 'ml' : (mat.unidad === 'unidades' ? 'un' : mat.unidad))) || 'm²';
 
-    Modal.open({title:`Historial — ${mat.nombre}`,size:'lg',
+    Modal.open({title:`Historial — ${mat.nombre || 'Material'}`,size:'lg',
       content:`
         <p style="margin-bottom:var(--space-4)">Stock actual: <strong>${actual} ${uText}</strong></p>
         ${movs.length > 0 ? `<table class="data-table"><thead><tr><th>Fecha</th><th>Tipo</th><th style="text-align:right">Cantidad</th><th>Referencia</th></tr></thead><tbody>

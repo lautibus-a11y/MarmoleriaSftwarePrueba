@@ -19,9 +19,10 @@ export function renderDashboard(container, actionsEl) {
   const ultPresupuestos = DataService.getUltimosPresupuestos(5);
   const ultPagos = DataService.getUltimosPagos(5);
   const ultCobros = DataService.getUltimosCobros(5);
+  const todayStr = new Date().toISOString().split('T')[0];
   const allUpcoming = DataService.getProximosEventos(8);
-  const eventosHoy = allUpcoming.filter(e => e.fecha === '2026-09-15');
-  const eventosProximos = allUpcoming.filter(e => e.fecha > '2026-09-15');
+  const eventosHoy = allUpcoming.filter(e => e.fecha === todayStr);
+  const eventosProximos = allUpcoming.filter(e => e.fecha > todayStr);
 
   // Stock bajo alerts
   const stockAlerts = stats.stockBajo.map(mat => {
