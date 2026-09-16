@@ -220,15 +220,94 @@
 
 .pres-item-measures-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 75px;
-  gap: 8px;
-  margin-bottom: var(--space-3);
+  grid-template-columns: 100px 1fr 1fr 75px;
+  gap: 10px;
+  align-items: flex-end;
+  margin-bottom: var(--space-2);
 }
 
-@media (max-width: 480px) {
+.unit-toggle-group {
+  display: flex;
+  background: var(--color-stone-100);
+  border: 1px solid var(--color-stone-300);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  height: 38px;
+  box-sizing: border-box;
+}
+
+.unit-toggle-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--color-stone-600);
+  font-size: 12px;
+  font-weight: var(--font-bold);
+  border-radius: calc(var(--radius-md) - 2px);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+.unit-toggle-btn:hover:not(.active) {
+  color: var(--color-stone-900);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.unit-toggle-btn.active {
+  background: var(--color-stone-900);
+  color: var(--color-white);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.pres-item-measure-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--color-stone-600);
+  background: rgba(245, 245, 244, 0.75);
+  border: 1px dashed var(--color-stone-300);
+  border-radius: var(--radius-md);
+  padding: 5px 10px;
+  margin-bottom: var(--space-3);
+  transition: all var(--transition-fast);
+}
+
+.pres-item-measure-preview strong {
+  color: var(--color-stone-900);
+  font-family: var(--font-mono);
+}
+
+.pres-item-measure-preview .preview-tag {
+  background: #e0e7ff;
+  color: #3730a3;
+  font-size: 11px;
+  font-weight: var(--font-bold);
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+}
+
+@media (max-width: 600px) {
   .pres-item-measures-grid {
-    grid-template-columns: 1fr 1fr 65px;
+    grid-template-columns: 85px 1fr 1fr 65px;
     gap: 6px;
+  }
+}
+
+@media (max-width: 440px) {
+  .pres-item-measures-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .pres-item-measures-grid > div:first-child {
+    grid-column: 1 / -1;
+  }
+  .pres-item-measures-grid > div:last-child {
+    grid-column: 1 / -1;
   }
 }
 

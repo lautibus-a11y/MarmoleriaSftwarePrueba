@@ -63,13 +63,13 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
   const subtotalConDesc = baseImponible - descuentoMonto;
   const impuestosMonto = pres.impuestos > 0 ? (subtotalConDesc * (pres.impuestos / 100)) : 0;
 
-  // Helper to format measure in meters
-  const formatDocMeasure = (val) => {
+  // Helper to format measure with unit
+  const formatDocMeasure = (val, unidad) => {
     if (!val && val !== 0) return '-';
-    const n = parseFloat(val);
-    if (isNaN(n) || n === 0) return '-';
-    if (n > 10) return (n / 100).toFixed(2) + ' m';
-    return n.toFixed(2) + ' m';
+    const s = String(val).trim();
+    if (!s || s === '0') return '-';
+    const u = unidad || (parseFloat(s.replace(',', '.')) > 10 ? 'cm' : 'm');
+    return `${s} ${u}`;
   };
 
   // Items table rows
@@ -79,9 +79,9 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
       <td><strong>${escapeHtml(it.descripcion || 'Sin descripción')}</strong></td>
       <td><span style="font-weight:600;color:#1C1917">${escapeHtml(it.material || '-')}</span></td>
       <td class="num">${it.cantidad || 1}</td>
-      <td class="num">${formatDocMeasure(it.largo)}</td>
-      <td class="num">${formatDocMeasure(it.ancho)}</td>
-      <td class="num">${(Number(it.m2) || 0).toFixed(2)} m²</td>
+      <td class="num">${formatDocMeasure(it.largo, it.unidadMedida)}</td>
+      <td class="num">${formatDocMeasure(it.ancho, it.unidadMedida)}</td>
+      <td class="num" style="font-weight:600">${(Number(it.m2) || 0).toFixed(2).replace('.', ',')} m²</td>
       <td class="num">${formatCurrency(it.precioUnitario || 0, pres.moneda)}</td>
       <td class="num" style="font-weight:700">${formatCurrency(it.subtotal || 0, pres.moneda)}</td>
     </tr>
@@ -257,17 +257,21 @@ export function generateObraHtml(obra, cliente = null, pres = null, cobros = [])
   const saldo = total - cobrado;
 
   const itemsList = (pres && pres.items && pres.items.length > 0) ? pres.items : (obra.items || []);
-  const itemsHtml = itemsList.map((it, idx) => `
+  const itemsHtml = itemsList.map((it, idx) => {
+    const u = it.unidadMedida || (it.largo > 10 ? 'cm' : 'm');
+    const m2Formatted = (it.m2 !== undefined && it.m2 !== null) ? Number(it.m2).toFixed(2).replace('.', ',') : '0,00';
+    return `
     <tr>
       <td style="text-align:center">${idx + 1}</td>
       <td><strong>${escapeHtml(it.descripcion || 'Pieza #' + (idx + 1))}</strong></td>
       <td>${escapeHtml(it.material || obra.material || '-')}</td>
       <td class="num">${it.cantidad || 1}</td>
-      <td class="num">${it.largo ? it.largo + ' m' : '-'}</td>
-      <td class="num">${it.ancho ? it.ancho + ' m' : '-'}</td>
-      <td class="num">${(Number(it.m2) || 0).toFixed(2)} m²</td>
+      <td class="num">${it.largo ? it.largo + ' ' + u : '-'}</td>
+      <td class="num">${it.ancho ? it.ancho + ' ' + u : '-'}</td>
+      <td class="num" style="font-weight:600">${m2Formatted} m²</td>
     </tr>
-  `).join('') || '';
+  `;
+  }).join('') || '';
 
   return `
     <div class="doc-sheet">

@@ -287,7 +287,7 @@ export function renderPresupuestos(container, actionsEl, path) {
       numero: generateAutoNumber('PRES', DataService.getAll('presupuestos')),
       fecha: new Date().toISOString().split('T')[0],
       moneda: 'ARS', estado: 'borrador',
-      items: [{ id: '1', descripcion: 'Pieza #1', largo: 0, ancho: 0, cantidad: 1, m2: 0, precioUnitario: 0, subtotal: 0 }],
+      items: [{ id: '1', descripcion: 'Pieza #1', material: '', unidadMedida: 'cm', largo: '', ancho: '', cantidad: 1, m2: 0, precioUnitario: 0, subtotal: 0 }],
       adicionales: { colocacion: 0, manoDeObra: 0, inglete: 0, transporte: 0, bacha: 0, zocalos: 0, extras: 0 },
       descuento: 0, impuestos: 21, condiciones: CONDICIONES_COMERCIALES_DEFAULT.join('\n')
     };
@@ -528,15 +528,29 @@ export function renderPresupuestos(container, actionsEl, path) {
           const matName = it.material || pres.material || defaultFirstMat;
           const matObj = materiales.find(m => m.nombre === matName);
           const pM2 = it.precioUnitario || (matObj ? (matObj.precioM2 ?? matObj.precioVenta ?? 0) : defaultFirstMatPrice);
-          const largoNorm = (it.largo && it.largo > 10) ? +(it.largo / 100).toFixed(2) : (it.largo !== undefined && it.largo !== null ? it.largo : '');
-          const anchoNorm = (it.ancho && it.ancho > 10) ? +(it.ancho / 100).toFixed(2) : (it.ancho !== undefined && it.ancho !== null ? it.ancho : '');
+
+          let u = it.unidadMedida;
+          let lVal = it.largo !== undefined && it.largo !== null ? it.largo : '';
+          let aVal = it.ancho !== undefined && it.ancho !== null ? it.ancho : '';
+
+          if (!u) {
+            const rawL = parseFloat(String(lVal).replace(',', '.')) || 0;
+            const rawA = parseFloat(String(aVal).replace(',', '.')) || 0;
+            if (rawL > 10 || rawA > 10) {
+              u = 'cm';
+            } else {
+              u = 'm';
+            }
+          }
+
           return {
             id: it.id || (idx + 1).toString(),
             descripcion: it.descripcion || `Ítem ${idx + 1}`,
             material: matName,
+            unidadMedida: u,
             cantidad: Math.max(1, parseFloat(it.cantidad) || 1),
-            largo: largoNorm,
-            ancho: anchoNorm,
+            largo: lVal,
+            ancho: aVal,
             m2: parseFloat(it.m2) || 0,
             precioUnitario: pM2,
             subtotal: parseFloat(it.subtotal) || 0
@@ -547,6 +561,7 @@ export function renderPresupuestos(container, actionsEl, path) {
             id: '1',
             descripcion: 'Ítem 1',
             material: defaultFirstMat,
+            unidadMedida: 'cm',
             cantidad: 1,
             largo: '',
             ancho: '',
@@ -558,17 +573,37 @@ export function renderPresupuestos(container, actionsEl, path) {
 
     function calculateItem(it) {
       const cant = Math.max(1, parseFloat(it.cantidad) || 1);
-      const largo = Math.max(0, parseFloat(String(it.largo).replace(',', '.')) || 0);
-      const ancho = Math.max(0, parseFloat(String(it.ancho).replace(',', '.')) || 0);
+      const unidad = it.unidadMedida === 'm' ? 'm' : 'cm';
+      it.unidadMedida = unidad;
 
-      if (largo > 0 && ancho > 0) {
-        it.m2 = (largo * ancho) * cant;
-      } else if (largo > 0 && ancho === 0) {
-        it.m2 = largo * cant;
+      const rawLargo = parseFloat(String(it.largo || '').replace(',', '.')) || 0;
+      const rawAncho = parseFloat(String(it.ancho || '').replace(',', '.')) || 0;
+
+      // Conversión automática a metros según la unidad elegida
+      let largoM = 0;
+      let anchoM = 0;
+
+      if (unidad === 'cm') {
+        largoM = rawLargo / 100;
+        anchoM = rawAncho / 100;
+      } else {
+        largoM = rawLargo;
+        anchoM = rawAncho;
+      }
+
+      // Cálculo de superficie en m²
+      if (largoM > 0 && anchoM > 0) {
+        it.m2 = (largoM * anchoM) * cant;
+      } else if (largoM > 0 && anchoM === 0) {
+        it.m2 = largoM * cant;
       } else {
         it.m2 = 0;
       }
 
+      // Redondeo limpio a 4 decimales
+      it.m2 = Math.round((it.m2 + Number.EPSILON) * 10000) / 10000;
+
+      // Precio por m² del material
       const mat = materiales.find(m => m.nombre === it.material);
       if (mat) {
         it.precioUnitario = mat.precioM2 ?? mat.precioVenta ?? 0;
@@ -576,7 +611,22 @@ export function renderPresupuestos(container, actionsEl, path) {
         it.precioUnitario = 0;
       }
 
+      // Multiplicación automática: m² * precio por m²
       it.subtotal = it.m2 * it.precioUnitario;
+    }
+
+    function getItemPreviewHtml(item) {
+      const u = item.unidadMedida || 'cm';
+      const rawL = parseFloat(String(item.largo || '').replace(',', '.'));
+      const rawA = parseFloat(String(item.ancho || '').replace(',', '.'));
+      const cant = Math.max(1, parseFloat(item.cantidad) || 1);
+      const m2Str = (item.m2 || 0).toFixed(2).replace('.', ',');
+
+      if (!isNaN(rawL) && rawL > 0 && !isNaN(rawA) && rawA > 0) {
+        const cantText = cant > 1 ? ` × ${cant} un.` : '';
+        return `📐 Medidas: <strong>${item.largo} ${u}</strong> × <strong>${item.ancho} ${u}</strong>${cantText} → Superficie: <strong style="color:var(--color-primary)">${m2Str} m²</strong>`;
+      }
+      return `<span class="text-muted">Ingresá largo y ancho en <strong>${u === 'm' ? 'metros (m)' : 'centímetros (cm)'}</strong> para calcular m²</span>`;
     }
 
     items.forEach(it => calculateItem(it));
@@ -652,15 +702,22 @@ export function renderPresupuestos(container, actionsEl, path) {
             </select>
           </div>
 
-          <!-- Medidas: Largo y Ancho (en metros) + Cantidad -->
+          <!-- Selector de Unidad: cm o m + Medidas: Largo, Ancho y Cantidad -->
           <div class="pres-item-measures-grid">
             <div class="form-group mb-0">
-              <label class="form-label-sm">Largo (m)</label>
-              <input type="number" step="0.01" min="0" inputmode="decimal" class="form-input item-field" data-field="largo" value="${item.largo || ''}" placeholder="Ej: 1.20">
+              <label class="form-label-sm">Unidad <span class="required">*</span></label>
+              <div class="unit-toggle-group">
+                <button type="button" class="unit-toggle-btn ${item.unidadMedida === 'cm' ? 'active' : ''}" data-action="toggle-unit" data-unit="cm">cm</button>
+                <button type="button" class="unit-toggle-btn ${item.unidadMedida === 'm' ? 'active' : ''}" data-action="toggle-unit" data-unit="m">m</button>
+              </div>
             </div>
             <div class="form-group mb-0">
-              <label class="form-label-sm">Ancho (m)</label>
-              <input type="number" step="0.01" min="0" inputmode="decimal" class="form-input item-field" data-field="ancho" value="${item.ancho || ''}" placeholder="Ej: 0.60">
+              <label class="form-label-sm">Largo (${item.unidadMedida || 'cm'})</label>
+              <input type="text" inputmode="decimal" class="form-input item-field" data-field="largo" value="${item.largo ?? ''}" placeholder="${item.unidadMedida === 'm' ? 'Ej: 2,40' : 'Ej: 240'}">
+            </div>
+            <div class="form-group mb-0">
+              <label class="form-label-sm">Ancho (${item.unidadMedida || 'cm'})</label>
+              <input type="text" inputmode="decimal" class="form-input item-field" data-field="ancho" value="${item.ancho ?? ''}" placeholder="${item.unidadMedida === 'm' ? 'Ej: 0,60' : 'Ej: 60'}">
             </div>
             <div class="form-group mb-0">
               <label class="form-label-sm">Cant.</label>
@@ -668,11 +725,17 @@ export function renderPresupuestos(container, actionsEl, path) {
             </div>
           </div>
 
+          <!-- Indicador de conversión y cálculo automático en vivo -->
+          <div class="pres-item-measure-preview">
+            <span class="preview-calc-text">${getItemPreviewHtml(item)}</span>
+            <span class="preview-tag">${item.unidadMedida === 'm' ? 'Metros (m)' : 'Centímetros (cm)'}</span>
+          </div>
+
           <!-- Resumen de cálculo del ítem: m², Precio/m², Subtotal -->
           <div class="pres-item-calc-footer">
             <div class="pres-item-stat-pill">
-              <span class="pres-item-stat-label">m²</span>
-              <span class="pres-item-stat-val item-m2">${(item.m2 || 0).toFixed(2)}</span>
+              <span class="pres-item-stat-label">Superficie</span>
+              <span class="pres-item-stat-val item-m2">${(item.m2 || 0).toFixed(2).replace('.', ',')} m²</span>
             </div>
             <div class="pres-item-stat-pill">
               <span class="pres-item-stat-label">Precio / m²</span>
@@ -685,6 +748,37 @@ export function renderPresupuestos(container, actionsEl, path) {
           </div>
         </div>
       `).join('');
+
+      // Unit toggle handler: converts values smoothly between cm and m
+      bodyEl.querySelectorAll('[data-action="toggle-unit"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const card = btn.closest('.pres-item-card');
+          const idx = parseInt(card.dataset.idx);
+          const targetUnit = btn.dataset.unit;
+          const currentUnit = items[idx].unidadMedida || 'cm';
+          if (targetUnit === currentUnit) return;
+
+          const rawL = parseFloat(String(items[idx].largo || '').replace(',', '.'));
+          const rawA = parseFloat(String(items[idx].ancho || '').replace(',', '.'));
+
+          if (targetUnit === 'm' && currentUnit === 'cm') {
+            // Convert cm -> m (divide by 100)
+            if (!isNaN(rawL) && rawL > 0) items[idx].largo = +(rawL / 100).toFixed(4).toString().replace('.', ',');
+            if (!isNaN(rawA) && rawA > 0) items[idx].ancho = +(rawA / 100).toFixed(4).toString().replace('.', ',');
+          } else if (targetUnit === 'cm' && currentUnit === 'm') {
+            // Convert m -> cm (multiply by 100)
+            if (!isNaN(rawL) && rawL > 0) items[idx].largo = Math.round(rawL * 100).toString();
+            if (!isNaN(rawA) && rawA > 0) items[idx].ancho = Math.round(rawA * 100).toString();
+          }
+
+          items[idx].unidadMedida = targetUnit;
+          calculateItem(items[idx]);
+          renderItems();
+          renderMaterialSummary();
+          updateSummary();
+        });
+      });
 
       // Field events
       bodyEl.querySelectorAll('.item-field').forEach(input => {
@@ -704,17 +798,21 @@ export function renderPresupuestos(container, actionsEl, path) {
             const precioEl = card.querySelector('.item-precio-val');
             if (precioEl) precioEl.textContent = formatCurrency(items[idx].precioUnitario || 0);
             const m2El = card.querySelector('.item-m2');
-            if (m2El) m2El.textContent = (items[idx].m2 || 0).toFixed(2);
+            if (m2El) m2El.textContent = `${(items[idx].m2 || 0).toFixed(2).replace('.', ',')} m²`;
             const subEl = card.querySelector('.item-subtotal-val');
             if (subEl) subEl.textContent = formatCurrency(items[idx].subtotal || 0);
+            const prevEl = card.querySelector('.preview-calc-text');
+            if (prevEl) prevEl.innerHTML = getItemPreviewHtml(items[idx]);
           } else {
             items[idx][field] = val;
             calculateItem(items[idx]);
 
             const m2El = card.querySelector('.item-m2');
-            if (m2El) m2El.textContent = (items[idx].m2 || 0).toFixed(2);
+            if (m2El) m2El.textContent = `${(items[idx].m2 || 0).toFixed(2).replace('.', ',')} m²`;
             const subEl = card.querySelector('.item-subtotal-val');
             if (subEl) subEl.textContent = formatCurrency(items[idx].subtotal || 0);
+            const prevEl = card.querySelector('.preview-calc-text');
+            if (prevEl) prevEl.innerHTML = getItemPreviewHtml(items[idx]);
           }
 
           renderMaterialSummary();
@@ -742,11 +840,13 @@ export function renderPresupuestos(container, actionsEl, path) {
       const defaultMatName = lastItem?.material || (materiales[0]?.nombre || '');
       const defaultMat = materiales.find(m => m.nombre === defaultMatName) || materiales[0];
       const pM2 = defaultMat ? (defaultMat.precioM2 ?? defaultMat.precioVenta ?? 0) : 0;
+      const defaultUnit = lastItem?.unidadMedida || 'cm';
 
       items.push({
         id: Date.now().toString(),
         descripcion: `Ítem ${items.length + 1}`,
         material: defaultMatName,
+        unidadMedida: defaultUnit,
         cantidad: 1,
         largo: '',
         ancho: '',
@@ -1183,13 +1283,14 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
       <div class="card-body">
         <div class="detail-items-list">
           ${(pres.items || []).map((item, idx) => {
+            const u = item.unidadMedida || ((item.largo > 10 || item.ancho > 10) ? 'cm' : 'm');
             const formatMeasure = (val) => {
               if (!val && val !== 0) return '-';
-              const n = parseFloat(val);
-              if (isNaN(n) || n === 0) return '-';
-              if (n > 10) return (n / 100).toFixed(2) + ' m';
-              return n.toFixed(2) + ' m';
+              const s = String(val).trim();
+              if (!s || s === '0') return '-';
+              return `${s} ${u}`;
             };
+            const m2Formatted = (item.m2 !== undefined && item.m2 !== null) ? Number(item.m2).toFixed(2).replace('.', ',') : '0,00';
             return `
             <div class="detail-item-card">
               <div class="detail-item-card-top">
@@ -1199,7 +1300,7 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
               <div class="detail-item-card-grid">
                 <div><span class="text-muted">Cantidad:</span> <strong>${item.cantidad || 1} ${item.cantidad > 1 ? 'piezas' : 'pieza'}</strong></div>
                 <div><span class="text-muted">Medidas:</span> <strong>${formatMeasure(item.largo)} × ${formatMeasure(item.ancho)}</strong></div>
-                <div><span class="text-muted">Superficie total:</span> <strong>${(item.m2 || 0).toFixed(2)} m²</strong></div>
+                <div><span class="text-muted">Superficie total:</span> <strong style="color:var(--color-primary)">${m2Formatted} m²</strong></div>
                 <div><span class="text-muted">Precio por m²:</span> <strong>${formatCurrency(item.precioUnitario || 0)}</strong></div>
               </div>
               <div class="detail-item-card-subtotal">

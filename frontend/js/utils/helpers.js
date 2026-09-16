@@ -119,11 +119,20 @@ export function isWithinDays(date, days) {
 }
 
 /**
- * Calculate m² from largo and ancho (in cm, returns m²)
+ * Calculate m² from largo and ancho
+ * @param {number|string} largo
+ * @param {number|string} ancho
+ * @param {'cm'|'m'} unidad - Default is 'cm'
+ * @returns {number} m²
  */
-export function calculateM2(largo, ancho) {
+export function calculateM2(largo, ancho, unidad = 'cm') {
   if (!largo || !ancho) return 0;
-  return (parseFloat(largo) * parseFloat(ancho)) / 10000;
+  const l = parseFloat(String(largo).replace(',', '.')) || 0;
+  const a = parseFloat(String(ancho).replace(',', '.')) || 0;
+  if (l <= 0 || a <= 0) return 0;
+
+  const m2 = (unidad === 'm') ? (l * a) : ((l * a) / 10000);
+  return Math.round((m2 + Number.EPSILON) * 10000) / 10000;
 }
 
 /**

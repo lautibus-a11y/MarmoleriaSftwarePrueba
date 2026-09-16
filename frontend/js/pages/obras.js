@@ -352,7 +352,10 @@ function renderObraDetail(container, actionsEl, obraId) {
       </div>
       <div class="card-body">
         <div class="detail-items-list">
-          ${(obra.items || pres.items).map((item, idx) => `
+          ${(obra.items || pres.items).map((item, idx) => {
+            const u = item.unidadMedida || ((item.largo > 10 || item.ancho > 10) ? 'cm' : 'm');
+            const m2Formatted = (item.m2 !== undefined && item.m2 !== null) ? Number(item.m2).toFixed(2).replace('.', ',') : '0,00';
+            return `
             <div class="detail-item-card" style="padding:12px 14px;border:1px solid var(--color-stone-200);border-radius:var(--radius-md);margin-bottom:8px;background:var(--color-surface)">
               <div class="detail-item-card-top" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                 <span class="detail-item-card-desc"><strong>#${idx + 1}</strong> — ${escapeHtml(item.descripcion || `Ítem ${idx + 1}`)}</span>
@@ -360,12 +363,13 @@ function renderObraDetail(container, actionsEl, obraId) {
               </div>
               <div class="detail-item-card-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:8px;font-size:var(--text-sm)">
                 <div><span class="text-muted">Cantidad:</span> <strong>${item.cantidad || 1}</strong></div>
-                <div><span class="text-muted">Medidas:</span> <strong>${item.largo ? item.largo + ' m' : '-'} × ${item.ancho ? item.ancho + ' m' : '-'}</strong></div>
-                <div><span class="text-muted">Superficie:</span> <strong>${(item.m2 || 0).toFixed(2)} m²</strong></div>
+                <div><span class="text-muted">Medidas:</span> <strong>${item.largo ? item.largo + ' ' + u : '-'} × ${item.ancho ? item.ancho + ' ' + u : '-'}</strong></div>
+                <div><span class="text-muted">Superficie:</span> <strong style="color:var(--color-primary)">${m2Formatted} m²</strong></div>
                 ${item.subtotal ? `<div><span class="text-muted">Subtotal:</span> <strong>${formatCurrency(item.subtotal)}</strong></div>` : ''}
               </div>
             </div>
-          `).join('')}
+          `;
+          }).join('')}
         </div>
       </div>
     </div>` : ''}
