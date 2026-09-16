@@ -697,21 +697,43 @@ export async function exportToPdf(elementOrHtml, filename = 'documento') {
   // Check if html2pdf is available
   if (typeof window.html2pdf === 'function') {
     let targetEl;
-    let removeTarget = false;
+    let stagingWrapper = null;
 
     if (typeof elementOrHtml === 'string') {
-      targetEl = document.createElement('div');
-      targetEl.innerHTML = elementOrHtml;
-      targetEl.style.position = 'absolute';
-      targetEl.style.left = '-9999px';
-      targetEl.style.top = '0';
-      targetEl.style.width = '210mm';
-      targetEl.style.backgroundColor = '#ffffff';
-      document.body.appendChild(targetEl);
-      removeTarget = true;
+      stagingWrapper = document.createElement('div');
+      stagingWrapper.id = 'export-pdf-staging-wrapper';
+      stagingWrapper.className = 'doc-sheet-wrapper';
+      stagingWrapper.style.position = 'fixed';
+      stagingWrapper.style.top = '0';
+      stagingWrapper.style.left = '0';
+      stagingWrapper.style.width = '210mm';
+      stagingWrapper.style.zIndex = '-99999';
+      stagingWrapper.style.opacity = '1';
+      stagingWrapper.style.pointerEvents = 'none';
+      stagingWrapper.style.backgroundColor = '#ffffff';
+      stagingWrapper.style.margin = '0';
+      stagingWrapper.style.padding = '0';
+      stagingWrapper.innerHTML = `<div id="doc-sheet-content">${elementOrHtml}</div>`;
+      document.body.appendChild(stagingWrapper);
+      targetEl = stagingWrapper.querySelector('#doc-sheet-content');
     } else {
       targetEl = elementOrHtml;
     }
+
+    // Wait for all images inside targetEl to load
+    const images = targetEl.querySelectorAll('img');
+    if (images.length > 0) {
+      await Promise.all(Array.from(images).map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise(resolve => {
+          img.addEventListener('load', resolve, { once: true });
+          img.addEventListener('error', resolve, { once: true });
+        });
+      }));
+    }
+
+    // Allow browser layout and font rendering tick
+    await new Promise(resolve => setTimeout(resolve, 150));
 
     const opt = {
       margin: [8, 8, 8, 8],
@@ -721,7 +743,9 @@ export async function exportToPdf(elementOrHtml, filename = 'documento') {
         scale: 2,
         useCORS: true,
         logging: false,
-        letterRendering: true
+        letterRendering: true,
+        scrollX: 0,
+        scrollY: 0
       },
       jsPDF: {
         unit: 'mm',
@@ -733,14 +757,14 @@ export async function exportToPdf(elementOrHtml, filename = 'documento') {
 
     try {
       await window.html2pdf().set(opt).from(targetEl).save();
-      if (removeTarget && targetEl.parentNode) {
-        targetEl.parentNode.removeChild(targetEl);
+      if (stagingWrapper && stagingWrapper.parentNode) {
+        stagingWrapper.parentNode.removeChild(stagingWrapper);
       }
       return true;
     } catch (err) {
       console.error('Error generating PDF with html2pdf:', err);
-      if (removeTarget && targetEl.parentNode) {
-        targetEl.parentNode.removeChild(targetEl);
+      if (stagingWrapper && stagingWrapper.parentNode) {
+        stagingWrapper.parentNode.removeChild(stagingWrapper);
       }
       // Fall back to print dialog
       printDocument(typeof elementOrHtml === 'string' ? elementOrHtml : elementOrHtml.innerHTML);
