@@ -213,6 +213,11 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
             <span class="doc-grand-total-label">TOTAL PRESUPUESTO</span>
             <span class="doc-grand-total-amount">${formatCurrency(total, pres.moneda)}</span>
           </div>
+          ${(pres.moneda === 'USD' && pres.cotizacionDolar) ? `
+            <div style="font-size:8.5pt;color:#78716C;text-align:right;margin-top:5px;font-weight:600">
+              Tipo de cambio de referencia: 1 USD = $${formatCurrency(pres.cotizacionDolar, 'ARS')} · Equivalente en pesos: ${formatCurrency(total * pres.cotizacionDolar, 'ARS')}
+            </div>
+          ` : ''}
         </div>
       </div>
 

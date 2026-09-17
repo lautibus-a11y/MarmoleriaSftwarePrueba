@@ -96,6 +96,8 @@ export function aprobarPresupuesto(presId, onDone = null) {
         material: materialList,
         items: (pres.items || []).map(i => ({ ...i })),
         importe: importeTotal,
+        moneda: pres.moneda || 'ARS',
+        cotizacionDolar: pres.cotizacionDolar || null,
         fechaAprobacion: today,
         fechaInicio: today,
         fechaEstimada: '',
@@ -285,14 +287,20 @@ export function renderPresupuestos(container, actionsEl, path) {
   function openPresupuestoForm(editId = null, onSaved = null) {
     const found = editId ? DataService.getById('presupuestos', editId) : null;
     const isEdit = !!editId && !!found;
+    const configData = JSON.parse(localStorage.getItem('mb_config') || '{}');
+    const defaultCotizacion = parseFloat(configData.cotizacionDolar) || 1350;
+
     const pres = found ? { ...found } : {
       numero: generateAutoNumber('PRES', DataService.getAll('presupuestos')),
       fecha: new Date().toISOString().split('T')[0],
-      moneda: 'ARS', estado: 'borrador',
+      moneda: 'ARS',
+      cotizacionDolar: defaultCotizacion,
+      estado: 'borrador',
       items: [{ id: '1', descripcion: 'Pieza #1', material: '', unidadMedida: 'cm', largo: '', ancho: '', cantidad: 1, m2: 0, precioUnitario: 0, subtotal: 0 }],
       adicionales: { colocacion: 0, manoDeObra: 0, inglete: 0, transporte: 0, bacha: 0, zocalos: 0, extras: 0 },
       descuento: 0, impuestos: 21, condiciones: CONDICIONES_COMERCIALES_DEFAULT.join('\n')
     };
+    if (!pres.cotizacionDolar) pres.cotizacionDolar = defaultCotizacion;
 
     const clientes = DataService.getAll('clientes').filter(Boolean);
     const materiales = DataService.getAll('materiales').filter(Boolean);
@@ -319,7 +327,7 @@ export function renderPresupuestos(container, actionsEl, path) {
             <div class="form-row-2">
               <div class="form-group">
                 <label class="form-label">Moneda</label>
-                <select class="form-select" name="moneda">
+                <select class="form-select" name="moneda" id="pres-moneda-select">
                   ${MONEDAS.map(m => `<option value="${m.value}" ${pres.moneda === m.value ? 'selected' : ''}>${m.label}</option>`).join('')}
                 </select>
               </div>
@@ -331,6 +339,22 @@ export function renderPresupuestos(container, actionsEl, path) {
                   <option value="aprobado" ${pres.estado === 'aprobado' ? 'selected' : ''}>Aprobado</option>
                   <option value="rechazado" ${pres.estado === 'rechazado' ? 'selected' : ''}>Rechazado</option>
                 </select>
+              </div>
+            </div>
+
+            <!-- Cotización del Dólar si la moneda es USD -->
+            <div class="form-group" id="pres-cotizacion-wrap" style="${pres.moneda === 'USD' ? 'display:block' : 'display:none'};background:var(--color-stone-100);border:1px solid var(--color-stone-200);border-radius:var(--radius-md);padding:10px 14px;margin-bottom:var(--space-4)">
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+                <div>
+                  <label class="form-label mb-0" style="font-weight:var(--font-bold);color:var(--color-stone-900)">
+                    ${Icons['dollar-sign']} Cotización del Dólar (ARS por USD) <span class="required">*</span>
+                  </label>
+                  <span class="text-muted" style="font-size:11.5px;display:block">Los precios de los materiales se convierten automáticamente a dólares según este valor.</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-weight:var(--font-bold);color:var(--color-stone-700)">1 USD = $</span>
+                  <input type="number" class="form-input calc-field" name="cotizacionDolar" id="pres-cotizacion-input" value="${pres.cotizacionDolar || defaultCotizacion}" min="1" step="0.01" style="width:130px;font-weight:var(--font-bold)" placeholder="1507">
+                </div>
               </div>
             </div>
 
@@ -548,14 +572,28 @@ export function renderPresupuestos(container, actionsEl, path) {
     const itemsBody = qEl('#items-body');
     const matSummaryEl = qEl('#material-summary-banner');
 
+    function getMaterialPrice(matName, currency = 'ARS', tc = defaultCotizacion) {
+      const mat = materiales.find(m => m.nombre === matName);
+      if (!mat) return 0;
+      const baseARS = mat.precioM2 ?? mat.precioVenta ?? 0;
+      if (currency === 'USD') {
+        const rate = (tc && tc > 0) ? tc : defaultCotizacion;
+        return rate > 0 ? Math.round((baseARS / rate) * 100) / 100 : baseARS;
+      }
+      return baseARS;
+    }
+
     const defaultFirstMat = materiales[0]?.nombre || '';
-    const defaultFirstMatPrice = materiales[0] ? (materiales[0].precioM2 ?? materiales[0].precioVenta ?? 0) : 0;
+    const initialMoneda = pres.moneda || 'ARS';
+    const initialTC = pres.cotizacionDolar || defaultCotizacion;
+    const defaultFirstMatPrice = getMaterialPrice(defaultFirstMat, initialMoneda, initialTC);
 
     let items = (pres.items && pres.items.length > 0)
       ? pres.items.map((it, idx) => {
           const matName = it.material || pres.material || defaultFirstMat;
-          const matObj = materiales.find(m => m.nombre === matName);
-          const pM2 = it.precioUnitario || (matObj ? (matObj.precioM2 ?? matObj.precioVenta ?? 0) : defaultFirstMatPrice);
+          const pM2 = (it.precioUnitario !== undefined && it.precioUnitario !== null && it.precioUnitario > 0)
+            ? it.precioUnitario
+            : getMaterialPrice(matName, initialMoneda, initialTC);
 
           let u = it.unidadMedida;
           let lVal = it.largo !== undefined && it.largo !== null ? it.largo : '';
@@ -631,16 +669,15 @@ export function renderPresupuestos(container, actionsEl, path) {
       // Redondeo limpio a 4 decimales
       it.m2 = Math.round((it.m2 + Number.EPSILON) * 10000) / 10000;
 
-      // Precio por m² del material
-      const mat = materiales.find(m => m.nombre === it.material);
-      if (mat) {
-        it.precioUnitario = mat.precioM2 ?? mat.precioVenta ?? 0;
-      } else if (!it.precioUnitario) {
-        it.precioUnitario = 0;
+      // Precio por m² del material si no está fijado
+      if (it.material && (!it.precioUnitario || it.precioUnitario === 0)) {
+        const curMoneda = qEl('#pres-moneda-select')?.value || pres.moneda || 'ARS';
+        const curTC = parseFloat(qEl('#pres-cotizacion-input')?.value) || pres.cotizacionDolar || defaultCotizacion;
+        it.precioUnitario = getMaterialPrice(it.material, curMoneda, curTC);
       }
 
       // Multiplicación automática: m² * precio por m²
-      it.subtotal = it.m2 * it.precioUnitario;
+      it.subtotal = it.m2 * (it.precioUnitario || 0);
     }
 
     function getItemPreviewHtml(item) {
@@ -660,8 +697,9 @@ export function renderPresupuestos(container, actionsEl, path) {
     items.forEach(it => calculateItem(it));
 
     function renderMaterialSummary() {
-      const summaryBanner = qEl('#material-summary-banner');
-      if (!summaryBanner) return;
+      const box = qEl('#material-summary-box');
+      if (!box) return;
+      const curMoneda = qEl('#pres-moneda-select')?.value || pres.moneda || 'ARS';
       const matGroups = {};
       items.forEach(it => {
         const matName = it.material || 'Sin material especificado';
@@ -674,9 +712,11 @@ export function renderPresupuestos(container, actionsEl, path) {
       });
 
       const groupEntries = Object.entries(matGroups);
-      const totalM2 = items.reduce((sum, it) => sum + (it.m2 || 0), 0);
+      if (groupEntries.length === 0) { box.innerHTML = ''; return; }
 
-      summaryBanner.innerHTML = `
+      const totalM2 = items.reduce((s, i) => s + (i.m2 || 0), 0);
+
+      box.innerHTML = `
         <div class="material-breakdown-box">
           <div class="material-breakdown-header">
             <span>Materiales seleccionados (${groupEntries.length})</span>
@@ -691,7 +731,7 @@ export function renderPresupuestos(container, actionsEl, path) {
                 </div>
                 <div style="display:flex;gap:12px;align-items:center">
                   <span style="color:var(--color-stone-600)">${data.totalM2.toFixed(2)} m²</span>
-                  <strong style="font-family:var(--font-mono);color:var(--color-stone-900)">${formatCurrency(data.subtotal)}</strong>
+                  <strong style="font-family:var(--font-mono);color:var(--color-stone-900)">${formatCurrency(data.subtotal, curMoneda)}</strong>
                 </div>
               </div>
             `).join('')}
@@ -703,6 +743,9 @@ export function renderPresupuestos(container, actionsEl, path) {
     function renderItems() {
       const bodyEl = qEl('#items-body');
       if (!bodyEl) return;
+      const curMoneda = qEl('#pres-moneda-select')?.value || pres.moneda || 'ARS';
+      const curTC = parseFloat(qEl('#pres-cotizacion-input')?.value) || pres.cotizacionDolar || defaultCotizacion;
+
       bodyEl.innerHTML = items.map((item, idx) => `
         <div class="pres-item-card" data-idx="${idx}">
           <div class="pres-item-header">
@@ -724,8 +767,8 @@ export function renderPresupuestos(container, actionsEl, path) {
               <option value="">Seleccionar material del catálogo...</option>
               ${materiales.map(m => {
                 const isSel = (item.material === m.nombre);
-                const pM2 = m.precioM2 ?? m.precioVenta ?? 0;
-                return `<option value="${escapeHtml(m.nombre)}" ${isSel ? 'selected' : ''}>${escapeHtml(m.nombre)} — ${formatCurrency(pM2)} / m²</option>`;
+                const pM2 = getMaterialPrice(m.nombre, curMoneda, curTC);
+                return `<option value="${escapeHtml(m.nombre)}" ${isSel ? 'selected' : ''}>${escapeHtml(m.nombre)} — ${formatCurrency(pM2, curMoneda)} / m²</option>`;
               }).join('')}
             </select>
           </div>
@@ -767,11 +810,11 @@ export function renderPresupuestos(container, actionsEl, path) {
             </div>
             <div class="pres-item-stat-pill">
               <span class="pres-item-stat-label">Precio / m²</span>
-              <span class="pres-item-stat-val item-precio-val">${formatCurrency(item.precioUnitario || 0)}</span>
+              <span class="pres-item-stat-val item-precio-val">${formatCurrency(item.precioUnitario || 0, curMoneda)}</span>
             </div>
             <div class="pres-item-stat-pill subtotal-pill">
               <span class="pres-item-stat-label">Subtotal</span>
-              <span class="pres-item-stat-val item-subtotal-val">${formatCurrency(item.subtotal || 0)}</span>
+              <span class="pres-item-stat-val item-subtotal-val">${formatCurrency(item.subtotal || 0, curMoneda)}</span>
             </div>
           </div>
         </div>
@@ -817,18 +860,20 @@ export function renderPresupuestos(container, actionsEl, path) {
           const field = input.dataset.field;
           let val = input.value;
 
+          const curMoneda = qEl('#pres-moneda-select')?.value || pres.moneda || 'ARS';
+          const curTC = parseFloat(qEl('#pres-cotizacion-input')?.value) || pres.cotizacionDolar || defaultCotizacion;
+
           if (field === 'material') {
             items[idx].material = val;
-            const mat = materiales.find(m => m.nombre === val);
-            items[idx].precioUnitario = mat ? (mat.precioM2 ?? mat.precioVenta ?? 0) : 0;
+            items[idx].precioUnitario = getMaterialPrice(val, curMoneda, curTC);
             calculateItem(items[idx]);
 
             const precioEl = card.querySelector('.item-precio-val');
-            if (precioEl) precioEl.textContent = formatCurrency(items[idx].precioUnitario || 0);
+            if (precioEl) precioEl.textContent = formatCurrency(items[idx].precioUnitario || 0, curMoneda);
             const m2El = card.querySelector('.item-m2');
             if (m2El) m2El.textContent = `${(items[idx].m2 || 0).toFixed(2).replace('.', ',')} m²`;
             const subEl = card.querySelector('.item-subtotal-val');
-            if (subEl) subEl.textContent = formatCurrency(items[idx].subtotal || 0);
+            if (subEl) subEl.textContent = formatCurrency(items[idx].subtotal || 0, curMoneda);
             const prevEl = card.querySelector('.preview-calc-text');
             if (prevEl) prevEl.innerHTML = getItemPreviewHtml(items[idx]);
           } else {
@@ -838,7 +883,7 @@ export function renderPresupuestos(container, actionsEl, path) {
             const m2El = card.querySelector('.item-m2');
             if (m2El) m2El.textContent = `${(items[idx].m2 || 0).toFixed(2).replace('.', ',')} m²`;
             const subEl = card.querySelector('.item-subtotal-val');
-            if (subEl) subEl.textContent = formatCurrency(items[idx].subtotal || 0);
+            if (subEl) subEl.textContent = formatCurrency(items[idx].subtotal || 0, curMoneda);
             const prevEl = card.querySelector('.preview-calc-text');
             if (prevEl) prevEl.innerHTML = getItemPreviewHtml(items[idx]);
           }
@@ -891,6 +936,9 @@ export function renderPresupuestos(container, actionsEl, path) {
     function updateSummary() {
       const form = qEl('#pres-form');
       if (!form) return;
+      const curMoneda = form.querySelector('[name="moneda"]')?.value || pres.moneda || 'ARS';
+      const curTC = parseFloat(form.querySelector('[name="cotizacionDolar"]')?.value) || pres.cotizacionDolar || defaultCotizacion;
+
       const itemsTotal = items.reduce((s, i) => s + (i.subtotal || 0), 0);
       const adics = ['colocacion', 'manoDeObra', 'inglete', 'transporte', 'bacha', 'zocalos', 'extras'];
       const adicsTotal = adics.reduce((s, k) => s + (parseFloat(form.querySelector(`[name="adic_${k}"]`)?.value) || 0), 0);
@@ -904,11 +952,16 @@ export function renderPresupuestos(container, actionsEl, path) {
       const sumEl = qEl('#pres-summary');
       if (sumEl) {
         sumEl.innerHTML = `
-          <div class="summary-row"><span class="summary-row-label">Subtotal materiales e ítems</span><span class="summary-row-value">${formatCurrency(itemsTotal)}</span></div>
-          <div class="summary-row"><span class="summary-row-label">Campos adicionales</span><span class="summary-row-value">${formatCurrency(adicsTotal)}</span></div>
-          ${desc > 0 ? `<div class="summary-row"><span class="summary-row-label">Descuento (${desc}%)</span><span class="summary-row-value" style="color:var(--color-error)">-${formatCurrency(descMonto)}</span></div>` : ''}
-          ${imp > 0 ? `<div class="summary-row"><span class="summary-row-label">IVA (${imp}%)</span><span class="summary-row-value">${formatCurrency(impMonto)}</span></div>` : ''}
-          <div class="summary-row total"><span class="summary-row-label">Total Presupuesto</span><span class="summary-row-value">${formatCurrency(total)}</span></div>
+          <div class="summary-row"><span class="summary-row-label">Subtotal materiales e ítems</span><span class="summary-row-value">${formatCurrency(itemsTotal, curMoneda)}</span></div>
+          <div class="summary-row"><span class="summary-row-label">Campos adicionales</span><span class="summary-row-value">${formatCurrency(adicsTotal, curMoneda)}</span></div>
+          ${desc > 0 ? `<div class="summary-row"><span class="summary-row-label">Descuento (${desc}%)</span><span class="summary-row-value" style="color:var(--color-error)">-${formatCurrency(descMonto, curMoneda)}</span></div>` : ''}
+          ${imp > 0 ? `<div class="summary-row"><span class="summary-row-label">IVA (${imp}%)</span><span class="summary-row-value">${formatCurrency(impMonto, curMoneda)}</span></div>` : ''}
+          <div class="summary-row total"><span class="summary-row-label">Total Presupuesto</span><span class="summary-row-value">${formatCurrency(total, curMoneda)}</span></div>
+          ${(curMoneda === 'USD' && curTC > 0) ? `
+            <div style="padding:8px 12px;margin-top:8px;background:var(--color-stone-100);border:1px solid var(--color-stone-200);border-radius:var(--radius-sm);font-size:12px;color:var(--color-stone-700);text-align:right">
+              Tipo de cambio de referencia: <strong>$${curTC} ARS</strong> · Equivalente aprox: <strong style="color:var(--color-stone-900)">${formatCurrency(total * curTC, 'ARS')}</strong>
+            </div>
+          ` : ''}
         `;
       }
     }
@@ -916,6 +969,51 @@ export function renderPresupuestos(container, actionsEl, path) {
     renderItems();
     renderMaterialSummary();
     updateSummary();
+
+    // Eventos para cambio de moneda y cotización
+    const monedaSelect = qEl('#pres-moneda-select');
+    const tcWrap = qEl('#pres-cotizacion-wrap');
+    const tcInput = qEl('#pres-cotizacion-input');
+
+    if (monedaSelect) {
+      monedaSelect.addEventListener('change', (e) => {
+        const newMoneda = e.target.value;
+        if (tcWrap) {
+          tcWrap.style.display = newMoneda === 'USD' ? 'block' : 'none';
+        }
+        const curTC = parseFloat(tcInput?.value) || defaultCotizacion;
+
+        // Recalcular precios unitarios según la moneda seleccionada
+        items.forEach(it => {
+          if (it.material) {
+            it.precioUnitario = getMaterialPrice(it.material, newMoneda, curTC);
+            calculateItem(it);
+          }
+        });
+
+        renderItems();
+        renderMaterialSummary();
+        updateSummary();
+      });
+    }
+
+    if (tcInput) {
+      tcInput.addEventListener('input', () => {
+        const curTC = parseFloat(tcInput.value) || defaultCotizacion;
+        const curMoneda = monedaSelect?.value || 'ARS';
+        if (curMoneda === 'USD') {
+          items.forEach(it => {
+            if (it.material) {
+              it.precioUnitario = getMaterialPrice(it.material, 'USD', curTC);
+              calculateItem(it);
+            }
+          });
+          renderItems();
+          renderMaterialSummary();
+          updateSummary();
+        }
+      });
+    }
 
     (drawerEl?.querySelectorAll('.calc-field') || document.querySelectorAll('.calc-field')).forEach(f => {
       f.addEventListener('input', updateSummary);
@@ -1076,9 +1174,14 @@ export function renderPresupuestos(container, actionsEl, path) {
 
       const matList = [...new Set(items.map(i => i.material).filter(Boolean))].join(', ');
       const estadoFinal = forceEstado || data.estado || pres.estado || 'borrador';
+      const curMoneda = data.moneda || pres.moneda || 'ARS';
+      const curTC = curMoneda === 'USD' ? (parseFloat(data.cotizacionDolar) || defaultCotizacion) : null;
+
       const record = {
         ...pres,
         ...data,
+        moneda: curMoneda,
+        cotizacionDolar: curTC,
         estado: estadoFinal,
         material: matList || items[0]?.material || '',
         precioM2: items[0]?.precioUnitario || 0,
@@ -1426,11 +1529,11 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
                 <div><span class="text-muted">Cantidad:</span> <strong>${item.cantidad || 1} ${item.cantidad > 1 ? 'piezas' : 'pieza'}</strong></div>
                 <div><span class="text-muted">Medidas:</span> <strong>${formatMeasure(item.largo)} × ${formatMeasure(item.ancho)}</strong></div>
                 <div><span class="text-muted">Superficie total:</span> <strong style="color:var(--color-primary)">${m2Formatted} m²</strong></div>
-                <div><span class="text-muted">Precio por m²:</span> <strong>${formatCurrency(item.precioUnitario || 0)}</strong></div>
+                <div><span class="text-muted">Precio por m²:</span> <strong>${formatCurrency(item.precioUnitario || 0, pres.moneda)}</strong></div>
               </div>
               <div class="detail-item-card-subtotal">
                 <span class="text-muted">Subtotal ítem:</span>
-                <strong>${formatCurrency(item.subtotal || 0)}</strong>
+                <strong>${formatCurrency(item.subtotal || 0, pres.moneda)}</strong>
               </div>
             </div>
           `}).join('')}
@@ -1439,10 +1542,15 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
     </div>
 
     <div class="summary-box mb-4">
-      <div class="summary-row"><span class="summary-row-label">Subtotal ítems</span><span class="summary-row-value">${formatCurrency((pres.items || []).reduce((s, i) => s + (i.subtotal || 0), 0))}</span></div>
-      ${adicEntries.map(([k, v]) => `<div class="summary-row"><span class="summary-row-label">${k}</span><span class="summary-row-value">${formatCurrency(v)}</span></div>`).join('')}
-      ${pres.descuento > 0 ? `<div class="summary-row"><span class="summary-row-label">Descuento (${pres.descuento}%)</span><span class="summary-row-value" style="color:var(--color-error)">-${formatCurrency(DataService.getPresupuestoTotal({ ...pres, descuento: 0, impuestos: 0 }) * pres.descuento / 100)}</span></div>` : ''}
+      <div class="summary-row"><span class="summary-row-label">Subtotal ítems</span><span class="summary-row-value">${formatCurrency((pres.items || []).reduce((s, i) => s + (i.subtotal || 0), 0), pres.moneda)}</span></div>
+      ${adicEntries.map(([k, v]) => `<div class="summary-row"><span class="summary-row-label">${k}</span><span class="summary-row-value">${formatCurrency(v, pres.moneda)}</span></div>`).join('')}
+      ${pres.descuento > 0 ? `<div class="summary-row"><span class="summary-row-label">Descuento (${pres.descuento}%)</span><span class="summary-row-value" style="color:var(--color-error)">-${formatCurrency(DataService.getPresupuestoTotal({ ...pres, descuento: 0, impuestos: 0 }) * pres.descuento / 100, pres.moneda)}</span></div>` : ''}
       <div class="summary-row total"><span class="summary-row-label">Total</span><span class="summary-row-value">${formatCurrency(total, pres.moneda)}</span></div>
+      ${(pres.moneda === 'USD' && pres.cotizacionDolar) ? `
+        <div style="font-size:12px;color:var(--color-stone-600);text-align:right;padding:6px 12px;background:var(--color-stone-100);border-radius:var(--radius-sm);margin-top:6px">
+          Tipo de cambio: <strong>$${pres.cotizacionDolar} ARS</strong> · Equivalente en pesos: <strong style="color:var(--color-stone-900)">${formatCurrency(total * pres.cotizacionDolar, 'ARS')}</strong>
+        </div>
+      ` : ''}
     </div>
 
     ${pres.condiciones ? `
