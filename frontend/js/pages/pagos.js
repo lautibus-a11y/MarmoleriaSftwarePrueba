@@ -4,7 +4,7 @@
 
 import { DataService } from '../services/mockData.js';
 import { Api } from '../services/api.js';
-import { formatCurrency, formatDate, escapeHtml, debounce, resolveFileUrl } from '../utils/helpers.js';
+import { formatCurrency, formatDate, escapeHtml, debounce, resolveFileUrl, compareNewestFirst } from '../utils/helpers.js';
 import { Icons, renderDataTable, renderSearchInput, renderBadge, renderFileUpload } from '../components/ui.js';
 import { Drawer } from '../components/drawer.js';
 import { Modal, previewAttachment } from '../components/modal.js';
@@ -70,7 +70,7 @@ export function renderPagos(container, actionsEl) {
         </div>
         <div class="table-toolbar-right"><span class="text-muted" style="font-size:var(--text-sm)">${filtered.length} pagos</span></div>
       </div>
-      ${renderDataTable({ columns, data: filtered.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)), emptyMessage: 'No hay pagos registrados' })}
+      ${renderDataTable({ columns, data: filtered.sort(compareNewestFirst), emptyMessage: 'No hay pagos registrados' })}
     </div>`;
 
     const si = container.querySelector('#search-input');

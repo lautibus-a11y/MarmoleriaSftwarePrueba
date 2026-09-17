@@ -3,7 +3,7 @@
    ======================================== */
 
 import { DataService } from '../services/mockData.js';
-import { formatCurrency, formatDate, escapeHtml, debounce, searchFilter } from '../utils/helpers.js';
+import { formatCurrency, formatDate, escapeHtml, debounce, searchFilter, compareNewestFirst } from '../utils/helpers.js';
 import { Icons, renderDataTable, renderSearchInput, renderBadge, renderEmptyState, renderProgressBar } from '../components/ui.js';
 import { Drawer } from '../components/drawer.js';
 import { Toast } from '../components/toast.js';
@@ -80,7 +80,7 @@ export function renderObras(container, actionsEl, path) {
           </div>
           <div class="table-toolbar-right"><span class="text-muted" style="font-size:var(--text-sm)">${filtered.length} obras</span></div>
         </div>
-        ${renderDataTable({ columns, data: filtered, emptyMessage: 'No hay obras registradas' })}
+        ${renderDataTable({ columns, data: filtered.sort(compareNewestFirst), emptyMessage: 'No hay obras registradas' })}
       </div>
     `;
 

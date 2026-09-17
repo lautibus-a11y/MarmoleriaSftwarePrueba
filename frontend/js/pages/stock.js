@@ -3,7 +3,7 @@
    ======================================== */
 
 import { DataService } from '../services/mockData.js';
-import { formatCurrency, formatDate, escapeHtml, debounce, searchFilter } from '../utils/helpers.js';
+import { formatCurrency, formatDate, escapeHtml, debounce, searchFilter, compareNewestFirst } from '../utils/helpers.js';
 import { Icons, renderDataTable, renderSearchInput, renderBadge, renderEmptyState } from '../components/ui.js';
 import { Drawer } from '../components/drawer.js';
 import { Modal } from '../components/modal.js';
@@ -99,7 +99,7 @@ export function renderStock(container, actionsEl) {
           </div>
           <div class="table-toolbar-right"><span class="text-muted" style="font-size:var(--text-sm)">${filtered.length} materiales</span></div>
         </div>
-        ${renderDataTable({ columns, data: filtered, emptyMessage: 'No hay materiales registrados' })}
+        ${renderDataTable({ columns, data: filtered.sort(compareNewestFirst), emptyMessage: 'No hay materiales registrados' })}
       </div>
     `;
 
@@ -279,7 +279,7 @@ export function renderStock(container, actionsEl) {
   function showHistory(materialId){
     const mat = DataService.getById('materiales', materialId);
     if (!mat) return;
-    const movs = DataService.getAll('stockMovimientos').filter(m => m.materialId === materialId).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    const movs = DataService.getAll('stockMovimientos').filter(m => m.materialId === materialId).sort(compareNewestFirst);
     const actual = DataService.getStockActual(materialId);
     const uText = (mat.unidad === 'm2' ? 'm²' : (mat.unidad === 'metros' ? 'ml' : (mat.unidad === 'unidades' ? 'un' : mat.unidad))) || 'm²';
 

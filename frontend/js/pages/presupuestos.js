@@ -3,7 +3,7 @@
    ======================================== */
 
 import { DataService } from '../services/mockData.js';
-import { formatCurrency, formatDate, searchFilter, escapeHtml, debounce, generateAutoNumber } from '../utils/helpers.js';
+import { formatCurrency, formatDate, searchFilter, escapeHtml, debounce, generateAutoNumber, compareNewestFirst } from '../utils/helpers.js';
 import { Icons, renderDataTable, renderSearchInput, renderBadge, renderEmptyState } from '../components/ui.js';
 import { Drawer } from '../components/drawer.js';
 import { Modal } from '../components/modal.js';
@@ -194,7 +194,7 @@ export function renderPresupuestos(container, actionsEl, path) {
             <span class="text-muted" style="font-size:var(--text-sm)">${filtered.length} presupuestos</span>
           </div>
         </div>
-        ${renderDataTable({ columns, data: filtered.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)), emptyMessage: 'No hay presupuestos' })}
+        ${renderDataTable({ columns, data: filtered.sort(compareNewestFirst), emptyMessage: 'No hay presupuestos' })}
       </div>
     `;
 

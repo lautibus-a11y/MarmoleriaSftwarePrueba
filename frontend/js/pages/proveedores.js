@@ -3,7 +3,7 @@
    ======================================== */
 
 import { DataService } from '../services/mockData.js';
-import { formatCurrency, formatDate, escapeHtml, debounce, searchFilter } from '../utils/helpers.js';
+import { formatCurrency, formatDate, escapeHtml, debounce, searchFilter, compareNewestFirst } from '../utils/helpers.js';
 import { Icons, renderDataTable, renderSearchInput, renderBadge, renderEmptyState } from '../components/ui.js';
 import { Drawer } from '../components/drawer.js';
 import { Toast } from '../components/toast.js';
@@ -40,7 +40,7 @@ export function renderProveedores(container, actionsEl, path) {
     container.innerHTML = `<div class="table-container">
       <div class="table-toolbar"><div class="table-toolbar-left">${renderSearchInput('Buscar proveedor...')}</div>
       <div class="table-toolbar-right"><span class="text-muted" style="font-size:var(--text-sm)">${filtered.length} proveedores</span></div></div>
-      ${renderDataTable({ columns, data: filtered, emptyMessage: 'No hay proveedores' })}
+      ${renderDataTable({ columns, data: filtered.sort(compareNewestFirst), emptyMessage: 'No hay proveedores' })}
     </div>`;
 
     const si = container.querySelector('#search-input');
@@ -143,7 +143,7 @@ function renderProveedorDetail(container, actionsEl, provId) {
           {label:'Vencimiento',render:f=>formatDate(f.vencimiento)},
           {label:'Importe',align:'right',render:f=>`<span class="cell-currency">${formatCurrency(f.importe)}</span>`},
           {label:'Estado',render:f=>renderBadge(f.estado,{pendiente:'warning',pagada:'success',vencida:'error',parcial:'info'}[f.estado])}
-        ],data:facturas.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha))}):'<p class="text-muted" style="padding:var(--space-6)">No hay facturas</p>'}
+        ],data:facturas.sort(compareNewestFirst)}):'<p class="text-muted" style="padding:var(--space-6)">No hay facturas</p>'}
       </div>
       <div class="tab-content" id="tab-pagos">
         ${pagos.length>0?renderDataTable({columns:[
@@ -152,7 +152,7 @@ function renderProveedorDetail(container, actionsEl, provId) {
           {label:'Importe',align:'right',render:p=>`<span class="cell-currency">${formatCurrency(p.importe)}</span>`},
           {label:'Método',render:p=>escapeHtml(p.metodoPago)},
           {label:'Estado',render:p=>renderBadge(p.estado,{pendiente:'warning',pagado:'success',vencido:'error'}[p.estado])}
-        ],data:pagos.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha))}):'<p class="text-muted" style="padding:var(--space-6)">No hay pagos</p>'}
+        ],data:pagos.sort(compareNewestFirst)}):'<p class="text-muted" style="padding:var(--space-6)">No hay pagos</p>'}
       </div>
       <div class="tab-content" id="tab-datos">
         <div class="card"><div class="card-body"><div class="detail-list">

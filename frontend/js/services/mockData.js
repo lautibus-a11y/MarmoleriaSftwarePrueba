@@ -3,7 +3,7 @@
    Synchronized reactive store persisting to Cloudflare R2 & localStorage
    ======================================== */
 
-import { generateId } from '../utils/helpers.js';
+import { generateId, compareNewestFirst } from '../utils/helpers.js';
 import { Api } from './api.js';
 
 // ── In-memory data store ──
@@ -37,23 +37,23 @@ const COLLECTION_ROUTES = {
 // ── Initialize local cache ──
 function initLocalCache() {
   const initialMateriales = [
-    { id: 'mat-000', nombre: 'Negro Brasil', categoria: 'granito', tipo: 'Importado', largo: 300, ancho: 180, espesor: '20 mm', unidad: 'm2', precioM2: 50000, precioVenta: 50000, stockMinimo: 10, proveedor: 'prov-001', observaciones: 'Granito Negro Brasil clásico. Origen: Brasil.' },
-    { id: 'mat-001', nombre: 'Granito Negro Absoluto', categoria: 'granito', tipo: 'Importado', largo: 290, ancho: 175, espesor: '20 mm', unidad: 'm2', precioM2: 185000, precioVenta: 185000, stockMinimo: 15, proveedor: 'prov-001', observaciones: 'Origen: India. Pulido espejo.' },
-    { id: 'mat-002', nombre: 'Granito Gris Mara', categoria: 'granito', tipo: 'Nacional', largo: 260, ancho: 160, espesor: '20 mm', unidad: 'm2', precioM2: 85000, precioVenta: 85000, stockMinimo: 20, proveedor: 'prov-001', observaciones: 'Nacional tradicional, alto tránsito.' },
-    { id: 'mat-003', nombre: 'Mármol Carrara', categoria: 'marmol', tipo: 'Importado', largo: 280, ancho: 150, espesor: '20 mm', unidad: 'm2', precioM2: 260000, precioVenta: 260000, stockMinimo: 12, proveedor: 'prov-002', observaciones: 'Origen: Italia. Veteado clásico blanco.' },
-    { id: 'mat-004', nombre: 'Mármol Travertino Romano', categoria: 'travertino', tipo: 'Importado', largo: 250, ancho: 140, espesor: '20 mm', unidad: 'm2', precioM2: 175000, precioVenta: 175000, stockMinimo: 10, proveedor: 'prov-002', observaciones: 'Tono beige cálido resinado.' },
-    { id: 'mat-005', nombre: 'Silestone Blanco Zeus', categoria: 'silestone', tipo: 'Importado', largo: 305, ancho: 140, espesor: '20 mm', unidad: 'm2', precioM2: 320000, precioVenta: 320000, stockMinimo: 10, proveedor: 'prov-003', observaciones: 'Superficie de cuarzo compacta premium antibacteriana.' },
-    { id: 'mat-006', nombre: 'Silestone Gris Expo', categoria: 'silestone', tipo: 'Importado', largo: 305, ancho: 140, espesor: '20 mm', unidad: 'm2', precioM2: 280000, precioVenta: 280000, stockMinimo: 8, proveedor: 'prov-003', observaciones: 'Cuarzo de alta resistencia uniforme.' },
-    { id: 'mat-007', nombre: 'Cuarzo Blanco Stellar', categoria: 'cuarzo', tipo: 'Importado', largo: 300, ancho: 140, espesor: '20 mm', unidad: 'm2', precioM2: 220000, precioVenta: 220000, stockMinimo: 10, proveedor: 'prov-003', observaciones: 'Superficie con micro-destellos espejados.' },
-    { id: 'mat-008', nombre: 'Granito Marrón Báltico', categoria: 'granito', tipo: 'Importado', largo: 270, ancho: 160, espesor: '20 mm', unidad: 'm2', precioM2: 145000, precioVenta: 145000, stockMinimo: 10, proveedor: 'prov-001', observaciones: 'Estructura circular granítica clásica.' },
-    { id: 'mat-009', nombre: 'Mármol Botticino', categoria: 'marmol', tipo: 'Importado', largo: 260, ancho: 150, espesor: '20 mm', unidad: 'm2', precioM2: 210000, precioVenta: 210000, stockMinimo: 8, proveedor: 'prov-002', observaciones: 'Mármol italiano compacto beige.' },
-    { id: 'mat-010', nombre: 'Porcelanato Gran Formato', categoria: 'porcelanato', tipo: 'Nacional', largo: 120, ancho: 60, espesor: '10 mm', unidad: 'm2', precioM2: 65000, precioVenta: 65000, stockMinimo: 25, proveedor: 'prov-004', observaciones: 'Placas 120x60cm.' },
-    { id: 'mat-011', nombre: 'Ónix Miel (Placa Entera)', categoria: 'onix', tipo: 'Importado', largo: 240, ancho: 150, espesor: '20 mm', unidad: 'placas', precioM2: 1200000, precioVenta: 1200000, stockMinimo: 2, proveedor: 'prov-002', observaciones: 'Placa entera translúcida para retroiluminar.' },
-    { id: 'mat-012', nombre: 'Granito Exótico Patagonia (Placa)', categoria: 'granito', tipo: 'Importado', largo: 290, ancho: 180, espesor: '20 mm', unidad: 'placas', precioM2: 950000, precioVenta: 950000, stockMinimo: 2, proveedor: 'prov-001', observaciones: 'Placa entera seleccionada con cuarzo cristalino.' },
-    { id: 'mat-013', nombre: 'Zócalo Granito Negro', categoria: 'granito', tipo: 'Nacional', largo: 100, ancho: 10, espesor: '20 mm', unidad: 'metros', precioM2: 25000, precioVenta: 25000, stockMinimo: 20, proveedor: 'prov-001', observaciones: 'h=10cm. Cotizado por metro lineal.' },
-    { id: 'mat-014', nombre: 'Bacha Simple Acero Johnson', categoria: 'otro', tipo: 'Nacional', largo: 52, ancho: 32, espesor: '-', unidad: 'unidades', precioM2: 72000, precioVenta: 72000, stockMinimo: 5, proveedor: 'prov-004', observaciones: 'Para embutir bajo mesada. Precio por unidad.' },
-    { id: 'mat-015', nombre: 'Bacha Doble Acero Johnson', categoria: 'otro', tipo: 'Nacional', largo: 74, ancho: 40, espesor: '-', unidad: 'unidades', precioM2: 105000, precioVenta: 105000, stockMinimo: 3, proveedor: 'prov-004', observaciones: 'Doble cuba cocina. Precio por unidad.' },
-    { id: 'mat-016', nombre: 'Pegamento Especial Mármol', categoria: 'otro', tipo: 'Nacional', largo: 0, ancho: 0, espesor: '-', unidad: 'unidades', precioM2: 18000, precioVenta: 18000, stockMinimo: 10, proveedor: 'prov-005', observaciones: 'Balde 25kg bi-componente.' }
+    { id: 'mat-000', nombre: 'Negro Brasil', categoria: 'granito', tipo: 'Importado', largo: 300, ancho: 180, espesor: '20 mm', unidad: 'm2', precioM2: 50000, precioVenta: 50000, stockMinimo: 10, proveedor: 'prov-001', observaciones: 'Granito Negro Brasil clásico. Origen: Brasil.', createdAt: '2026-01-01T08:00:00Z' },
+    { id: 'mat-001', nombre: 'Granito Negro Absoluto', categoria: 'granito', tipo: 'Importado', largo: 290, ancho: 175, espesor: '20 mm', unidad: 'm2', precioM2: 185000, precioVenta: 185000, stockMinimo: 15, proveedor: 'prov-001', observaciones: 'Origen: India. Pulido espejo.', createdAt: '2026-01-01T08:01:00Z' },
+    { id: 'mat-002', nombre: 'Granito Gris Mara', categoria: 'granito', tipo: 'Nacional', largo: 260, ancho: 160, espesor: '20 mm', unidad: 'm2', precioM2: 85000, precioVenta: 85000, stockMinimo: 20, proveedor: 'prov-001', observaciones: 'Nacional tradicional, alto tránsito.', createdAt: '2026-01-01T08:02:00Z' },
+    { id: 'mat-003', nombre: 'Mármol Carrara', categoria: 'marmol', tipo: 'Importado', largo: 280, ancho: 150, espesor: '20 mm', unidad: 'm2', precioM2: 260000, precioVenta: 260000, stockMinimo: 12, proveedor: 'prov-002', observaciones: 'Origen: Italia. Veteado clásico blanco.', createdAt: '2026-01-01T08:03:00Z' },
+    { id: 'mat-004', nombre: 'Mármol Travertino Romano', categoria: 'travertino', tipo: 'Importado', largo: 250, ancho: 140, espesor: '20 mm', unidad: 'm2', precioM2: 175000, precioVenta: 175000, stockMinimo: 10, proveedor: 'prov-002', observaciones: 'Tono beige cálido resinado.', createdAt: '2026-01-01T08:04:00Z' },
+    { id: 'mat-005', nombre: 'Silestone Blanco Zeus', categoria: 'silestone', tipo: 'Importado', largo: 305, ancho: 140, espesor: '20 mm', unidad: 'm2', precioM2: 320000, precioVenta: 320000, stockMinimo: 10, proveedor: 'prov-003', observaciones: 'Superficie de cuarzo compacta premium antibacteriana.', createdAt: '2026-01-01T08:05:00Z' },
+    { id: 'mat-006', nombre: 'Silestone Gris Expo', categoria: 'silestone', tipo: 'Importado', largo: 305, ancho: 140, espesor: '20 mm', unidad: 'm2', precioM2: 280000, precioVenta: 280000, stockMinimo: 8, proveedor: 'prov-003', observaciones: 'Cuarzo de alta resistencia uniforme.', createdAt: '2026-01-01T08:06:00Z' },
+    { id: 'mat-007', nombre: 'Cuarzo Blanco Stellar', categoria: 'cuarzo', tipo: 'Importado', largo: 300, ancho: 140, espesor: '20 mm', unidad: 'm2', precioM2: 220000, precioVenta: 220000, stockMinimo: 10, proveedor: 'prov-003', observaciones: 'Superficie con micro-destellos espejados.', createdAt: '2026-01-01T08:07:00Z' },
+    { id: 'mat-008', nombre: 'Granito Marrón Báltico', categoria: 'granito', tipo: 'Importado', largo: 270, ancho: 160, espesor: '20 mm', unidad: 'm2', precioM2: 145000, precioVenta: 145000, stockMinimo: 10, proveedor: 'prov-001', observaciones: 'Estructura circular granítica clásica.', createdAt: '2026-01-01T08:08:00Z' },
+    { id: 'mat-009', nombre: 'Mármol Botticino', categoria: 'marmol', tipo: 'Importado', largo: 260, ancho: 150, espesor: '20 mm', unidad: 'm2', precioM2: 210000, precioVenta: 210000, stockMinimo: 8, proveedor: 'prov-002', observaciones: 'Mármol italiano compacto beige.', createdAt: '2026-01-01T08:09:00Z' },
+    { id: 'mat-010', nombre: 'Porcelanato Gran Formato', categoria: 'porcelanato', tipo: 'Nacional', largo: 120, ancho: 60, espesor: '10 mm', unidad: 'm2', precioM2: 65000, precioVenta: 65000, stockMinimo: 25, proveedor: 'prov-004', observaciones: 'Placas 120x60cm.', createdAt: '2026-01-01T08:10:00Z' },
+    { id: 'mat-011', nombre: 'Ónix Miel (Placa Entera)', categoria: 'onix', tipo: 'Importado', largo: 240, ancho: 150, espesor: '20 mm', unidad: 'placas', precioM2: 1200000, precioVenta: 1200000, stockMinimo: 2, proveedor: 'prov-002', observaciones: 'Placa entera translúcida para retroiluminar.', createdAt: '2026-01-01T08:11:00Z' },
+    { id: 'mat-012', nombre: 'Granito Exótico Patagonia (Placa)', categoria: 'granito', tipo: 'Importado', largo: 290, ancho: 180, espesor: '20 mm', unidad: 'placas', precioM2: 950000, precioVenta: 950000, stockMinimo: 2, proveedor: 'prov-001', observaciones: 'Placa entera seleccionada con cuarzo cristalino.', createdAt: '2026-01-01T08:12:00Z' },
+    { id: 'mat-013', nombre: 'Zócalo Granito Negro', categoria: 'granito', tipo: 'Nacional', largo: 100, ancho: 10, espesor: '20 mm', unidad: 'metros', precioM2: 25000, precioVenta: 25000, stockMinimo: 20, proveedor: 'prov-001', observaciones: 'h=10cm. Cotizado por metro lineal.', createdAt: '2026-01-01T08:13:00Z' },
+    { id: 'mat-014', nombre: 'Bacha Simple Acero Johnson', categoria: 'otro', tipo: 'Nacional', largo: 52, ancho: 32, espesor: '-', unidad: 'unidades', precioM2: 72000, precioVenta: 72000, stockMinimo: 5, proveedor: 'prov-004', observaciones: 'Para embutir bajo mesada. Precio por unidad.', createdAt: '2026-01-01T08:14:00Z' },
+    { id: 'mat-015', nombre: 'Bacha Doble Acero Johnson', categoria: 'otro', tipo: 'Nacional', largo: 74, ancho: 40, espesor: '-', unidad: 'unidades', precioM2: 105000, precioVenta: 105000, stockMinimo: 3, proveedor: 'prov-004', observaciones: 'Doble cuba cocina. Precio por unidad.', createdAt: '2026-01-01T08:15:00Z' },
+    { id: 'mat-016', nombre: 'Pegamento Especial Mármol', categoria: 'otro', tipo: 'Nacional', largo: 0, ancho: 0, espesor: '-', unidad: 'unidades', precioM2: 18000, precioVenta: 18000, stockMinimo: 10, proveedor: 'prov-005', observaciones: 'Balde 25kg bi-componente.', createdAt: '2026-01-01T08:16:00Z' }
   ];
 
   const initialClientes = [
@@ -73,13 +73,23 @@ function initLocalCache() {
     try {
       const cached = localStorage.getItem(`mb_${col}`);
       if (cached) {
-        store[col] = JSON.parse(cached);
+        const parsed = JSON.parse(cached);
+        store[col] = (Array.isArray(parsed) && col !== 'eventos' && col !== 'config')
+          ? parsed.sort(compareNewestFirst)
+          : parsed;
       }
     } catch (e) {}
   });
 
   if (!store.materiales || store.materiales.length === 0) store.materiales = initialMateriales;
   if (!store.clientes || store.clientes.length === 0) store.clientes = initialClientes;
+
+  // Ensure store collections are ordered newest first initially
+  collections.forEach(col => {
+    if (Array.isArray(store[col]) && col !== 'eventos' && col !== 'config') {
+      store[col].sort(compareNewestFirst);
+    }
+  });
 }
 
 initLocalCache();
@@ -93,8 +103,11 @@ export const DataService = {
       if (data && typeof data === 'object') {
         Object.keys(COLLECTION_ROUTES).forEach(col => {
           if (Array.isArray(data[col])) {
-            store[col] = data[col];
-            try { localStorage.setItem(`mb_${col}`, JSON.stringify(data[col])); } catch (e) {}
+            const sorted = (col === 'eventos' || col === 'config')
+              ? data[col]
+              : [...data[col]].sort(compareNewestFirst);
+            store[col] = sorted;
+            try { localStorage.setItem(`mb_${col}`, JSON.stringify(sorted)); } catch (e) {}
           }
         });
 
@@ -111,7 +124,9 @@ export const DataService = {
 
   // ── Generic CRUD ──
   getAll(collection) {
-    return [...(store[collection] || [])].filter(Boolean);
+    const list = [...(store[collection] || [])].filter(Boolean);
+    if (collection === 'config' || collection === 'eventos') return list;
+    return list.sort(compareNewestFirst);
   },
 
   getById(collection, id) {
@@ -124,11 +139,11 @@ export const DataService = {
     const record = {
       ...data,
       id,
-      createdAt: new Date().toISOString()
+      createdAt: data.createdAt || new Date().toISOString()
     };
     
     if (!store[collection]) store[collection] = [];
-    store[collection].push(record);
+    store[collection].unshift(record); // Always place newest at the top
     
     try { localStorage.setItem(`mb_${collection}`, JSON.stringify(store[collection])); } catch (e) {}
 
@@ -320,7 +335,7 @@ export const DataService = {
 
   getUltimosPresupuestos(limit = 5) {
     return [...store.presupuestos]
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .sort(compareNewestFirst)
       .slice(0, limit)
       .map(p => {
         const cli = store.clientes.find(c => c.id === p.clienteId);
@@ -330,7 +345,7 @@ export const DataService = {
 
   getUltimosPagos(limit = 5) {
     return [...store.pagos]
-      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+      .sort(compareNewestFirst)
       .slice(0, limit)
       .map(p => {
         const prov = store.proveedores.find(pr => pr.id === p.proveedorId);
@@ -340,7 +355,7 @@ export const DataService = {
 
   getUltimosCobros(limit = 5) {
     return [...store.cobros]
-      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+      .sort(compareNewestFirst)
       .slice(0, limit)
       .map(c => {
         const cli = store.clientes.find(cl => cl.id === c.clienteId);

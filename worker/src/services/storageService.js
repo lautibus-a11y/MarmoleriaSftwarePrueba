@@ -93,9 +93,9 @@ export class StorageService {
     const item = {
       ...payload,
       id: payload.id || (collection.substring(0, 3) + '-' + generateId().substring(3)),
-      createdAt: new Date().toISOString()
+      createdAt: payload.createdAt || new Date().toISOString()
     };
-    list.push(item);
+    list.unshift(item);
     await this.writeJSON(env, collection, list);
     return item;
   }

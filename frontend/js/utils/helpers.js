@@ -213,6 +213,46 @@ export function sortBy(arr, field, direction = 'asc') {
 }
 
 /**
+ * Comparator to sort items newest-first (most recent on top, older below).
+ * Prioritizes creation timestamp (createdAt), operational date (fecha / fechaInicio),
+ * then falls back to descending ID.
+ */
+export function compareNewestFirst(a, b) {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+
+  // 1. Check createdAt ISO timestamps
+  const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+  const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+  if (timeA && timeB && timeA !== timeB) {
+    return timeB - timeA;
+  }
+
+  // 2. Check operational date fields (fecha or fechaInicio)
+  const dateStrA = a.fecha || a.fechaInicio || '';
+  const dateStrB = b.fecha || b.fechaInicio || '';
+  if (dateStrA && dateStrB && dateStrA !== dateStrB) {
+    return new Date(dateStrB).getTime() - new Date(dateStrA).getTime();
+  }
+
+  // 3. If one has createdAt and the other doesn't
+  if (timeA !== timeB) {
+    return (timeB || 0) - (timeA || 0);
+  }
+
+  // 4. If one has fecha and the other doesn't
+  const dateNumA = dateStrA ? new Date(dateStrA).getTime() : 0;
+  const dateNumB = dateStrB ? new Date(dateStrB).getTime() : 0;
+  if (dateNumA !== dateNumB) {
+    return (dateNumB || 0) - (dateNumA || 0);
+  }
+
+  // 5. Fallback: descending ID (higher / later ID first)
+  return String(b.id || '').localeCompare(String(a.id || ''), undefined, { numeric: true });
+}
+
+/**
  * Filter array by search term across multiple fields
  */
 export function searchFilter(arr, term, fields) {

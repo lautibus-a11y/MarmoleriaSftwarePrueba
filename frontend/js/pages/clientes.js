@@ -3,7 +3,7 @@
    ======================================== */
 
 import { DataService } from '../services/mockData.js';
-import { formatCurrency, formatDate, searchFilter, escapeHtml, debounce } from '../utils/helpers.js';
+import { formatCurrency, formatDate, searchFilter, escapeHtml, debounce, compareNewestFirst } from '../utils/helpers.js';
 import { Icons, renderDataTable, renderSearchInput, renderBadge, renderEmptyState } from '../components/ui.js';
 import { Drawer } from '../components/drawer.js';
 import { Toast } from '../components/toast.js';
@@ -79,7 +79,7 @@ export function renderClientes(container, actionsEl, path) {
             <span class="text-muted" style="font-size: var(--text-sm)">${filtered.length} clientes</span>
           </div>
         </div>
-        ${renderDataTable({ columns, data: filtered, emptyMessage: 'No hay clientes registrados' })}
+        ${renderDataTable({ columns, data: filtered.sort(compareNewestFirst), emptyMessage: 'No hay clientes registrados' })}
       </div>
     `;
 
@@ -393,7 +393,7 @@ function renderClienteDetail(container, actionsEl, clienteId) {
               render: (p) => `<a href="#/presupuestos/${p.id}" class="btn btn-ghost btn-icon btn-sm" title="Ver">${Icons.eye}</a>`
             }
           ],
-          data: presupuestos,
+          data: presupuestos.sort(compareNewestFirst),
           id: 'pres-table'
         }) : '<div class="card"><div class="card-body text-center text-muted" style="padding:var(--space-8)">No hay presupuestos registrados para este cliente</div></div>'}
       </div>
@@ -410,7 +410,7 @@ function renderClienteDetail(container, actionsEl, clienteId) {
               render: (o) => `<a href="#/obras/${o.id}" class="btn btn-ghost btn-icon btn-sm" title="Ver">${Icons.eye}</a>`
             }
           ],
-          data: obras,
+          data: obras.sort(compareNewestFirst),
           id: 'obras-table'
         }) : '<div class="card"><div class="card-body text-center text-muted" style="padding:var(--space-8)">No hay obras registradas para este cliente</div></div>'}
       </div>
@@ -423,7 +423,7 @@ function renderClienteDetail(container, actionsEl, clienteId) {
             { label: 'Método', render: (c) => escapeHtml(c.metodoPago) },
             { label: 'Observaciones', render: (c) => escapeHtml(c.observaciones || '-'), className: 'cell-secondary' }
           ],
-          data: cobros,
+          data: cobros.sort(compareNewestFirst),
           id: 'cobros-table'
         }) : '<div class="card"><div class="card-body text-center text-muted" style="padding:var(--space-8)">No hay cobros registrados para este cliente</div></div>'}
       </div>
