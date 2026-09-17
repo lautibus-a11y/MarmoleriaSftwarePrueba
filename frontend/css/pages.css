@@ -862,6 +862,82 @@
   border-radius: var(--radius-full);
 }
 
+.agenda-calendar-circle-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--color-stone-900);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.agenda-calendar-circle-icon svg {
+  width: 16px;
+  height: 16px;
+  stroke: #ffffff;
+}
+
+/* ── Mobile Calendar View Switcher (Debajo de la cabecera) ── */
+.calendar-mobile-view-bar {
+  display: none;
+  width: 100%;
+  margin-bottom: var(--space-3);
+  background: var(--color-stone-100);
+  padding: 4px;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-stone-200);
+  gap: 6px;
+  box-sizing: border-box;
+}
+
+.cal-mobile-view-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 16px;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  border: none;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--color-stone-600);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  width: 100%;
+}
+
+.cal-mobile-view-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.cal-mobile-view-btn.active {
+  background: var(--color-stone-900);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.cal-mobile-view-btn:active {
+  transform: scale(0.98);
+}
+
+@media (max-width: 768px) {
+  .calendar-mobile-view-bar {
+    display: flex;
+  }
+
+  .calendar-actions-wrapper .view-toggle-group {
+    display: none !important;
+  }
+}
+
 .agenda-cards-list {
   display: flex;
   flex-direction: column;

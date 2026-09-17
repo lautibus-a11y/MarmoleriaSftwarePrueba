@@ -110,8 +110,21 @@ export function renderCalendario(container, actionsEl, path) {
       </div>
     `;
 
+    const mobileViewBarHtml = `
+      <!-- Switcher Vista en móvil (debajo de la cabecera) -->
+      <div class="calendar-mobile-view-bar">
+        <button type="button" class="cal-mobile-view-btn ${currentView === 'agenda' ? 'active' : ''}" id="cal-mobile-btn-agenda">
+          ${Icons.clock} <span>Agenda</span>
+        </button>
+        <button type="button" class="cal-mobile-view-btn ${currentView === 'mes' ? 'active' : ''}" id="cal-mobile-btn-mes">
+          ${Icons.calendar} <span>Mes</span>
+        </button>
+      </div>
+    `;
+
     if (currentView === 'agenda') {
       container.innerHTML = `
+        ${mobileViewBarHtml}
         ${topBarHtml}
         <div class="agenda-view-container">
           ${renderAgendaContent(events, todayStr)}
@@ -119,6 +132,7 @@ export function renderCalendario(container, actionsEl, path) {
       `;
     } else {
       container.innerHTML = `
+        ${mobileViewBarHtml}
         ${topBarHtml}
         <div class="month-view-container">
           ${renderMonthCalendar(year, month, events, todayStr, selectedDateStr)}
@@ -188,12 +202,14 @@ export function renderCalendario(container, actionsEl, path) {
         `}
       </div>
 
-      <!-- SECCIÓN PRÓXIMOS TRABAJOS -->
+      <!-- SECCIÓN CALENDARIO SEMANAL -->
       <div class="agenda-section">
         <div class="agenda-section-header">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="agenda-section-badge-upcoming">PRÓXIMOS TRABAJOS</span>
-            <h3 class="agenda-section-title">Calendario semanal y próximos días</h3>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="agenda-calendar-circle-icon">
+              ${Icons.calendar}
+            </div>
+            <h3 class="agenda-section-title">Calendario semanal</h3>
           </div>
           <span class="text-muted" style="font-size:12px;font-weight:var(--font-semibold)">${upcomingEvents.length} programados</span>
         </div>
@@ -394,6 +410,16 @@ export function renderCalendario(container, actionsEl, path) {
   }
 
   function attachCalendarEvents() {
+    document.getElementById('cal-mobile-btn-agenda')?.addEventListener('click', () => {
+      currentView = 'agenda';
+      render();
+    });
+
+    document.getElementById('cal-mobile-btn-mes')?.addEventListener('click', () => {
+      currentView = 'mes';
+      render();
+    });
+
     document.getElementById('cal-prev-month')?.addEventListener('click', () => {
       currentDate.setMonth(currentDate.getMonth() - 1);
       render();
