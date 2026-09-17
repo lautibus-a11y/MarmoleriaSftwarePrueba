@@ -55,10 +55,10 @@ class App {
           <div class="page-header-left">
             <h1 class="page-title" id="page-title">Inicio</h1>
           </div>
-          <div style="display:flex;align-items:center;gap:var(--space-2)">
-            <button class="btn btn-ghost btn-icon" id="btn-header-notifs" title="Centro de alertas operativas" aria-label="Notificaciones" style="position:relative;padding:8px">
+          <div class="page-header-right" id="page-header-right">
+            <button class="header-notif-btn" id="btn-header-notifs" title="Centro de alertas operativas" aria-label="Notificaciones">
               ${Icons.bell}
-              <span id="header-notifs-badge" style="display:none;position:absolute;top:2px;right:2px;background:#DC2626;color:#ffffff;font-size:10px;font-weight:700;border-radius:10px;min-width:18px;height:18px;line-height:14px;text-align:center;padding:1px 4px;border:2px solid var(--color-stone-100)">0</span>
+              <span id="header-notifs-badge">0</span>
             </button>
             <div class="page-header-actions" id="page-header-actions"></div>
           </div>

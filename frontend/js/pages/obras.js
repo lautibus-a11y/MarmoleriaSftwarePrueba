@@ -120,131 +120,6 @@ export function renderObras(container, actionsEl, path) {
     }
   };
 
-  function openObraForm(editId = null, onSaved = null) {
-    const obra = (editId ? DataService.getById('obras', editId) : null) || {};
-    const isEdit = !!editId && !!obra.id;
-    const clientes = DataService.getAll('clientes').filter(Boolean);
-
-    Drawer.open({
-      title: isEdit ? `Planificar / Editar Obra #${obra.id}` : 'Nueva obra',
-      size: 'lg',
-      content: `
-        <form id="obra-form">
-          ${(obra.presupuestoNumero || obra.presupuestoId) ? `
-            <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:var(--radius-md);padding:10px 14px;margin-bottom:var(--space-4);display:flex;align-items:center;justify-content:space-between;gap:8px">
-              <div>
-                <span style="font-weight:var(--font-bold);color:#1E40AF">Vinculada a Presupuesto:</span>
-                <a href="#/presupuestos/${obra.presupuestoId}" style="font-weight:var(--font-bold);text-decoration:underline;color:#1D4ED8;margin-left:4px">
-                  ${escapeHtml(obra.presupuestoNumero || '#' + obra.presupuestoId)}
-                </a>
-              </div>
-              <span class="badge badge-success" style="font-weight:var(--font-bold)">Importe: ${formatCurrency(obra.importe || DataService.getObraTotal(obra.id))}</span>
-            </div>
-          ` : ''}
-
-          <div class="form-group">
-            <label class="form-label">Cliente <span class="required">*</span></label>
-            <select class="form-select" name="clienteId">
-              <option value="">Seleccionar cliente...</option>
-              ${clientes.map(c => `<option value="${c.id}" ${String(obra.clienteId) === String(c.id) ? 'selected' : ''}>${escapeHtml(c.nombre)} ${escapeHtml(c.apellido || '')}</option>`).join('')}
-            </select>
-            ${obra.clienteNombre && !obra.clienteId ? `<small class="text-muted" style="display:block;margin-top:4px">Cliente registrado originalmente: <strong>${escapeHtml(obra.clienteNombre)}</strong></small>` : ''}
-          </div>
-
-          <div class="form-row-2">
-            <div class="form-group">
-              <label class="form-label">Contacto / Teléfono</label>
-              <input type="text" class="form-input" name="contacto" value="${escapeHtml(obra.contacto || obra.telefono || '')}" placeholder="Teléfono o WhatsApp">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Dirección de obra</label>
-              <input type="text" class="form-input" name="direccion" value="${escapeHtml(obra.direccion || '')}" placeholder="Dirección de colocación">
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Descripción del trabajo</label>
-            <input type="text" class="form-input" name="descripcion" value="${escapeHtml(obra.descripcion || '')}" placeholder="Descripción de los trabajos">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Material/es</label>
-            <input type="text" class="form-input" name="material" value="${escapeHtml(obra.material || '')}" placeholder="Ej: Granito Negro Boreal, Silestone Blanco">
-          </div>
-
-          <!-- Bloque de Planificación -->
-          <div style="background:var(--color-stone-50);border:1px solid var(--color-stone-200);border-radius:var(--radius-md);padding:var(--space-3);margin-bottom:var(--space-3)">
-            <h4 style="font-size:var(--text-sm);font-weight:var(--font-bold);margin-bottom:var(--space-2);color:var(--color-stone-700);display:flex;align-items:center;gap:6px">
-              ${Icons.calendar} Planificación de Taller e Instalación
-            </h4>
-            <div class="form-row-2">
-              <div class="form-group">
-                <label class="form-label">Fecha de inicio</label>
-                <input type="date" class="form-input" name="fechaInicio" value="${obra.fechaInicio || new Date().toISOString().split('T')[0]}">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Fecha estimada de entrega</label>
-                <input type="date" class="form-input" name="fechaEstimada" value="${obra.fechaEstimada || ''}">
-              </div>
-            </div>
-            <div class="form-row-2">
-              <div class="form-group mb-0">
-                <label class="form-label">Responsable / Taller</label>
-                <input type="text" class="form-input" name="responsable" value="${escapeHtml(obra.responsable || '')}" placeholder="Encargado o instalador asignado">
-              </div>
-              <div class="form-group mb-0">
-                <label class="form-label">Estado de la obra</label>
-                <select class="form-select" name="estado">
-                  ${Object.entries(OBRA_ESTADO_LABELS).map(([k, v]) => `<option value="${k}" ${(obra.estado || 'pendiente') === k ? 'selected' : ''}>${v}</option>`).join('')}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Observaciones técnicas / Instrucciones para el taller</label>
-            <textarea class="form-textarea" name="observaciones" rows="3" placeholder="Detalles de bacha, inglete, plantilla, notas de colocación...">${escapeHtml(obra.observaciones || '')}</textarea>
-          </div>
-        </form>
-      `,
-      footer: `
-        <button class="btn btn-secondary" id="drawer-cancel">Cancelar</button>
-        <button class="btn btn-primary" id="drawer-save">${isEdit ? 'Guardar cambios' : 'Crear obra'}</button>
-      `
-    });
-
-    document.getElementById('drawer-cancel').addEventListener('click', () => Drawer.close());
-    document.getElementById('drawer-save').addEventListener('click', () => {
-      const fd = new FormData(document.getElementById('obra-form'));
-      const data = Object.fromEntries(fd);
-      if (!data.clienteId && !obra.clienteNombre) {
-        Toast.warning('Seleccioná un cliente para la obra');
-        return;
-      }
-      if (data.contacto) {
-        data.telefono = data.contacto;
-      }
-      let saved;
-      if (isEdit) {
-        // Preserva datos presupuestados originales como items, presupuestoId, importe, archivos
-        saved = DataService.update('obras', editId, { ...obra, ...data });
-        Toast.success('Obra actualizada con éxito');
-      } else {
-        data.archivos = [];
-        data.estado = data.estado || 'pendiente';
-        saved = DataService.create('obras', data);
-        Toast.success('Obra creada con éxito');
-      }
-      Drawer.close();
-      if (onSaved) {
-        onSaved(saved);
-      } else {
-        obras = DataService.getAll('obras');
-        render();
-      }
-    });
-  }
-
   async function handleDelete(id) {
     const confirmed = await confirmDialog({ title: 'Eliminar obra', message: '¿Estás seguro de eliminar esta obra?', confirmText: 'Eliminar', type: 'danger' });
     if (confirmed) {
@@ -256,6 +131,129 @@ export function renderObras(container, actionsEl, path) {
   }
 
   render();
+}
+
+export function openObraForm(editId = null, onSaved = null) {
+  const obra = (editId ? DataService.getById('obras', editId) : null) || {};
+  const isEdit = !!editId && !!obra.id;
+  const clientes = DataService.getAll('clientes').filter(Boolean);
+
+  Drawer.open({
+    title: isEdit ? `Planificar / Editar Obra #${obra.id}` : 'Nueva obra',
+    size: 'lg',
+    content: `
+      <form id="obra-form">
+        ${(obra.presupuestoNumero || obra.presupuestoId) ? `
+          <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:var(--radius-md);padding:10px 14px;margin-bottom:var(--space-4);display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div>
+              <span style="font-weight:var(--font-bold);color:#1E40AF">Vinculada a Presupuesto:</span>
+              <a href="#/presupuestos/${obra.presupuestoId}" style="font-weight:var(--font-bold);text-decoration:underline;color:#1D4ED8;margin-left:4px">
+                ${escapeHtml(obra.presupuestoNumero || '#' + obra.presupuestoId)}
+              </a>
+            </div>
+            <span class="badge badge-success" style="font-weight:var(--font-bold)">Importe: ${formatCurrency(obra.importe || DataService.getObraTotal(obra.id))}</span>
+          </div>
+        ` : ''}
+
+        <div class="form-group">
+          <label class="form-label">Cliente <span class="required">*</span></label>
+          <select class="form-select" name="clienteId">
+            <option value="">Seleccionar cliente...</option>
+            ${clientes.map(c => `<option value="${c.id}" ${String(obra.clienteId) === String(c.id) ? 'selected' : ''}>${escapeHtml(c.nombre)} ${escapeHtml(c.apellido || '')}</option>`).join('')}
+          </select>
+          ${obra.clienteNombre && !obra.clienteId ? `<small class="text-muted" style="display:block;margin-top:4px">Cliente registrado originalmente: <strong>${escapeHtml(obra.clienteNombre)}</strong></small>` : ''}
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">Contacto / Teléfono</label>
+            <input type="text" class="form-input" name="contacto" value="${escapeHtml(obra.contacto || obra.telefono || '')}" placeholder="Teléfono o WhatsApp">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Dirección de obra</label>
+            <input type="text" class="form-input" name="direccion" value="${escapeHtml(obra.direccion || '')}" placeholder="Dirección de colocación">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Descripción del trabajo</label>
+          <input type="text" class="form-input" name="descripcion" value="${escapeHtml(obra.descripcion || '')}" placeholder="Descripción de los trabajos">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Material/es</label>
+          <input type="text" class="form-input" name="material" value="${escapeHtml(obra.material || '')}" placeholder="Ej: Granito Negro Boreal, Silestone Blanco">
+        </div>
+
+        <!-- Bloque de Planificación -->
+        <div style="background:var(--color-stone-50);border:1px solid var(--color-stone-200);border-radius:var(--radius-md);padding:var(--space-3);margin-bottom:var(--space-3)">
+          <h4 style="font-size:var(--text-sm);font-weight:var(--font-bold);margin-bottom:var(--space-2);color:var(--color-stone-700);display:flex;align-items:center;gap:6px">
+            ${Icons.calendar} Planificación de Taller e Instalación
+          </h4>
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label">Fecha de inicio</label>
+              <input type="date" class="form-input" name="fechaInicio" value="${obra.fechaInicio || new Date().toISOString().split('T')[0]}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Fecha estimada de entrega</label>
+              <input type="date" class="form-input" name="fechaEstimada" value="${obra.fechaEstimada || ''}">
+            </div>
+          </div>
+          <div class="form-row-2">
+            <div class="form-group mb-0">
+              <label class="form-label">Responsable / Taller</label>
+              <input type="text" class="form-input" name="responsable" value="${escapeHtml(obra.responsable || '')}" placeholder="Encargado o instalador asignado">
+            </div>
+            <div class="form-group mb-0">
+              <label class="form-label">Estado de la obra</label>
+              <select class="form-select" name="estado">
+                ${Object.entries(OBRA_ESTADO_LABELS).map(([k, v]) => `<option value="${k}" ${(obra.estado || 'pendiente') === k ? 'selected' : ''}>${v}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Observaciones técnicas / Instrucciones para el taller</label>
+          <textarea class="form-textarea" name="observaciones" rows="3" placeholder="Detalles de bacha, inglete, plantilla, notas de colocación...">${escapeHtml(obra.observaciones || '')}</textarea>
+        </div>
+      </form>
+    `,
+    footer: `
+      <button class="btn btn-secondary" id="drawer-cancel">Cancelar</button>
+      <button class="btn btn-primary" id="drawer-save">${isEdit ? 'Guardar cambios' : 'Crear obra'}</button>
+    `
+  });
+
+  document.getElementById('drawer-cancel').addEventListener('click', () => Drawer.close());
+  document.getElementById('drawer-save').addEventListener('click', () => {
+    const fd = new FormData(document.getElementById('obra-form'));
+    const data = Object.fromEntries(fd);
+    if (!data.clienteId && !obra.clienteNombre) {
+      Toast.warning('Seleccioná un cliente para la obra');
+      return;
+    }
+    if (data.contacto) {
+      data.telefono = data.contacto;
+    }
+    let saved;
+    if (isEdit) {
+      saved = DataService.update('obras', editId, { ...obra, ...data });
+      Toast.success('Obra actualizada con éxito');
+    } else {
+      data.archivos = [];
+      data.estado = data.estado || 'pendiente';
+      saved = DataService.create('obras', data);
+      Toast.success('Obra creada con éxito');
+    }
+    Drawer.close();
+    if (onSaved) {
+      onSaved(saved);
+    } else {
+      window.location.hash = `#/obras/${saved.id}`;
+    }
+  });
 }
 
 function renderObraDetail(container, actionsEl, obraId) {

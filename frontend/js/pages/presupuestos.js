@@ -15,6 +15,7 @@ import { PRESUPUESTO_ESTADO_LABELS, PRESUPUESTO_ESTADO_COLORS, CONDICIONES_COMER
 import { openEventoForm } from './calendario.js';
 import { openDescontarStockObraModal } from '../services/stockAutomation.js';
 import { openClienteForm } from './clientes.js';
+import { openObraForm } from './obras.js';
 
 let isApprovingPresupuesto = false;
 
@@ -1314,7 +1315,12 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
 
   actionsEl.innerHTML = `
     <a href="#/presupuestos" class="btn btn-secondary">${Icons['chevron-left']} Volver</a>
-    <button class="btn btn-primary" id="btn-edit-header">${Icons.edit} Editar presupuesto</button>
+    <button class="btn btn-secondary" id="btn-edit-header">${Icons.edit} Editar presupuesto</button>
+    ${pres.obraId ? `
+      <button class="btn btn-primary" id="btn-header-planificar" style="font-weight:var(--font-semibold);gap:6px">
+        ${Icons.edit} Planificar obra
+      </button>
+    ` : ''}
   `;
 
   const adic = pres.adicionales || {};
@@ -1331,28 +1337,53 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
   container.innerHTML = `
     <!-- Action buttons bar -->
     <div class="card mb-4">
-      <div class="card-body" style="display:flex;gap:var(--space-2);flex-wrap:wrap">
-        <button class="btn btn-secondary" id="btn-edit-detail" style="flex:1;min-width:120px;justify-content:center;font-weight:var(--font-semibold)">${Icons.edit} Editar</button>
+      <div class="card-body" style="display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center">
+        <button class="btn btn-secondary" id="btn-edit-detail" style="flex:1;min-width:110px;justify-content:center;font-weight:var(--font-semibold)">${Icons.edit} Editar</button>
         <button class="btn btn-secondary" id="btn-agendar-pres" style="flex:1;min-width:140px;justify-content:center;font-weight:var(--font-semibold)">${Icons.calendar} Agendar trabajo</button>
-        <button class="btn btn-success" id="btn-share-modal" style="flex:1;min-width:130px;justify-content:center;background:#25D366;color:#fff;border-color:#25D366;font-weight:var(--font-bold)">${Icons.whatsapp} Compartir</button>
+        <button class="btn btn-success" id="btn-share-modal" style="flex:1;min-width:120px;justify-content:center;background:#25D366;color:#fff;border-color:#25D366;font-weight:var(--font-bold)">${Icons.whatsapp} Compartir</button>
         <button class="btn btn-pdf" id="btn-pdf" style="flex:1;min-width:130px;justify-content:center">${Icons['file-pdf']} Descargar PDF</button>
         <button class="btn btn-word" id="btn-word" style="flex:1;min-width:130px;justify-content:center">${Icons['file-word']} Descargar Word</button>
-        <button class="btn btn-secondary" id="btn-preview" style="flex:1;min-width:130px;justify-content:center">${Icons.eye} Vista previa</button>
+        <button class="btn btn-secondary" id="btn-preview" style="flex:1;min-width:120px;justify-content:center">${Icons.eye} Vista previa</button>
         ${pres.estado !== 'aprobado' ? `
           <button class="btn btn-success" id="btn-aprobar" style="flex:1.5;min-width:160px;justify-content:center;background:#059669;color:#fff;border-color:#059669;font-weight:var(--font-bold);box-shadow:0 4px 12px rgba(5,150,105,0.25)">
             ${Icons.check} Aprobar presupuesto
           </button>
-        ` : (pres.obraId ? `
-          <a href="#/obras/${pres.obraId}" class="btn btn-primary" id="btn-ver-obra" style="flex:1.5;min-width:160px;justify-content:center;font-weight:var(--font-bold);box-shadow:0 4px 12px rgba(230,81,0,0.25)">
-            ${Icons['hard-hat']} Ver Obra vinculada #${pres.obraId}
-          </a>
-        ` : `
+        ` : (!pres.obraId ? `
           <button class="btn btn-primary" id="btn-crear-obra" style="flex:1.5;min-width:160px;justify-content:center;font-weight:var(--font-bold);box-shadow:0 4px 12px rgba(230,81,0,0.25)">
             ${Icons['hard-hat']} Generar Obra
           </button>
-        `)}
+        ` : '')}
       </div>
     </div>
+
+    ${pres.obraId ? `
+      <div class="card mb-4" style="border-left: 4px solid var(--color-primary); background: rgba(230, 81, 0, 0.04); border-color: rgba(230,81,0,0.25);">
+        <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap;padding:16px 20px">
+          <div style="display:flex;align-items:center;gap:14px;min-width:260px">
+            <div style="width:44px;height:44px;border-radius:var(--radius-md);background:rgba(230,81,0,0.12);display:flex;align-items:center;justify-content:center;color:var(--color-primary);font-size:22px;flex-shrink:0">
+              ${Icons['hard-hat']}
+            </div>
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <strong style="font-size:var(--text-base);color:var(--color-stone-900)">Obra Vinculada #${escapeHtml(pres.obraId)}</strong>
+                <span class="badge badge-warning" style="font-weight:var(--font-bold)">En Planificación</span>
+              </div>
+              <p class="text-muted" style="margin:3px 0 0 0;font-size:var(--text-xs)">
+                Obra generada automáticamente al aprobar el presupuesto. Podés planificar fechas, tareas y medidas o acceder directamente a su ficha de seguimiento.
+              </p>
+            </div>
+          </div>
+          <div style="display:flex;gap:var(--space-2);flex-wrap:wrap">
+            <button type="button" class="btn btn-primary" id="btn-planificar-obra-direct" style="font-weight:var(--font-bold);gap:6px">
+              ${Icons.edit} Planificar obra
+            </button>
+            <a href="#/obras/${pres.obraId}" class="btn btn-secondary" style="font-weight:var(--font-semibold);gap:6px">
+              ${Icons['hard-hat']} Ir a la Obra →
+            </a>
+          </div>
+        </div>
+      </div>
+    ` : ''}
 
     ${(() => {
       if (!cliente) return '';
@@ -1494,6 +1525,19 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
   };
   document.getElementById('btn-edit-header')?.addEventListener('click', handleEdit);
   document.getElementById('btn-edit-detail')?.addEventListener('click', handleEdit);
+
+  // Planificar obra vinculada
+  const handlePlanificarObra = () => {
+    if (!pres.obraId) {
+      Toast.warning('Este presupuesto no tiene una obra vinculada');
+      return;
+    }
+    openObraForm(pres.obraId, () => {
+      renderPresupuestoDetail(container, actionsEl, presId);
+    });
+  };
+  document.getElementById('btn-header-planificar')?.addEventListener('click', handlePlanificarObra);
+  document.getElementById('btn-planificar-obra-direct')?.addEventListener('click', handlePlanificarObra);
 
   // Completar datos de cliente desde el banner de alerta
   document.getElementById('btn-completar-cliente-pres')?.addEventListener('click', (e) => {
