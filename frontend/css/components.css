@@ -398,6 +398,26 @@
 
 .table-wrapper {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.table-wrapper::-webkit-scrollbar {
+  height: 6px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+  background: var(--color-stone-100);
+  border-radius: 3px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+  background: var(--color-stone-300);
+  border-radius: 3px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--color-stone-400);
 }
 
 .data-table {
@@ -485,7 +505,15 @@
 .data-table .cell-actions {
   text-align: right;
   white-space: nowrap;
-  min-width: 150px;
+  min-width: 140px;
+  padding-right: var(--space-4);
+}
+
+.data-table .table-actions-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
 }
 
 .data-table .cell-actions .btn-icon,

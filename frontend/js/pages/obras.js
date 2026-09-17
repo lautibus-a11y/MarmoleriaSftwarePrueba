@@ -30,22 +30,20 @@ export function renderObras(container, actionsEl, path) {
 
     const clientes = DataService.getAll('clientes');
     const columns = [
-      { label: 'Cliente', render: (o) => {
+      { label: 'Cliente y Obra', render: (o) => {
         const c = clientes.find(c => String(c.id) === String(o.clienteId));
         const cliName = c ? `${c.nombre} ${c.apellido || ''}`.trim() : (o.clienteNombre || 'Cliente sin asignar');
-        const shortId = (o.id && o.id.length > 8) ? o.id.slice(-5).toUpperCase() : o.id;
+        const shortId = (o.id && o.id.length > 8) ? o.id.slice(-6).toUpperCase() : o.id;
         return `<div>
-          <span class="cell-primary" style="font-weight:var(--font-semibold);display:block">${escapeHtml(cliName)}</span>
-          <span class="cell-mono" style="font-size:11px;color:var(--color-stone-400)">Obra #${shortId}</span>
+          <span class="cell-primary" style="font-weight:var(--font-semibold);display:block;line-height:1.3">${escapeHtml(cliName)}</span>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:2px;font-size:11px">
+            <span class="cell-mono" style="color:var(--color-primary);font-weight:var(--font-bold)">#${shortId}</span>
+            ${o.presupuestoNumero ? `<a href="#/presupuestos/${o.presupuestoId}" class="badge badge-neutral" style="font-family:var(--font-mono);font-size:10px;padding:1px 6px;text-decoration:none" title="Ver presupuesto">${escapeHtml(o.presupuestoNumero)}</a>` : ''}
+          </div>
         </div>`;
       }},
-      { label: 'Presupuesto', render: (o) => {
-        if (o.presupuestoNumero) return `<a href="#/presupuestos/${o.presupuestoId}" class="badge badge-neutral" style="font-family:var(--font-mono);font-size:11px;font-weight:var(--font-bold);text-decoration:none">${escapeHtml(o.presupuestoNumero)}</a>`;
-        if (o.presupuestoId) return `<a href="#/presupuestos/${o.presupuestoId}" class="badge badge-neutral">#${o.presupuestoId}</a>`;
-        return '<span class="text-muted" style="font-size:11px">Directa</span>';
-      }},
-      { label: 'Dirección', render: (o) => `<span class="text-truncate" style="max-width:180px;display:inline-block" title="${escapeHtml(o.direccion || '')}">${escapeHtml(o.direccion || '-')}</span>` },
-      { label: 'Material', render: (o) => `<span class="text-truncate cell-secondary" style="max-width:150px;display:inline-block" title="${escapeHtml(o.material || '')}">${escapeHtml(o.material || '-')}</span>` },
+      { label: 'Dirección', render: (o) => `<span class="text-truncate" style="max-width:170px;display:inline-block" title="${escapeHtml(o.direccion || '')}">${escapeHtml(o.direccion || '-')}</span>` },
+      { label: 'Material', render: (o) => `<span class="text-truncate cell-secondary" style="max-width:140px;display:inline-block" title="${escapeHtml(o.material || '')}">${escapeHtml(o.material || '-')}</span>` },
       { label: 'Estado', render: (o) => renderBadge(OBRA_ESTADO_LABELS[o.estado] || o.estado, OBRA_ESTADO_COLORS[o.estado] || 'neutral') },
       { label: 'Saldo', align: 'right', render: (o) => {
         const t = DataService.getObraTotal(o.id);
@@ -53,17 +51,15 @@ export function renderObras(container, actionsEl, path) {
         const saldo = t - c;
         return `<div>
           <span class="cell-currency" style="font-weight:var(--font-bold);color:${saldo > 0 ? 'var(--color-stone-900)' : 'var(--color-success)'}">${formatCurrency(saldo)}</span>
-          ${t > 0 ? `<div style="font-size:10.5px;color:var(--color-stone-500)">Cobrado: ${Math.round(c / t * 100)}%</div>` : ''}
+          ${t > 0 ? `<div style="font-size:10.5px;color:var(--color-stone-400)">Cobrado: ${Math.round(c / t * 100)}%</div>` : ''}
         </div>`;
       }},
-      { label: 'Acciones', align: 'right', className: 'cell-actions', render: (o) => `
-        <div style="display:inline-flex;align-items:center;justify-content:flex-end;gap:5px">
-          <button class="btn btn-outline-primary btn-sm" data-action="edit" data-id="${o.id}" title="Planificar / Editar obra" style="padding:4px 10px;gap:5px;font-size:12px;font-weight:var(--font-semibold);display:inline-flex;align-items:center;color:var(--color-primary);border-color:var(--color-primary)">
-            ${Icons.edit} <span>Editar</span>
-          </button>
-          <button class="btn btn-ghost btn-icon btn-sm" data-action="view" data-id="${o.id}" title="Ver">${Icons.eye}</button>
+      { label: '', align: 'right', className: 'cell-actions', render: (o) => `
+        <div class="table-actions-group">
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="view" data-id="${o.id}" title="Ver detalle de obra">${Icons.eye}</button>
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="edit" data-id="${o.id}" title="Planificar / Editar obra" style="color:var(--color-primary)">${Icons.edit}</button>
           <button class="btn btn-ghost btn-icon btn-sm" data-action="export" data-id="${o.id}" title="Exportar Ficha / Orden">${Icons.download}</button>
-          <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-id="${o.id}" title="Eliminar" style="color:var(--color-error)">${Icons.trash}</button>
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-id="${o.id}" title="Eliminar obra" style="color:var(--color-error)">${Icons.trash}</button>
         </div>
       `}
     ];
@@ -80,7 +76,7 @@ export function renderObras(container, actionsEl, path) {
           </div>
           <div class="table-toolbar-right"><span class="text-muted" style="font-size:var(--text-sm)">${filtered.length} obras</span></div>
         </div>
-        ${renderDataTable({ columns, data: filtered.sort(compareNewestFirst), emptyMessage: 'No hay obras registradas' })}
+        ${renderDataTable({ columns, data: filtered.sort(compareNewestFirst), emptyMessage: 'No hay obras registradas', onRowClick: true })}
       </div>
     `;
 
