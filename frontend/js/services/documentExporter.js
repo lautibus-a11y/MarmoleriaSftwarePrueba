@@ -839,26 +839,27 @@ export async function generatePdfBlob(elementOrHtml, filename = 'documento') {
       targetEl = elementOrHtml;
     }
 
-    // Wait for all images inside targetEl to load
+    // Wait for all images inside targetEl to load with safety timeout
     const images = targetEl.querySelectorAll('img');
     if (images.length > 0) {
       await Promise.all(Array.from(images).map(img => {
         if (img.complete) return Promise.resolve();
         return new Promise(resolve => {
-          img.addEventListener('load', resolve, { once: true });
-          img.addEventListener('error', resolve, { once: true });
+          const timer = setTimeout(resolve, 250);
+          img.addEventListener('load', () => { clearTimeout(timer); resolve(); }, { once: true });
+          img.addEventListener('error', () => { clearTimeout(timer); resolve(); }, { once: true });
         });
       }));
     }
 
-    await new Promise(resolve => setTimeout(resolve, 150));
+    await new Promise(resolve => setTimeout(resolve, 60));
 
     const opt = {
       margin: [8, 8, 8, 8],
       filename: cleanFilename,
-      image: { type: 'jpeg', quality: 0.98 },
+      image: { type: 'jpeg', quality: 0.95 },
       html2canvas: {
-        scale: 2,
+        scale: 1.8,
         useCORS: true,
         logging: false,
         letterRendering: true,
@@ -917,68 +918,94 @@ export async function shareViaWhatsAppAndPdf({
   const cleanPhone = formatWhatsAppPhone(phone);
   const cleanFilename = `${filename.replace(/[^a-zA-Z0-9_\-\.]/g, '_')}.pdf`;
 
-  // Detectar si es un dispositivo móvil real (celular o tablet Android / iOS)
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
+  // Detectar si es un dispositivo móvil real (celular o tablet Android / iOS / iPadOS)
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator?.userAgent || '') ||
+    (typeof navigator !== 'undefined' && navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /Macintosh/i.test(navigator.userAgent));
 
-  // URL para abrir WhatsApp:
-  // En computadoras (Mac / Windows / Linux) abrimos WhatsApp Web directamente
-  // En móviles abrimos el enlace profundo de WhatsApp
-  const waUrl = isMobile
-    ? (cleanPhone ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(text)}` : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`)
-    : (cleanPhone ? `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(text)}` : `https://web.whatsapp.com/`);
-
-  // Copiar el texto al portapapeles de inmediato por conveniencia
-  if (navigator.clipboard && text) {
+  // Copiar el texto al portapapeles de inmediato por conveniencia si está disponible
+  if (typeof navigator !== 'undefined' && navigator.clipboard && text) {
     navigator.clipboard.writeText(text).catch(() => {});
   }
 
-  // 1. En Celulares / Tablets con soporte nativo de archivos:
-  if (isMobile && typeof navigator !== 'undefined' && typeof navigator.canShare === 'function') {
-    Toast.info('Preparando documento', 'Generando PDF para WhatsApp...');
-    try {
-      const pdfBlob = await generatePdfBlob(htmlContent, filename);
-      if (pdfBlob) {
-        const file = new File([pdfBlob], cleanFilename, { type: 'application/pdf' });
-        if (navigator.canShare({ files: [file] })) {
+  // =========================================================================
+  // 1. EN CELULARES / TABLETS (Android / iOS):
+  // Usar el menú nativo de Compartir del celular para adjuntar el PDF DIRECTO a WhatsApp
+  // NUNCA descargar el archivo en la memoria del celular.
+  // =========================================================================
+  if (isMobile) {
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        let pdfFile = null;
+        if (htmlContent && typeof window !== 'undefined' && typeof window.html2pdf === 'function') {
+          Toast.info('Preparando WhatsApp', 'Generando PDF para adjuntar...');
+          const pdfBlob = await generatePdfBlob(htmlContent, filename);
+          if (pdfBlob) {
+            pdfFile = new File([pdfBlob], cleanFilename, { type: 'application/pdf' });
+          }
+        }
+
+        // Si el navegador móvil soporta compartir archivos nativamente
+        if (pdfFile && typeof navigator.canShare === 'function' && navigator.canShare({ files: [pdfFile] })) {
           await navigator.share({
             title: title || filename,
             text: text,
-            files: [file]
+            files: [pdfFile]
           });
-          Toast.success('Compartido', 'Documento en PDF y mensaje enviados con éxito');
+          Toast.success('Compartido', 'Documento en PDF adjuntado y listo para enviar');
           return true;
         }
+      } catch (err) {
+        // Si el usuario canceló la hoja de compartir (AbortError), no hacer nada
+        if (err.name === 'AbortError') {
+          return false;
+        }
+        console.warn('Share nativo con archivo no disponible o falló:', err);
       }
-    } catch (err) {
-      if (err.name === 'AbortError') return false;
-      console.warn('Fallo en share nativo móvil, continuando con apertura directa:', err);
     }
+
+    // Si el navegador móvil no soporta compartir archivos o falló el share nativo:
+    // Abrir DIRECTO la APP de WhatsApp en el celular ¡SIN DESCARGAR NINGÚN ARCHIVO!
+    Toast.info('Abriendo WhatsApp', 'Iniciando chat en la aplicación...');
+    const mobileWaUrl = cleanPhone 
+      ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(text)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+
+    window.location.href = mobileWaUrl;
+    return true;
   }
 
-  // 2. En Mac, PC de escritorio o si el share nativo no aplica:
-  // Abrimos WhatsApp Web INMEDIATAMENTE de forma sincrónica al clic para que Safari o Chrome en Mac NO lo bloqueen
+  // =========================================================================
+  // 2. EN PC / MAC (ESCRITORIO):
+  // Mantiene el comportamiento actual:
+  // - Abre WhatsApp Web en nueva pestaña
+  // - Descarga el PDF para arrastrarlo al chat
+  // =========================================================================
+  const desktopWaUrl = cleanPhone 
+    ? `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(text)}`
+    : `https://web.whatsapp.com/`;
+
   let waWindow = null;
   try {
-    waWindow = window.open(waUrl, '_blank');
+    waWindow = window.open(desktopWaUrl, '_blank');
   } catch (e) {
     console.warn('Bloqueador de ventanas emergentes activo:', e);
   }
 
   Toast.info('Abriendo WhatsApp Web', 'Preparando y descargando PDF...');
 
-  // Descargar el archivo PDF en paralelo en la máquina del usuario
+  // Descargar el archivo PDF en paralelo en la máquina del usuario (solo en PC)
   try {
     if (htmlContent) {
       await exportToPdf(htmlContent, filename);
     }
   } catch (err) {
-    console.error('Error al generar PDF para descargar:', err);
+    console.error('Error al generar PDF para descargar en PC:', err);
   }
 
   // Si por alguna configuración estricta de Safari o Chrome no abrió la ventana inicialmente, reintentar
   if (!waWindow || waWindow.closed) {
     try {
-      window.open(waUrl, '_blank');
+      window.open(desktopWaUrl, '_blank');
     } catch (e) {}
   }
 
