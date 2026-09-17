@@ -27,15 +27,7 @@ export function renderProveedores(container, actionsEl, path = '/proveedores') {
       { label: 'CUIT', render: (p) => `<span class="cell-mono cell-secondary">${escapeHtml(p.cuit||'-')}</span>` },
       { label: 'Teléfono', render: (p) => {
         const contact = resolveEntityContact(p);
-        const tel = contact.phone || contact.whatsapp || '-';
-        const wa = contact.whatsapp || contact.phone;
-        if (!wa) return `<span class="text-muted">${escapeHtml(tel)}</span>`;
-        return `<div style="display:inline-flex;align-items:center;gap:6px">
-          <span>${escapeHtml(tel)}</span>
-          <button class="btn btn-ghost btn-icon btn-sm" data-action="whatsapp" data-id="${p.id}" title="Enviar WhatsApp a ${escapeHtml(contact.name)}" style="color:#25D366;width:24px;height:24px;padding:0" onclick="event.stopPropagation()">
-            ${Icons.whatsapp}
-          </button>
-        </div>`;
+        return escapeHtml(contact.phone || contact.whatsapp || '-');
       }},
       { label: 'Contacto', render: (p) => escapeHtml(p.contacto||'-'), className: 'cell-secondary' },
       { label: 'Saldo', align: 'right', render: (p) => {
