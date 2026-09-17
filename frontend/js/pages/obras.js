@@ -335,45 +335,6 @@ function renderObraDetail(container, actionsEl, obraId) {
       </div>
     </div>
 
-    <!-- Quick Operations & Actions Bar -->
-    <div class="card mb-4" style="border:1px solid var(--color-stone-200);background:var(--color-stone-50)">
-      <div class="card-body" style="padding:var(--space-3) var(--space-4)">
-        <!-- 4 Action buttons grid: 2x2 on Mobile, 4 in a row on Desktop -->
-        <div class="obra-actions-grid mb-3">
-          <button class="btn btn-primary obra-action-btn" id="btn-obra-edit-action">
-            ${Icons.edit} <span>Editar</span>
-          </button>
-          <button class="btn btn-secondary obra-action-btn" id="btn-obra-agendar">
-            ${Icons.calendar} <span>Agendar colocación</span>
-          </button>
-          <button class="btn btn-secondary obra-action-btn" id="btn-obra-quick-stock" style="color:var(--color-stone-800)">
-            ${Icons.box} <span>Descontar materiales</span>
-          </button>
-          <button class="btn btn-secondary obra-action-btn" id="btn-obra-quick-cobro" style="color:var(--color-stone-800)">
-            ${Icons.plus} <span>Registrar cobros</span>
-          </button>
-        </div>
-
-        <!-- Export & View Actions Below (2-column grid on mobile) -->
-        <div class="obra-secondary-grid">
-          <button class="btn btn-secondary btn-sm obra-secondary-btn" id="btn-obra-preview">
-            ${Icons.eye} <span>Vista previa</span>
-          </button>
-          <button class="btn btn-pdf btn-sm obra-secondary-btn" id="btn-obra-pdf">
-            ${Icons['file-pdf']} <span>Ficha PDF</span>
-          </button>
-          <button class="btn btn-word btn-sm obra-secondary-btn" id="btn-obra-word">
-            ${Icons['file-word']} <span>Ficha Word</span>
-          </button>
-          ${(cliente?.whatsapp || obra.contacto || obra.telefono) ? `
-            <button class="btn btn-secondary btn-sm obra-secondary-btn" id="btn-obra-whatsapp" style="color:#15803D;border-color:#BBF7D0;background:#F0FDF4">
-              ${Icons.whatsapp} <span>WhatsApp</span>
-            </button>
-          ` : ''}
-        </div>
-      </div>
-    </div>
-
     <!-- Tabbed Navigation -->
     <div class="tabs-container">
       <div class="tabs-header">
@@ -577,6 +538,45 @@ function renderObraDetail(container, actionsEl, obraId) {
           <div class="card-header"><h3 class="card-title">Observaciones Técnicas e Instrucciones para el Taller</h3></div>
           <div class="card-body"><p style="color:var(--color-stone-700);white-space:pre-wrap;margin:0;line-height:1.5">${escapeHtml(obra.observaciones)}</p></div>
         </div>` : ''}
+      </div>
+    </div>
+
+    <!-- Quick Operations & Actions Bar (Abajo de todo) -->
+    <div class="card mb-4" style="border:1px solid var(--color-stone-200);background:var(--color-stone-50);margin-top:var(--space-4)">
+      <div class="card-body" style="padding:var(--space-3) var(--space-4)">
+        <!-- 4 Action buttons grid: 2x2 on Mobile, 4 in a row on Desktop -->
+        <div class="obra-actions-grid mb-3">
+          <button class="btn btn-primary obra-action-btn" id="btn-obra-edit-action">
+            ${Icons.edit} <span>Editar</span>
+          </button>
+          <button class="btn btn-secondary obra-action-btn" id="btn-obra-agendar">
+            ${Icons.calendar} <span>Agendar colocación</span>
+          </button>
+          <button class="btn btn-secondary obra-action-btn" id="btn-obra-quick-stock" style="color:var(--color-stone-800)">
+            ${Icons.box} <span>Descontar materiales</span>
+          </button>
+          <button class="btn btn-secondary obra-action-btn" id="btn-obra-quick-cobro" style="color:var(--color-stone-800)">
+            ${Icons.plus} <span>Registrar cobros</span>
+          </button>
+        </div>
+
+        <!-- Export & View Actions Below (2-column grid on mobile) -->
+        <div class="obra-secondary-grid">
+          <button class="btn btn-secondary btn-sm obra-secondary-btn" id="btn-obra-preview">
+            ${Icons.eye} <span>Vista previa</span>
+          </button>
+          <button class="btn btn-pdf btn-sm obra-secondary-btn" id="btn-obra-pdf">
+            ${Icons['file-pdf']} <span>Ficha PDF</span>
+          </button>
+          <button class="btn btn-word btn-sm obra-secondary-btn" id="btn-obra-word">
+            ${Icons['file-word']} <span>Ficha Word</span>
+          </button>
+          ${(cliente?.whatsapp || obra.contacto || obra.telefono) ? `
+            <button class="btn btn-secondary btn-sm obra-secondary-btn" id="btn-obra-whatsapp" style="color:#15803D;border-color:#BBF7D0;background:#F0FDF4">
+              ${Icons.whatsapp} <span>WhatsApp</span>
+            </button>
+          ` : ''}
+        </div>
       </div>
     </div>
   `;
