@@ -164,6 +164,9 @@ export const DataService = {
 
   create(collection, data) {
     const id = data.id || (collection.substring(0, 3) + '-' + generateId());
+    if ((collection === 'clientes' || collection === 'proveedores') && data.telefono && !data.whatsapp) {
+      data.whatsapp = data.telefono;
+    }
     const record = {
       ...data,
       id,

@@ -171,6 +171,44 @@ console.log('\n--- 3. BOTONES DE ACCIÓN EN PRESUPUESTOS ---');
   assert(presActionsFound.has('delete'), 'Acción "delete" presente en presupuestos');
 }
 
+// ── 3.5. BOTONES DE WHATSAPP EN PROVEEDORES (ANTES Y DENTRO) ──
+console.log('\n--- 3.5. BOTONES DE WHATSAPP EN PROVEEDORES ---');
+{
+  let testProv = DataService.getAll('proveedores')[0];
+  if (!testProv) {
+    testProv = DataService.create('proveedores', {
+      nombre: 'Marmolería Proveedora S.A.',
+      telefono: '11 4455 6677',
+      whatsapp: '5491144556677'
+    });
+  } else if (!testProv.telefono && !testProv.whatsapp) {
+    DataService.update('proveedores', testProv.id, {
+      telefono: '11 4455 6677',
+      whatsapp: '5491144556677'
+    });
+    testProv = DataService.getById('proveedores', testProv.id);
+  }
+
+  // 1. Antes de entrar: tabla de proveedores
+  renderProveedores(container, actions);
+  const waBtnTable = container.querySelector('button[data-action="whatsapp"]');
+  assert(!!waBtnTable, 'Botón de WhatsApp presente en filas de tabla de proveedores (antes de entrar)');
+  assert(waBtnTable.innerHTML.includes('<svg'), 'Botón de WhatsApp de la tabla contiene SVG');
+
+  // 2. Dentro del proveedor: vista detalle
+  renderProveedores(container, actions, `/proveedores/${testProv.id}`);
+  const waBtnDetail = actions.querySelector('#btn-prov-wa');
+  assert(!!waBtnDetail, 'Botón de acción rápida #btn-prov-wa presente en la cabecera del detalle del proveedor');
+  assert(waBtnDetail.innerHTML.includes('<svg'), 'Botón de WhatsApp del detalle contiene SVG');
+
+  const waHeaderLink = container.querySelector('.detail-header-meta a[href*="wa.me"]');
+  assert(!!waHeaderLink, 'Chip con enlace directo de WhatsApp presente en el encabezado del proveedor');
+  assert(waHeaderLink.innerHTML.includes('<svg'), 'Chip de WhatsApp en encabezado contiene SVG');
+
+  const waDatosLink = container.querySelector('#tab-datos a[href*="wa.me"]');
+  assert(!!waDatosLink, 'Enlace de WhatsApp presente en la pestaña Datos del proveedor');
+}
+
 // ── 4. APERTURA Y CIERRE DE DRAWERS DE FORMULARIOS ──
 console.log('\n--- 4. DRAWERS Y FORMULARIOS DE ALTA ---');
 {
