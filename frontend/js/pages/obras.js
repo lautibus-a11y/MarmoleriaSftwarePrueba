@@ -136,7 +136,7 @@ export function openObraForm(editId = null, onSaved = null) {
   const clientes = DataService.getAll('clientes').filter(Boolean);
 
   Drawer.open({
-    title: isEdit ? `Planificar / Editar Obra #${obra.id}` : 'Nueva obra',
+    title: isEdit ? `Editar Obra #${obra.id}` : 'Nueva obra',
     size: 'lg',
     content: `
       <form id="obra-form">
@@ -268,7 +268,7 @@ function renderObraDetail(container, actionsEl, obraId) {
   const itemsList = (obra.items && obra.items.length > 0) ? obra.items : (pres?.items && pres.items.length > 0 ? pres.items : []);
 
   actionsEl.innerHTML = `
-    <button class="btn btn-primary" id="btn-obra-edit-top">${Icons.edit} Planificar / Editar</button>
+    <button class="btn btn-primary" id="btn-obra-edit-top">${Icons.edit} Editar</button>
     <a href="#/obras" class="btn btn-secondary">${Icons['chevron-left']} Volver a Obras</a>
   `;
 
@@ -337,23 +337,25 @@ function renderObraDetail(container, actionsEl, obraId) {
 
     <!-- Quick Operations & Actions Bar -->
     <div class="card mb-4" style="border:1px solid var(--color-stone-200);background:var(--color-stone-50)">
-      <div class="card-body" style="display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;justify-content:space-between;padding:12px var(--space-4)">
-        <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center">
-          <button class="btn btn-primary" id="btn-obra-edit-action">${Icons.edit} Planificar taller</button>
-          <button class="btn btn-secondary" id="btn-obra-agendar">${Icons.calendar} Agendar colocación</button>
-          ${!obra.stockDescontado ? `
-            <button class="btn btn-primary" id="btn-obra-quick-stock" style="background:#0284c7;border-color:#0284c7">
-              ${Icons.box} Descontar materiales
-            </button>
-          ` : ''}
-          ${saldoPendiente > 0 ? `
-            <button class="btn btn-secondary" id="btn-obra-quick-cobro" style="color:var(--color-success);border-color:var(--color-success)">
-              ${Icons.plus} Registrar cobro
-            </button>
-          ` : ''}
+      <div class="card-body" style="padding:var(--space-3) var(--space-4)">
+        <!-- 4 Action buttons grid: 2x2 on Mobile, 4 in a row on Desktop -->
+        <div class="obra-actions-grid mb-3">
+          <button class="btn btn-primary obra-action-btn" id="btn-obra-edit-action">
+            ${Icons.edit} <span>Editar</span>
+          </button>
+          <button class="btn btn-secondary obra-action-btn" id="btn-obra-agendar">
+            ${Icons.calendar} <span>Agendar colocación</span>
+          </button>
+          <button class="btn btn-secondary obra-action-btn" id="btn-obra-quick-stock" style="color:var(--color-stone-800)">
+            ${Icons.box} <span>Descontar materiales</span>
+          </button>
+          <button class="btn btn-secondary obra-action-btn" id="btn-obra-quick-cobro" style="color:var(--color-stone-800)">
+            ${Icons.plus} <span>Registrar cobros</span>
+          </button>
         </div>
 
-        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <!-- Export & View Actions Below -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end;padding-top:10px;border-top:1px solid var(--color-stone-200)">
           <button class="btn btn-secondary btn-sm" id="btn-obra-preview">${Icons.eye} Vista previa</button>
           <button class="btn btn-pdf btn-sm" id="btn-obra-pdf">${Icons['file-pdf']} Ficha PDF</button>
           <button class="btn btn-word btn-sm" id="btn-obra-word">${Icons['file-word']} Ficha Word</button>

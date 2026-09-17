@@ -1319,4 +1319,47 @@
   }
 }
 
+/* ── Obra Detail Actions Grid ── */
+.obra-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.obra-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  border-radius: var(--radius-md);
+  text-align: center;
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.obra-action-btn svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+@media (max-width: 768px) {
+  .obra-actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .obra-action-btn {
+    padding: 10px 8px;
+    font-size: var(--text-xs);
+    min-height: 46px;
+    white-space: normal;
+  }
+}
+
 
