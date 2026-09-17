@@ -1335,35 +1335,6 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
   }).filter(([, v]) => v > 0);
 
   container.innerHTML = `
-    ${pres.obraId ? `
-      <div class="card mb-4" style="border-left: 4px solid var(--color-primary); background: rgba(230, 81, 0, 0.04); border-color: rgba(230,81,0,0.25);">
-        <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap;padding:16px 20px">
-          <div style="display:flex;align-items:center;gap:14px;min-width:260px">
-            <div style="width:44px;height:44px;border-radius:var(--radius-md);background:rgba(230,81,0,0.12);display:flex;align-items:center;justify-content:center;color:var(--color-primary);font-size:22px;flex-shrink:0">
-              ${Icons['hard-hat']}
-            </div>
-            <div>
-              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                <strong style="font-size:var(--text-base);color:var(--color-stone-900)">Obra Vinculada #${escapeHtml(pres.obraId)}</strong>
-                <span class="badge badge-warning" style="font-weight:var(--font-bold)">En Planificación</span>
-              </div>
-              <p class="text-muted" style="margin:3px 0 0 0;font-size:var(--text-xs)">
-                Obra generada automáticamente al aprobar el presupuesto. Podés planificar fechas, tareas y medidas o acceder directamente a su ficha de seguimiento.
-              </p>
-            </div>
-          </div>
-          <div style="display:flex;gap:var(--space-2);flex-wrap:wrap">
-            <button type="button" class="btn btn-primary" id="btn-planificar-obra-direct" style="font-weight:var(--font-bold);gap:6px">
-              ${Icons.edit} Planificar obra
-            </button>
-            <a href="#/obras/${pres.obraId}" class="btn btn-secondary" style="font-weight:var(--font-semibold);gap:6px">
-              ${Icons['hard-hat']} Ir a la Obra →
-            </a>
-          </div>
-        </div>
-      </div>
-    ` : ''}
-
     ${(() => {
       if (!cliente) return '';
       const missing = [];
