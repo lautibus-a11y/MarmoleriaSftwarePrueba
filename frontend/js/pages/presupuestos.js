@@ -10,7 +10,7 @@ import { Modal } from '../components/modal.js';
 import { Toast } from '../components/toast.js';
 import { confirmDialog } from '../components/confirmDialog.js';
 import { DocumentModal } from '../components/documentModal.js';
-import { generatePresupuestoHtml, exportToPdf, exportToWord, shareViaWhatsAppAndPdf } from '../services/documentExporter.js';
+import { generatePresupuestoHtml, exportToPdf, exportToWord, shareViaWhatsAppAndPdf, openDirectWhatsAppChat } from '../services/documentExporter.js';
 import { PRESUPUESTO_ESTADO_LABELS, PRESUPUESTO_ESTADO_COLORS, CONDICIONES_COMERCIALES_DEFAULT, MONEDAS } from '../utils/constants.js';
 import { openEventoForm } from './calendario.js';
 import { openDescontarStockObraModal } from '../services/stockAutomation.js';
@@ -1306,18 +1306,24 @@ export function renderPresupuestos(container, actionsEl, path = '/presupuestos')
         <div style="display:flex;flex-direction:column;gap:var(--space-3)">
           <!-- WhatsApp -->
           <div class="card" style="border:1.5px solid #25D366;background:rgba(37,211,102,0.06);padding:var(--space-3);border-radius:var(--radius-lg)">
-            <div style="font-size:var(--text-xs);font-weight:var(--font-bold);color:#128C7E;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px">
-              ${Icons.whatsapp} Enviar por WhatsApp con copia en PDF
+            <div style="font-size:var(--text-xs);font-weight:var(--font-bold);color:#128C7E;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+              ${Icons.whatsapp} Opciones de WhatsApp
             </div>
             <div class="form-group mb-2">
-              <label class="form-label-sm" style="font-size:12px">Teléfono / WhatsApp de destino</label>
-              <div style="display:flex;gap:6px">
-                <input type="text" class="form-input" id="share-modal-phone" value="${escapeHtml(cleanPhone)}" placeholder="Ej: 5491145678901">
-                <button type="button" class="btn btn-success" id="share-modal-wa-btn" style="background:#25D366;color:#fff;border-color:#25D366;white-space:nowrap;font-weight:var(--font-bold)">
-                  ${Icons.whatsapp} Enviar + Descargar PDF
+              <label class="form-label-sm" style="font-size:12px;margin-bottom:4px;display:block">Teléfono / WhatsApp de destino</label>
+              <input type="text" class="form-input" id="share-modal-phone" value="${escapeHtml(cleanPhone)}" placeholder="Ej: 5491145678901" style="margin-bottom:10px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <button type="button" class="btn btn-success" id="share-modal-share-pdf-btn" style="background:#25D366;color:#fff;border-color:#25D366;justify-content:center;font-weight:var(--font-bold);font-size:12.5px;padding:9px 4px">
+                  ${Icons.share || Icons.whatsapp} Compartir PDF por WPP
+                </button>
+                <button type="button" class="btn" id="share-modal-chat-btn" style="background:#128C7E;color:#fff;border-color:#128C7E;justify-content:center;font-weight:var(--font-bold);font-size:12.5px;padding:9px 4px">
+                  ${Icons.whatsapp} Hablar por WPP
                 </button>
               </div>
-              <span class="text-muted" style="font-size:11px;display:block;margin-top:4px">Descarga automáticamente el PDF en tu equipo y abre WhatsApp con el mensaje listo para enviar</span>
+              <span class="text-muted" style="font-size:11px;display:block;margin-top:6px;line-height:1.3">
+                <strong>Compartir PDF por WPP:</strong> Adjunta el archivo PDF en el chat.<br>
+                <strong>Hablar por WPP:</strong> Abre el chat directo con el cliente y aviso de presupuesto listo.
+              </span>
             </div>
           </div>
 
@@ -1354,7 +1360,7 @@ export function renderPresupuestos(container, actionsEl, path = '/presupuestos')
     document.getElementById('share-modal-close')?.addEventListener('click', () => Modal.close());
     document.getElementById('share-modal-detail-link')?.addEventListener('click', () => Modal.close());
 
-    document.getElementById('share-modal-wa-btn')?.addEventListener('click', async () => {
+    document.getElementById('share-modal-share-pdf-btn')?.addEventListener('click', async () => {
       const phoneInput = document.getElementById('share-modal-phone');
       const phone = phoneInput ? phoneInput.value.replace(/\D/g, '') : cleanPhone;
       await shareViaWhatsAppAndPdf({
@@ -1362,6 +1368,16 @@ export function renderPresupuestos(container, actionsEl, path = '/presupuestos')
         text: shareMsg,
         htmlContent: getDocHtml(),
         filename: docFilename
+      });
+    });
+
+    document.getElementById('share-modal-chat-btn')?.addEventListener('click', () => {
+      const phoneInput = document.getElementById('share-modal-phone');
+      const phone = phoneInput ? phoneInput.value.replace(/\D/g, '') : cleanPhone;
+      const readyMsg = `Hola ${contact.name ? contact.name + '! ' : ''}Te avisamos que ya está listo tu presupuesto ${pres.numero} de Marmolería Benjamin por un total de ${formatCurrency(total, pres.moneda)}.\n\nDescripción: ${pres.descripcion || 'Presupuesto a medida'}\n\nQuedamos a tu disposición para coordinar. ¡Saludos!`;
+      openDirectWhatsAppChat({
+        phone,
+        text: readyMsg
       });
     });
 

@@ -9,7 +9,7 @@ import { Drawer } from '../components/drawer.js';
 import { Toast } from '../components/toast.js';
 import { confirmDialog } from '../components/confirmDialog.js';
 import { DocumentModal } from '../components/documentModal.js';
-import { generateObraHtml, exportToPdf, exportToWord, shareViaWhatsAppAndPdf } from '../services/documentExporter.js';
+import { generateObraHtml, exportToPdf, exportToWord, shareViaWhatsAppAndPdf, openDirectWhatsAppChat } from '../services/documentExporter.js';
 import { OBRA_ESTADO_LABELS, OBRA_ESTADO_COLORS } from '../utils/constants.js';
 import { openDescontarStockObraModal } from '../services/stockAutomation.js';
 import { openCobroForm } from './cobros.js';
@@ -638,8 +638,11 @@ function renderObraDetail(container, actionsEl, obraId) {
             ${Icons['file-word']} <span>Ficha Word</span>
           </button>
           ${(cliente?.whatsapp || obra.contacto || obra.telefono) ? `
-            <button class="btn btn-secondary btn-sm obra-secondary-btn" id="btn-obra-whatsapp" style="color:#15803D;border-color:#BBF7D0;background:#F0FDF4" title="Enviar ficha por WhatsApp y descargar copia en PDF">
-              ${Icons.whatsapp} <span>WhatsApp + PDF</span>
+            <button class="btn btn-secondary btn-sm obra-secondary-btn" id="btn-obra-share-pdf" style="color:#15803D;border-color:#BBF7D0;background:#F0FDF4" title="Compartir ficha técnica en PDF por WhatsApp">
+              ${Icons.share || Icons.whatsapp} <span>Compartir PDF por WPP</span>
+            </button>
+            <button class="btn btn-secondary btn-sm obra-secondary-btn" id="btn-obra-chat" style="color:#128C7E;border-color:#99F6E4;background:#F0FDFA" title="Abrir chat directo con el cliente">
+              ${Icons.whatsapp} <span>Hablar por WPP</span>
             </button>
           ` : ''}
         </div>
@@ -651,7 +654,7 @@ function renderObraDetail(container, actionsEl, obraId) {
   const getDocHtml = () => generateObraHtml(obra, cliente, pres, cobros);
   const docFilename = `Ficha_Obra_${obra.id}`;
 
-  document.getElementById('btn-obra-whatsapp')?.addEventListener('click', async () => {
+  document.getElementById('btn-obra-share-pdf')?.addEventListener('click', async () => {
     const contact = resolveEntityContact(cliente, { clienteNombre: obra.clienteNombre, telefono: obra.contacto || obra.telefono });
     const msg = `Hola! Te envío la información de la obra #${obra.id} (${obra.descripcion || 'Obra'}) de Marmolería Benjamin.\n\nDirección: ${obra.direccion || '-'}\nEstado: ${OBRA_ESTADO_LABELS[obra.estado] || obra.estado || '-'}\n\nAdjunto la ficha completa en PDF. ¡Saludos!`;
     await shareViaWhatsAppAndPdf({
@@ -659,6 +662,15 @@ function renderObraDetail(container, actionsEl, obraId) {
       text: msg,
       htmlContent: getDocHtml(),
       filename: docFilename
+    });
+  });
+
+  document.getElementById('btn-obra-chat')?.addEventListener('click', () => {
+    const contact = resolveEntityContact(cliente, { clienteNombre: obra.clienteNombre, telefono: obra.contacto || obra.telefono });
+    const readyMsg = `Hola ${contact.name ? contact.name + '! ' : ''}Te avisamos que tu obra #${obra.id} (${obra.descripcion || 'Obra'}) de Marmolería Benjamin se encuentra en estado "${OBRA_ESTADO_LABELS[obra.estado] || obra.estado || 'en proceso'}". Dirección: ${obra.direccion || '-'}. Quedamos a tu disposición para coordinar. ¡Saludos!`;
+    openDirectWhatsAppChat({
+      phone: contact.whatsapp || contact.phone,
+      text: readyMsg
     });
   });
 

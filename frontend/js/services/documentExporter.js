@@ -1092,3 +1092,17 @@ export async function shareViaWhatsAppAndPdf({
   return true;
 }
 
+// ── 9. Abrir chat directo con el cliente / proveedor con mensaje predefinido ──
+export function openDirectWhatsAppChat({ phone = '', text = '' }) {
+  const cleanPhone = formatWhatsAppPhone(phone);
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator?.userAgent || '') ||
+    (typeof navigator !== 'undefined' && navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /Macintosh/i.test(navigator.userAgent));
+
+  const url = isMobile
+    ? (cleanPhone ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(text)}` : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`)
+    : (cleanPhone ? `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(text)}` : `https://web.whatsapp.com/`);
+
+  window.open(url, '_blank');
+}
+
+

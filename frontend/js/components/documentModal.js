@@ -3,7 +3,7 @@
    ========================================================= */
 
 import { Icons } from './ui.js';
-import { exportToPdf, exportToWord, printDocument, shareViaWhatsAppAndPdf } from '../services/documentExporter.js';
+import { exportToPdf, exportToWord, printDocument, shareViaWhatsAppAndPdf, openDirectWhatsAppChat } from '../services/documentExporter.js';
 import { Toast } from './toast.js';
 
 let modalEl = null;
@@ -30,8 +30,11 @@ export const DocumentModal = {
           </div>
           <div class="doc-modal-toolbar-actions">
             ${whatsappData ? `
-              <button class="btn btn-sm" id="btn-doc-modal-wa" style="background:#25D366;border-color:#25D366;color:#fff;font-weight:600" title="Descargar copia en PDF y abrir chat de WhatsApp">
-                ${Icons.whatsapp} <span>WhatsApp + PDF</span>
+              <button class="btn btn-sm" id="btn-doc-modal-share-pdf" style="background:#25D366;border-color:#25D366;color:#fff;font-weight:600" title="Compartir archivo PDF por WhatsApp">
+                ${Icons.share || Icons.whatsapp} <span>Compartir PDF por WPP</span>
+              </button>
+              <button class="btn btn-sm" id="btn-doc-modal-chat" style="background:#128C7E;border-color:#128C7E;color:#fff;font-weight:600" title="Abrir chat directo con el cliente">
+                ${Icons.whatsapp} <span>Hablar por WPP</span>
               </button>
             ` : ''}
             <button class="btn btn-pdf btn-sm" id="btn-doc-modal-pdf">
@@ -65,14 +68,21 @@ export const DocumentModal = {
     // Event listeners
     const sheetEl = modalEl.querySelector('#doc-sheet-content');
 
-    // WhatsApp + PDF button
+    // WhatsApp buttons
     if (whatsappData) {
-      modalEl.querySelector('#btn-doc-modal-wa')?.addEventListener('click', async () => {
+      modalEl.querySelector('#btn-doc-modal-share-pdf')?.addEventListener('click', async () => {
         await shareViaWhatsAppAndPdf({
           phone: whatsappData.phone || '',
           text: whatsappData.text || '',
           htmlContent: sheetEl.innerHTML,
           filename: filename
+        });
+      });
+
+      modalEl.querySelector('#btn-doc-modal-chat')?.addEventListener('click', () => {
+        openDirectWhatsAppChat({
+          phone: whatsappData.phone || '',
+          text: whatsappData.text || ''
         });
       });
     }
