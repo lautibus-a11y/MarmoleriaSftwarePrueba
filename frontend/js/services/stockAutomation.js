@@ -121,7 +121,7 @@ export function openDescontarStockObraModal({ obra, presupuesto, onDone = null }
   `;
 
   Modal.open({
-    title: `${Icons.box} Salida de stock por obra`,
+    title: `${Icons.box} Descontar materiales`,
     size: 'lg',
     content: contentHtml
   });

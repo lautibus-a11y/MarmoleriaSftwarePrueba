@@ -63,9 +63,8 @@ export function renderClientes(container, actionsEl, path) {
       {
         label: '', field: 'actions', align: 'right', className: 'cell-actions',
         render: (item) => `
-          <button class="btn btn-ghost btn-icon btn-sm" data-action="view" data-id="${item.id}" title="Ver">${Icons.eye}</button>
-          <button class="btn btn-ghost btn-icon btn-sm" data-action="edit" data-id="${item.id}" title="Editar">${Icons.edit}</button>
-          <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-id="${item.id}" title="Eliminar">${Icons.trash}</button>
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="view" data-id="${item.id}" title="Ver ficha del cliente">${Icons.eye}</button>
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-id="${item.id}" title="Eliminar cliente" style="color:var(--color-error)">${Icons.trash}</button>
         `
       }
     ];

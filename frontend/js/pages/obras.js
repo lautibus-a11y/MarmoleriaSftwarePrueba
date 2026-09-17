@@ -58,8 +58,7 @@ export function renderObras(container, actionsEl, path) {
       }},
       { label: '', align: 'right', className: 'cell-actions', render: (o) => `
         <div class="table-actions-group">
-          <button class="btn btn-ghost btn-icon btn-sm" data-action="view" data-id="${o.id}" title="Ver detalle de obra">${Icons.eye}</button>
-          <button class="btn btn-ghost btn-icon btn-sm" data-action="edit" data-id="${o.id}" title="Planificar / Editar obra" style="color:var(--color-primary)">${Icons.edit}</button>
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="view" data-id="${o.id}" title="Ver ficha y detalle de obra">${Icons.eye}</button>
           <button class="btn btn-ghost btn-icon btn-sm" data-action="export" data-id="${o.id}" title="Exportar Ficha / Orden">${Icons.download}</button>
           <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-id="${o.id}" title="Eliminar obra" style="color:var(--color-error)">${Icons.trash}</button>
         </div>
@@ -262,202 +261,314 @@ function renderObraDetail(container, actionsEl, obraId) {
   const pres = obra.presupuestoId ? DataService.getById('presupuestos', obra.presupuestoId) : null;
   const total = DataService.getObraTotal(obraId);
   const cobrado = DataService.getObraCobrado(obraId);
+  const saldoPendiente = total - cobrado;
+  const porcentajeCobrado = total > 0 ? Math.min(100, Math.round((cobrado / total) * 100)) : 0;
   const cobros = DataService.getAll('cobros').filter(c => String(c.obraId) === String(obraId));
   const stockMovimientosObra = DataService.getAll('stockMovimientos').filter(m => String(m.obraId) === String(obraId) || (m.referencia && m.referencia.includes('#' + obraId)));
+  const itemsList = (obra.items && obra.items.length > 0) ? obra.items : (pres?.items && pres.items.length > 0 ? pres.items : []);
 
   actionsEl.innerHTML = `
-    <button class="btn btn-primary" id="btn-obra-edit-top">${Icons.edit} Planificar / Editar obra</button>
-    <a href="#/obras" class="btn btn-secondary">${Icons['chevron-left']} Volver</a>
+    <button class="btn btn-primary" id="btn-obra-edit-top">${Icons.edit} Planificar / Editar</button>
+    <a href="#/obras" class="btn btn-secondary">${Icons['chevron-left']} Volver a Obras</a>
   `;
 
   container.innerHTML = `
-    <!-- Action buttons bar -->
-    <div class="card mb-4">
-      <div class="card-body" style="display:flex;gap:var(--space-2);flex-wrap:wrap">
-        <button class="btn btn-primary" id="btn-obra-edit-action" style="flex:1;min-width:130px;justify-content:center">${Icons.edit} Planificar</button>
-        <button class="btn btn-secondary" id="btn-obra-agendar" style="flex:1;min-width:120px;justify-content:center">${Icons.calendar} Agendar</button>
-        <button class="btn btn-pdf" id="btn-obra-pdf" style="flex:1;min-width:120px;justify-content:center">${Icons['file-pdf']} Ficha PDF</button>
-        <button class="btn btn-word" id="btn-obra-word" style="flex:1;min-width:120px;justify-content:center">${Icons['file-word']} Ficha Word</button>
-        <button class="btn btn-secondary" id="btn-obra-preview" style="flex:1;min-width:120px;justify-content:center">${Icons.eye} Vista previa</button>
-        ${(cliente?.whatsapp || obra.contacto || obra.telefono) ? `<button class="btn btn-secondary" id="btn-obra-whatsapp" style="flex:1;min-width:120px;justify-content:center">${Icons.whatsapp} WhatsApp</button>` : ''}
-      </div>
-    </div>
-
-    <div class="card mb-4">
-      <div class="card-body">
-        <div class="flex justify-between items-start mb-4">
-          <div>
-            <h2 style="font-size:var(--text-xl);font-weight:var(--font-bold)">${escapeHtml(obra.descripcion || `Obra #${obra.id}`)}</h2>
-            <p class="text-muted">${escapeHtml(obra.direccion || 'Sin dirección registrada')}</p>
+    <!-- Hero Header Card -->
+    <div class="card mb-4" style="background:var(--color-surface);border:1px solid var(--color-stone-200);border-radius:var(--radius-lg);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
+      <div class="card-body" style="padding:var(--space-5)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-4);flex-wrap:wrap;margin-bottom:var(--space-3)">
+          <div style="flex:1;min-width:280px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+              <span class="badge badge-neutral" style="font-weight:var(--font-bold);font-size:var(--text-xs)">Obra #${obra.id}</span>
+              ${pres ? `<a href="#/presupuestos/${pres.id}" class="badge badge-info" style="text-decoration:none;font-size:var(--text-xs)">${Icons.file} Presupuesto: ${escapeHtml(pres.numero || '#' + pres.id)}</a>` : ''}
+              ${obra.responsable ? `<span class="badge badge-secondary" style="font-size:var(--text-xs)">Taller: ${escapeHtml(obra.responsable)}</span>` : ''}
+            </div>
+            <h2 style="font-size:var(--text-2xl);font-weight:var(--font-bold);color:var(--color-stone-900);margin:0 0 8px 0;line-height:1.2">
+              ${escapeHtml(obra.descripcion || `Obra #${obra.id}`)}
+            </h2>
+            <div style="display:flex;align-items:center;gap:var(--space-3);color:var(--color-stone-600);font-size:var(--text-sm);flex-wrap:wrap">
+              <span><strong>Cliente:</strong> ${cliente ? `<a href="#/clientes/${cliente.id}" style="color:var(--color-stone-900);font-weight:var(--font-semibold)">${escapeHtml(cliente.nombre)} ${escapeHtml(cliente.apellido || '')}</a>` : escapeHtml(obra.clienteNombre || 'Sin cliente')}</span>
+              <span>•</span>
+              <span><strong>Dirección:</strong> ${escapeHtml(obra.direccion || 'Sin dirección')}</span>
+              ${(obra.contacto || obra.telefono || cliente?.telefono || cliente?.whatsapp) ? `
+                <span>•</span>
+                <span><strong>Contacto:</strong> ${escapeHtml(obra.contacto || obra.telefono || cliente?.telefono || cliente?.whatsapp || '')}</span>
+              ` : ''}
+            </div>
           </div>
-          ${renderBadge(OBRA_ESTADO_LABELS[obra.estado] || obra.estado, OBRA_ESTADO_COLORS[obra.estado] || 'neutral')}
+          <div style="display:flex;align-items:center;gap:var(--space-2)">
+            ${renderBadge(OBRA_ESTADO_LABELS[obra.estado] || obra.estado, OBRA_ESTADO_COLORS[obra.estado] || 'neutral')}
+          </div>
         </div>
-        <div class="detail-list">
-          <div class="detail-item">
-            <span class="detail-label">Cliente</span>
-            <span class="detail-value">${cliente ? `<a href="#/clientes/${cliente.id}">${escapeHtml(cliente.nombre)} ${escapeHtml(cliente.apellido || '')}</a>` : escapeHtml(obra.clienteNombre || '-')}</span>
+
+        <!-- 4 Stat Metric Cards in a Grid -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:var(--space-3);margin-top:var(--space-4);padding-top:var(--space-4);border-top:1px solid var(--color-stone-200)">
+          <div style="background:var(--color-stone-50);padding:14px;border-radius:var(--radius-md);border:1px solid var(--color-stone-200)">
+            <div style="font-size:var(--text-xs);color:var(--color-stone-500);font-weight:var(--font-medium);text-transform:uppercase;letter-spacing:0.5px">Total Obra</div>
+            <div style="font-size:var(--text-xl);font-weight:var(--font-bold);color:var(--color-stone-900);margin-top:4px">${formatCurrency(total)}</div>
           </div>
-          <div class="detail-item">
-            <span class="detail-label">Contacto / Teléfono</span>
-            <span class="detail-value">${escapeHtml(obra.contacto || obra.telefono || cliente?.telefono || cliente?.whatsapp || '-')}</span>
+
+          <div style="background:var(--color-stone-50);padding:14px;border-radius:var(--radius-md);border:1px solid var(--color-stone-200)">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:var(--text-xs);color:var(--color-stone-500);font-weight:var(--font-medium);text-transform:uppercase;letter-spacing:0.5px">Cobrado</span>
+              <span style="font-size:var(--text-xs);font-weight:var(--font-bold);color:var(--color-success)">${porcentajeCobrado}%</span>
+            </div>
+            <div style="font-size:var(--text-xl);font-weight:var(--font-bold);color:var(--color-success);margin-top:4px">${formatCurrency(cobrado)}</div>
           </div>
-          <div class="detail-item">
-            <span class="detail-label">Dirección</span>
-            <span class="detail-value">${escapeHtml(obra.direccion || '-')}</span>
+
+          <div style="background:var(--color-stone-50);padding:14px;border-radius:var(--radius-md);border:1px solid var(--color-stone-200)">
+            <div style="font-size:var(--text-xs);color:var(--color-stone-500);font-weight:var(--font-medium);text-transform:uppercase;letter-spacing:0.5px">Saldo Pendiente</div>
+            <div style="font-size:var(--text-xl);font-weight:var(--font-bold);color:${saldoPendiente > 0 ? 'var(--color-warning)' : 'var(--color-success)'};margin-top:4px">${formatCurrency(saldoPendiente)}</div>
           </div>
-          <div class="detail-item">
-            <span class="detail-label">Material/es</span>
-            <span class="detail-value">${escapeHtml(obra.material || '-')}</span>
+
+          <div style="background:var(--color-stone-50);padding:14px;border-radius:var(--radius-md);border:1px solid var(--color-stone-200)">
+            <div style="font-size:var(--text-xs);color:var(--color-stone-500);font-weight:var(--font-medium);text-transform:uppercase;letter-spacing:0.5px">Stock Materiales</div>
+            <div style="margin-top:6px">
+              ${obra.stockDescontado ? `
+                <span class="badge badge-success" style="font-size:var(--text-xs);font-weight:var(--font-bold)">✓ Descontado</span>
+              ` : `
+                <span class="badge badge-warning" style="font-size:var(--text-xs);font-weight:var(--font-bold)">⚠️ Pendiente de salida</span>
+              `}
+            </div>
           </div>
-          <div class="detail-item">
-            <span class="detail-label">Fecha inicio</span>
-            <span class="detail-value">${formatDate(obra.fechaInicio)}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">Fecha estimada</span>
-            <span class="detail-value">${obra.fechaEstimada ? formatDate(obra.fechaEstimada) : '<span class="text-muted" style="font-style:italic">A definir en planificación</span>'}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">Responsable</span>
-            <span class="detail-value">${obra.responsable ? escapeHtml(obra.responsable) : '<span class="text-muted" style="font-style:italic">A asignar</span>'}</span>
-          </div>
-          ${pres ? `
-          <div class="detail-item">
-            <span class="detail-label">Presupuesto vinculado</span>
-            <span class="detail-value"><a href="#/presupuestos/${pres.id}" style="font-weight:var(--font-bold);color:var(--color-primary)">${escapeHtml(pres.numero || '#' + pres.id)}</a></span>
-          </div>` : (obra.presupuestoNumero ? `
-          <div class="detail-item">
-            <span class="detail-label">Presupuesto vinculado</span>
-            <span class="detail-value"><a href="#/presupuestos/${obra.presupuestoId || ''}" style="font-weight:var(--font-bold);color:var(--color-primary)">${escapeHtml(obra.presupuestoNumero)}</a></span>
-          </div>` : '')}
-          ${obra.fechaAprobacion ? `
-          <div class="detail-item">
-            <span class="detail-label">Fecha de aprobación</span>
-            <span class="detail-value">${formatDate(obra.fechaAprobacion)}</span>
-          </div>` : ''}
         </div>
       </div>
     </div>
 
-    <!-- Ítems / Trabajos presupuestados a fabricar -->
-    ${((obra.items && obra.items.length > 0) || (pres && pres.items && pres.items.length > 0)) ? `
-    <div class="card mb-4">
-      <div class="card-header flex justify-between items-center">
-        <h3 class="card-title" style="display:flex;align-items:center;gap:var(--space-2)">
-          ${Icons.file} Ítems y Trabajos Presupuestados (${(obra.items || pres.items).length})
-        </h3>
+    <!-- Quick Operations & Actions Bar -->
+    <div class="card mb-4" style="border:1px solid var(--color-stone-200);background:var(--color-stone-50)">
+      <div class="card-body" style="display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;justify-content:space-between;padding:12px var(--space-4)">
+        <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center">
+          <button class="btn btn-primary" id="btn-obra-edit-action">${Icons.edit} Planificar taller</button>
+          <button class="btn btn-secondary" id="btn-obra-agendar">${Icons.calendar} Agendar colocación</button>
+          ${!obra.stockDescontado ? `
+            <button class="btn btn-primary" id="btn-obra-quick-stock" style="background:#0284c7;border-color:#0284c7">
+              ${Icons.box} Descontar materiales
+            </button>
+          ` : ''}
+          ${saldoPendiente > 0 ? `
+            <button class="btn btn-secondary" id="btn-obra-quick-cobro" style="color:var(--color-success);border-color:var(--color-success)">
+              ${Icons.plus} Registrar cobro
+            </button>
+          ` : ''}
+        </div>
+
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-secondary btn-sm" id="btn-obra-preview">${Icons.eye} Vista previa</button>
+          <button class="btn btn-pdf btn-sm" id="btn-obra-pdf">${Icons['file-pdf']} Ficha PDF</button>
+          <button class="btn btn-word btn-sm" id="btn-obra-word">${Icons['file-word']} Ficha Word</button>
+          ${(cliente?.whatsapp || obra.contacto || obra.telefono) ? `
+            <button class="btn btn-secondary btn-sm" id="btn-obra-whatsapp">${Icons.whatsapp} WhatsApp</button>
+          ` : ''}
+        </div>
       </div>
-      <div class="card-body">
-        <div class="detail-items-list">
-          ${(obra.items || pres.items).map((item, idx) => {
-            const u = item.unidadMedida || ((item.largo > 10 || item.ancho > 10) ? 'cm' : 'm');
-            const m2Formatted = (item.m2 !== undefined && item.m2 !== null) ? Number(item.m2).toFixed(2).replace('.', ',') : '0,00';
-            return `
-            <div class="detail-item-card" style="padding:12px 14px;border:1px solid var(--color-stone-200);border-radius:var(--radius-md);margin-bottom:8px;background:var(--color-surface)">
-              <div class="detail-item-card-top" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                <span class="detail-item-card-desc"><strong>#${idx + 1}</strong> — ${escapeHtml(item.descripcion || `Ítem ${idx + 1}`)}</span>
-                <span class="badge badge-neutral" style="font-weight:var(--font-bold)">${escapeHtml(item.material || obra.material || 'Material s/ diseño')}</span>
-              </div>
-              <div class="detail-item-card-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:8px;font-size:var(--text-sm)">
-                <div><span class="text-muted">Cantidad:</span> <strong>${item.cantidad || 1}</strong></div>
-                <div><span class="text-muted">Medidas:</span> <strong>${item.largo ? item.largo + ' ' + u : '-'} × ${item.ancho ? item.ancho + ' ' + u : '-'}</strong></div>
-                <div><span class="text-muted">Superficie:</span> <strong style="color:var(--color-primary)">${m2Formatted} m²</strong></div>
-                ${item.subtotal ? `<div><span class="text-muted">Subtotal:</span> <strong>${formatCurrency(item.subtotal)}</strong></div>` : ''}
+    </div>
+
+    <!-- Tabbed Navigation -->
+    <div class="tabs-container">
+      <div class="tabs-header">
+        <button class="tab-btn active" data-tab="items">Trabajos e Ítems (${itemsList.length})</button>
+        <button class="tab-btn" data-tab="stock">Stock y Materiales</button>
+        <button class="tab-btn" data-tab="cobros">Cobranzas y Pagos (${cobros.length})</button>
+        <button class="tab-btn" data-tab="ficha">Ficha Técnica y Fechas</button>
+      </div>
+
+      <!-- TAB 1: ITEMS Y PIEZAS A FABRICAR -->
+      <div class="tab-content active" id="tab-items">
+        ${itemsList.length > 0 ? `
+          <div class="card">
+            <div class="card-header flex justify-between items-center">
+              <h3 class="card-title" style="display:flex;align-items:center;gap:var(--space-2)">
+                ${Icons.file} Ítems y Piezas a Fabricar (${itemsList.length})
+              </h3>
+            </div>
+            <div class="card-body">
+              <div class="detail-items-list">
+                ${itemsList.map((item, idx) => {
+                  const u = item.unidadMedida || ((item.largo > 10 || item.ancho > 10) ? 'cm' : 'm');
+                  const m2Formatted = (item.m2 !== undefined && item.m2 !== null) ? Number(item.m2).toFixed(2).replace('.', ',') : '0,00';
+                  return `
+                  <div class="detail-item-card" style="padding:14px 16px;border:1px solid var(--color-stone-200);border-radius:var(--radius-md);margin-bottom:10px;background:var(--color-surface)">
+                    <div class="detail-item-card-top" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+                      <span class="detail-item-card-desc" style="font-size:var(--text-base)"><strong>#${idx + 1}</strong> — ${escapeHtml(item.descripcion || `Ítem ${idx + 1}`)}</span>
+                      <span class="badge badge-neutral" style="font-weight:var(--font-bold)">${escapeHtml(item.material || obra.material || 'Material s/ diseño')}</span>
+                    </div>
+                    <div class="detail-item-card-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:10px;font-size:var(--text-sm)">
+                      <div><span class="text-muted">Cantidad:</span> <strong>${item.cantidad || 1} piezas</strong></div>
+                      <div><span class="text-muted">Medidas:</span> <strong>${item.largo ? item.largo + ' ' + u : '-'} × ${item.ancho ? item.ancho + ' ' + u : '-'}</strong></div>
+                      <div><span class="text-muted">Superficie:</span> <strong style="color:var(--color-primary)">${m2Formatted} m²</strong></div>
+                      ${item.subtotal ? `<div><span class="text-muted">Subtotal:</span> <strong>${formatCurrency(item.subtotal)}</strong></div>` : ''}
+                    </div>
+                  </div>
+                `;
+                }).join('')}
               </div>
             </div>
-          `;
-          }).join('')}
-        </div>
-      </div>
-    </div>` : ''}
-
-    <div class="detail-stats-row mb-4">
-      <div class="detail-stat-mini">
-        <span class="detail-stat-mini-label">Valor total</span>
-        <span class="detail-stat-mini-value">${formatCurrency(total)}</span>
-      </div>
-      <div class="detail-stat-mini">
-        <span class="detail-stat-mini-label">Cobrado</span>
-        <span class="detail-stat-mini-value" style="color:var(--color-success)">${formatCurrency(cobrado)}</span>
-      </div>
-      <div class="detail-stat-mini">
-        <span class="detail-stat-mini-label">Pendiente</span>
-        <span class="detail-stat-mini-value" style="color:var(--color-warning)">${formatCurrency(total - cobrado)}</span>
-      </div>
-    </div>
-
-    ${total > 0 ? `
-    <div class="card mb-4">
-      <div class="card-body">
-        <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-2)">
-          <span class="text-muted" style="font-size:var(--text-sm)">Avance de cobranza</span>
-          <span style="font-weight:var(--font-bold);font-size:var(--text-sm)">${Math.round(cobrado / total * 100)}%</span>
-        </div>
-        ${renderProgressBar(cobrado, total)}
-      </div>
-    </div>` : ''}
-
-    <!-- Consumo de Materiales y Stock -->
-    <div class="card mb-4">
-      <div class="card-header flex justify-between items-center" style="flex-wrap:wrap;gap:var(--space-2)">
-        <h3 class="card-title" style="display:flex;align-items:center;gap:var(--space-2)">
-          ${Icons.box} Consumo de Stock y Materiales
-        </h3>
-        ${obra.stockDescontado ? `
-          <span class="badge badge-success">${Icons.check} Stock descontado</span>
+          </div>
         ` : `
-          <button class="btn btn-sm btn-primary" id="btn-obra-descontar-stock">
-            ${Icons.box} Descontar materiales de stock
-          </button>
+          <div class="card">
+            <div class="card-body text-center text-muted" style="padding:var(--space-8)">
+              <p style="font-size:var(--text-base);margin-bottom:var(--space-2)">No hay ítems presupuestados desglosados en esta obra.</p>
+              <p style="font-size:var(--text-sm);color:var(--color-stone-500)">Podés detallar las piezas y medidas editando la obra o vinculándola con un presupuesto.</p>
+            </div>
+          </div>
         `}
       </div>
-      <div class="card-body">
-        ${stockMovimientosObra.length > 0 ? `
-          <table class="data-table">
-            <thead>
-              <tr><th>Material</th><th style="text-align:right">Cantidad</th><th>Fecha</th><th>Referencia</th></tr>
-            </thead>
-            <tbody>
-              ${stockMovimientosObra.map(m => {
-                const mat = DataService.getById('materiales', m.materialId);
-                const u = mat ? (mat.unidad === 'm2' ? 'm²' : (mat.unidad === 'metros' ? 'ml' : mat.unidad)) : '';
-                return `<tr>
-                  <td><strong>${escapeHtml(mat?.nombre || 'Material #' + m.materialId)}</strong></td>
-                  <td style="text-align:right;font-weight:var(--font-semibold);color:var(--color-error)">-${m.cantidad} ${u}</td>
-                  <td>${formatDate(m.fecha)}</td>
-                  <td class="cell-secondary">${escapeHtml(m.referencia || '-')}</td>
-                </tr>`;
-              }).join('')}
-            </tbody>
-          </table>
-        ` : `
-          <p class="text-muted" style="margin:0;font-size:var(--text-sm)">
-            ${obra.stockDescontado ? 'Stock marcado como descontado para esta obra.' : 'Aún no se registró la salida de stock para esta obra. Podés descontar los materiales presupuestados automáticamente con el botón superior.'}
-          </p>
-        `}
+
+      <!-- TAB 2: STOCK Y MATERIALES -->
+      <div class="tab-content" id="tab-stock">
+        <div class="card mb-4">
+          <div class="card-header flex justify-between items-center" style="flex-wrap:wrap;gap:var(--space-2)">
+            <h3 class="card-title" style="display:flex;align-items:center;gap:var(--space-2)">
+              ${Icons.box} Control de Consumo de Stock
+            </h3>
+            ${obra.stockDescontado ? `
+              <span class="badge badge-success">${Icons.check} Stock descontado</span>
+            ` : ''}
+          </div>
+          <div class="card-body">
+            ${obra.stockDescontado ? `
+              <div style="display:flex;align-items:center;gap:10px;padding:14px 18px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:var(--radius-md);color:#166534;margin-bottom:var(--space-4)">
+                ${Icons.check}
+                <div>
+                  <strong>Materiales ya descontados del stock</strong>
+                  <div style="font-size:var(--text-xs);color:#15803D;margin-top:2px">El consumo de materiales para esta obra fue debitado del inventario de la marmolería.</div>
+                </div>
+              </div>
+            ` : `
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:#FEFCE8;border:1px solid #FEF08A;border-radius:var(--radius-md);gap:16px;flex-wrap:wrap;margin-bottom:var(--space-4)">
+                <div>
+                  <div style="font-weight:var(--font-bold);color:#854D0E;font-size:var(--text-base)">Descuento de materiales</div>
+                  <div style="font-size:var(--text-xs);color:#A16207;margin-top:2px">Podés descontar automáticamente los metros cuadrados o unidades de materiales requeridos de tu stock disponible.</div>
+                </div>
+                <button class="btn btn-primary" id="btn-obra-descontar-stock">
+                  ${Icons.box} Descontar materiales
+                </button>
+              </div>
+            `}
+
+            <h4 style="font-size:var(--text-sm);font-weight:var(--font-bold);margin-bottom:var(--space-3);color:var(--color-stone-700)">
+              Movimientos de stock asociados a esta obra
+            </h4>
+
+            ${stockMovimientosObra.length > 0 ? `
+              <table class="data-table">
+                <thead>
+                  <tr><th>Material</th><th style="text-align:right">Cantidad</th><th>Fecha</th><th>Referencia</th></tr>
+                </thead>
+                <tbody>
+                  ${stockMovimientosObra.map(m => {
+                    const mat = DataService.getById('materiales', m.materialId);
+                    const u = mat ? (mat.unidad === 'm2' ? 'm²' : (mat.unidad === 'metros' ? 'ml' : mat.unidad)) : '';
+                    return `<tr>
+                      <td><strong>${escapeHtml(mat?.nombre || 'Material #' + m.materialId)}</strong></td>
+                      <td style="text-align:right;font-weight:var(--font-semibold);color:var(--color-error)">-${m.cantidad} ${u}</td>
+                      <td>${formatDate(m.fecha)}</td>
+                      <td class="cell-secondary">${escapeHtml(m.referencia || '-')}</td>
+                    </tr>`;
+                  }).join('')}
+                </tbody>
+              </table>
+            ` : `
+              <p class="text-muted" style="margin:0;font-size:var(--text-sm)">
+                ${obra.stockDescontado ? 'Stock marcado como descontado para esta obra.' : 'Aún no se registraron movimientos de stock para esta obra.'}
+              </p>
+            `}
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: COBRANZAS Y PAGOS -->
+      <div class="tab-content" id="tab-cobros">
+        ${total > 0 ? `
+        <div class="card mb-4">
+          <div class="card-body">
+            <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-2)">
+              <span class="text-muted" style="font-size:var(--text-sm)">Avance de cobranza</span>
+              <span style="font-weight:var(--font-bold);font-size:var(--text-sm)">${porcentajeCobrado}% (${formatCurrency(cobrado)} de ${formatCurrency(total)})</span>
+            </div>
+            ${renderProgressBar(cobrado, total)}
+          </div>
+        </div>` : ''}
+
+        <div class="card">
+          <div class="card-header flex justify-between items-center" style="flex-wrap:wrap;gap:var(--space-2)">
+            <h3 class="card-title">Cobros asociados (${cobros.length})</h3>
+            <button class="btn btn-sm btn-primary" id="btn-obra-new-cobro" style="gap:5px">
+              ${Icons.plus} Registrar cobro
+            </button>
+          </div>
+          ${cobros.length > 0 ? renderDataTable({ columns: [
+            { label: 'Fecha', render: c => formatDate(c.fecha) },
+            { label: 'Importe', align: 'right', render: c => `<span class="cell-currency">${formatCurrency(c.importe)}</span>` },
+            { label: 'Método', render: c => escapeHtml(c.metodoPago) },
+            { label: 'Observaciones', render: c => escapeHtml(c.observaciones || '-'), className: 'cell-secondary' }
+          ], data: cobros }) : '<div class="card-body text-center text-muted" style="padding:var(--space-6)">No hay cobros registrados para esta obra</div>'}
+        </div>
+      </div>
+
+      <!-- TAB 4: FICHA TECNICA Y PLANIFICACION -->
+      <div class="tab-content" id="tab-ficha">
+        <div class="card mb-4">
+          <div class="card-header flex justify-between items-center">
+            <h3 class="card-title">Datos Generales y Logística</h3>
+            <button class="btn btn-sm btn-secondary" id="btn-obra-edit-ficha">${Icons.edit} Editar datos</button>
+          </div>
+          <div class="card-body">
+            <div class="detail-list">
+              <div class="detail-item">
+                <span class="detail-label">Cliente</span>
+                <span class="detail-value">${cliente ? `<a href="#/clientes/${cliente.id}" style="font-weight:var(--font-semibold);color:var(--color-primary)">${escapeHtml(cliente.nombre)} ${escapeHtml(cliente.apellido || '')}</a>` : escapeHtml(obra.clienteNombre || '-')}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Contacto / Teléfono</span>
+                <span class="detail-value">${escapeHtml(obra.contacto || obra.telefono || cliente?.telefono || cliente?.whatsapp || '-')}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Dirección de obra</span>
+                <span class="detail-value">${escapeHtml(obra.direccion || '-')}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Material/es</span>
+                <span class="detail-value">${escapeHtml(obra.material || '-')}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Fecha de inicio</span>
+                <span class="detail-value">${formatDate(obra.fechaInicio)}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Fecha estimada de entrega</span>
+                <span class="detail-value">${obra.fechaEstimada ? formatDate(obra.fechaEstimada) : '<span class="text-muted" style="font-style:italic">A definir en planificación</span>'}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Responsable / Taller</span>
+                <span class="detail-value">${obra.responsable ? escapeHtml(obra.responsable) : '<span class="text-muted" style="font-style:italic">A asignar</span>'}</span>
+              </div>
+              ${pres ? `
+              <div class="detail-item">
+                <span class="detail-label">Presupuesto vinculado</span>
+                <span class="detail-value"><a href="#/presupuestos/${pres.id}" style="font-weight:var(--font-bold);color:var(--color-primary)">${escapeHtml(pres.numero || '#' + pres.id)}</a></span>
+              </div>` : (obra.presupuestoNumero ? `
+              <div class="detail-item">
+                <span class="detail-label">Presupuesto vinculado</span>
+                <span class="detail-value"><a href="#/presupuestos/${obra.presupuestoId || ''}" style="font-weight:var(--font-bold);color:var(--color-primary)">${escapeHtml(obra.presupuestoNumero)}</a></span>
+              </div>` : '')}
+              ${obra.fechaAprobacion ? `
+              <div class="detail-item">
+                <span class="detail-label">Fecha de aprobación</span>
+                <span class="detail-value">${formatDate(obra.fechaAprobacion)}</span>
+              </div>` : ''}
+            </div>
+          </div>
+        </div>
+
+        ${obra.observaciones ? `
+        <div class="card mb-4">
+          <div class="card-header"><h3 class="card-title">Observaciones Técnicas e Instrucciones para el Taller</h3></div>
+          <div class="card-body"><p style="color:var(--color-stone-700);white-space:pre-wrap;margin:0;line-height:1.5">${escapeHtml(obra.observaciones)}</p></div>
+        </div>` : ''}
       </div>
     </div>
-
-    <div class="card mb-4">
-      <div class="card-header flex justify-between items-center" style="flex-wrap:wrap;gap:var(--space-2)">
-        <h3 class="card-title">Cobros asociados (${cobros.length})</h3>
-        <button class="btn btn-sm btn-primary" id="btn-obra-new-cobro" style="gap:5px">
-          ${Icons.plus} Registrar cobro
-        </button>
-      </div>
-      ${cobros.length > 0 ? renderDataTable({ columns: [
-        { label: 'Fecha', render: c => formatDate(c.fecha) },
-        { label: 'Importe', align: 'right', render: c => `<span class="cell-currency">${formatCurrency(c.importe)}</span>` },
-        { label: 'Método', render: c => escapeHtml(c.metodoPago) },
-        { label: 'Observaciones', render: c => escapeHtml(c.observaciones || '-'), className: 'cell-secondary' }
-      ], data: cobros }) : '<div class="card-body text-center text-muted" style="padding:var(--space-6)">No hay cobros registrados para esta obra</div>'}
-    </div>
-
-    ${obra.observaciones ? `
-    <div class="card mb-4">
-      <div class="card-header"><h3 class="card-title">Observaciones</h3></div>
-      <div class="card-body"><p style="color:var(--color-stone-600);white-space:pre-wrap">${escapeHtml(obra.observaciones)}</p></div>
-    </div>` : ''}
   `;
 
   // Export handlers
@@ -488,7 +599,7 @@ function renderObraDetail(container, actionsEl, obraId) {
     if (ok) Toast.success('Ficha en PDF descargada');
   });
 
-  document.getElementById('btn-obra-descontar-stock')?.addEventListener('click', () => {
+  const handleDescontarStock = () => {
     openDescontarStockObraModal({
       obra,
       presupuesto: pres,
@@ -496,7 +607,9 @@ function renderObraDetail(container, actionsEl, obraId) {
         renderObraDetail(container, actionsEl, obraId);
       }
     });
-  });
+  };
+  document.getElementById('btn-obra-descontar-stock')?.addEventListener('click', handleDescontarStock);
+  document.getElementById('btn-obra-quick-stock')?.addEventListener('click', handleDescontarStock);
 
   document.getElementById('btn-obra-word')?.addEventListener('click', () => {
     try {
@@ -520,16 +633,18 @@ function renderObraDetail(container, actionsEl, obraId) {
     });
   });
 
-  document.getElementById('btn-obra-new-cobro')?.addEventListener('click', () => {
-    const saldoPendiente = total - cobrado;
+  const handleNewCobro = () => {
+    const pend = total - cobrado;
     openCobroForm(null, {
       obraId: obra.id,
       clienteId: obra.clienteId,
-      importe: saldoPendiente > 0 ? saldoPendiente : ''
+      importe: pend > 0 ? pend : ''
     }, () => {
       renderObraDetail(container, actionsEl, obraId);
     });
-  });
+  };
+  document.getElementById('btn-obra-new-cobro')?.addEventListener('click', handleNewCobro);
+  document.getElementById('btn-obra-quick-cobro')?.addEventListener('click', handleNewCobro);
 
   const handleEditObra = () => {
     openObraForm(obraId, () => {
@@ -538,4 +653,15 @@ function renderObraDetail(container, actionsEl, obraId) {
   };
   document.getElementById('btn-obra-edit-top')?.addEventListener('click', handleEditObra);
   document.getElementById('btn-obra-edit-action')?.addEventListener('click', handleEditObra);
+  document.getElementById('btn-obra-edit-ficha')?.addEventListener('click', handleEditObra);
+
+  // Tabs logic
+  container.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      container.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      container.querySelector(`#tab-${btn.dataset.tab}`)?.classList.add('active');
+    });
+  });
 }
