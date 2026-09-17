@@ -316,8 +316,10 @@ function renderClienteDetail(container, actionsEl, clienteId) {
         <span class="detail-stat-mini-value" style="color: var(--color-success)">${formatCurrency(saldo.totalCobrado)}</span>
       </div>
       <div class="detail-stat-mini">
-        <span class="detail-stat-mini-label">Saldo pendiente</span>
-        <span class="detail-stat-mini-value" style="color: ${saldo.saldo > 0 ? 'var(--color-warning)' : 'var(--color-stone-500)'}">${formatCurrency(saldo.saldo)}</span>
+        <span class="detail-stat-mini-label">${saldo.saldo > 0 ? 'Saldo pendiente' : (saldo.saldo < 0 ? 'Saldo a favor' : 'Estado')}</span>
+        <span class="detail-stat-mini-value" style="color: ${saldo.saldo > 0 ? 'var(--color-warning)' : 'var(--color-success)'}">
+          ${saldo.saldo > 0 ? formatCurrency(saldo.saldo) : (saldo.saldo < 0 ? `+${formatCurrency(Math.abs(saldo.saldo))} (a favor)` : 'Al día ($0)')}
+        </span>
       </div>
       <div class="detail-stat-mini">
         <span class="detail-stat-mini-label">Presupuestos</span>

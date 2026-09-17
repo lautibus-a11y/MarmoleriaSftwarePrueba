@@ -335,8 +335,12 @@ function renderObraDetail(container, actionsEl, obraId) {
           </div>
 
           <div style="background:var(--color-stone-50);padding:14px;border-radius:var(--radius-md);border:1px solid var(--color-stone-200)">
-            <div style="font-size:var(--text-xs);color:var(--color-stone-500);font-weight:var(--font-medium);text-transform:uppercase;letter-spacing:0.5px">Saldo Pendiente</div>
-            <div style="font-size:var(--text-xl);font-weight:var(--font-bold);color:${saldoPendiente > 0 ? 'var(--color-warning)' : 'var(--color-success)'};margin-top:4px">${formatCurrency(saldoPendiente)}</div>
+            <div style="font-size:var(--text-xs);color:var(--color-stone-500);font-weight:var(--font-medium);text-transform:uppercase;letter-spacing:0.5px">
+              ${saldoPendiente > 0 ? 'Saldo Pendiente' : (saldoPendiente < 0 ? 'Saldo a favor' : 'Estado de Cobro')}
+            </div>
+            <div style="font-size:var(--text-xl);font-weight:var(--font-bold);color:${saldoPendiente > 0 ? 'var(--color-warning)' : 'var(--color-success)'};margin-top:4px">
+              ${saldoPendiente > 0 ? formatCurrency(saldoPendiente) : (saldoPendiente < 0 ? `+${formatCurrency(Math.abs(saldoPendiente))} (a favor)` : '✓ Al día ($0)')}
+            </div>
           </div>
 
           <div style="background:var(--color-stone-50);padding:14px;border-radius:var(--radius-md);border:1px solid var(--color-stone-200)">

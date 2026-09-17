@@ -125,8 +125,12 @@ function renderProveedorDetail(container, actionsEl, provId) {
       <div class="cc-summary-item"><div class="cc-summary-label">Total facturado</div><div class="cc-summary-value">${formatCurrency(saldo.totalFacturas)}</div></div>
       <div class="cc-summary-item"><div class="cc-summary-label">Notas débito</div><div class="cc-summary-value">${formatCurrency(saldo.totalND)}</div></div>
       <div class="cc-summary-item"><div class="cc-summary-label">Notas crédito</div><div class="cc-summary-value positive">${formatCurrency(saldo.totalNC)}</div></div>
-      <div class="cc-summary-item"><div class="cc-summary-label">Pagos</div><div class="cc-summary-value positive">${formatCurrency(saldo.totalPagos)}</div></div>
-      <div class="cc-summary-item"><div class="cc-summary-label">Saldo pendiente</div><div class="cc-summary-value ${saldo.saldo>0?'negative':''}">${formatCurrency(saldo.saldo)}</div></div>
+      <div class="cc-summary-item">
+        <div class="cc-summary-label">${saldo.saldo > 0 ? 'Saldo pendiente' : (saldo.saldo < 0 ? 'Saldo a favor' : 'Estado de cuenta')}</div>
+        <div class="cc-summary-value ${saldo.saldo > 0 ? 'negative' : 'positive'}">
+          ${saldo.saldo > 0 ? formatCurrency(saldo.saldo) : (saldo.saldo < 0 ? `+${formatCurrency(Math.abs(saldo.saldo))} (a favor)` : 'Al día ($0)')}
+        </div>
+      </div>
     </div>
 
     <div class="tabs-container">
