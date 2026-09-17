@@ -10,7 +10,7 @@ import { Icons } from '../components/ui.js';
 import { escapeHtml } from '../utils/helpers.js';
 
 export function openDescontarStockObraModal({ obra, presupuesto, onDone = null }) {
-  const items = presupuesto?.items || [];
+  const items = (presupuesto?.items && presupuesto.items.length > 0) ? presupuesto.items : (obra?.items || []);
   const grouped = {};
 
   items.forEach(it => {

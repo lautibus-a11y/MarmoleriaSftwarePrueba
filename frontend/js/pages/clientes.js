@@ -10,6 +10,7 @@ import { Toast } from '../components/toast.js';
 import { confirmDialog } from '../components/confirmDialog.js';
 import { EVENTO_TIPO_LABELS, EVENTO_TIPO_COLORS, EVENTO_ESTADO_LABELS, EVENTO_ESTADO_COLORS } from '../utils/constants.js';
 import { openEventoForm, openEventoDetailModal } from './calendario.js';
+import { openCobroForm } from './cobros.js';
 
 export function renderClientes(container, actionsEl, path) {
   // Check if we're viewing a specific client
@@ -125,7 +126,7 @@ export function renderClientes(container, actionsEl, path) {
     if (!cliente) return;
     const confirmed = await confirmDialog({
       title: 'Eliminar cliente',
-      message: `¿Estás seguro de eliminar a "${(cliente.nombre || '')} ${(cliente.apellido || '')}".trim()?`,
+      message: `¿Estás seguro de eliminar a "${`${cliente.nombre || ''} ${cliente.apellido || ''}`.trim()}"?`,
       subMessage: 'Se eliminarán también sus presupuestos y cobros asociados.',
       confirmText: 'Eliminar',
       type: 'danger'
@@ -236,9 +237,9 @@ function renderClienteDetail(container, actionsEl, clienteId) {
   }
 
   const saldo = DataService.getClienteSaldo(clienteId);
-  const presupuestos = DataService.getAll('presupuestos').filter(p => p.clienteId === clienteId);
-  const obras = DataService.getAll('obras').filter(o => o.clienteId === clienteId);
-  const cobros = DataService.getAll('cobros').filter(c => c.clienteId === clienteId);
+  const presupuestos = DataService.getAll('presupuestos').filter(p => String(p.clienteId) === String(clienteId));
+  const obras = DataService.getAll('obras').filter(o => String(o.clienteId) === String(clienteId));
+  const cobros = DataService.getAll('cobros').filter(c => String(c.clienteId) === String(clienteId));
   const eventos = DataService.getEventosCliente(clienteId);
 
   // Header actions - clean Volver button only to avoid top bar overflow
@@ -416,6 +417,11 @@ function renderClienteDetail(container, actionsEl, clienteId) {
       </div>
 
       <div class="tab-content" id="tab-cobros">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:var(--space-3)">
+          <button class="btn btn-sm btn-primary" id="btn-cliente-new-cobro" style="gap:5px">
+            ${Icons.plus} Registrar cobro
+          </button>
+        </div>
         ${cobros.length > 0 ? renderDataTable({
           columns: [
             { label: 'Fecha', render: (c) => formatDate(c.fecha) },
@@ -509,6 +515,12 @@ function renderClienteDetail(container, actionsEl, clienteId) {
   document.getElementById('btn-cliente-action-agendar')?.addEventListener('click', handleAgendar);
   document.getElementById('btn-cliente-agendar')?.addEventListener('click', handleAgendar);
   document.getElementById('btn-cliente-agendar-empty')?.addEventListener('click', handleAgendar);
+
+  document.getElementById('btn-cliente-new-cobro')?.addEventListener('click', () => {
+    openCobroForm(null, { clienteId: cliente.id }, () => {
+      renderClienteDetail(container, actionsEl, clienteId);
+    });
+  });
 
   container.querySelectorAll('.cliente-evento-row').forEach(row => {
     row.addEventListener('click', () => {

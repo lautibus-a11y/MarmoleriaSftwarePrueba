@@ -12,6 +12,8 @@ import { DocumentModal } from '../components/documentModal.js';
 import { generateObraHtml, exportToPdf, exportToWord } from '../services/documentExporter.js';
 import { OBRA_ESTADO_LABELS, OBRA_ESTADO_COLORS } from '../utils/constants.js';
 import { openDescontarStockObraModal } from '../services/stockAutomation.js';
+import { openCobroForm } from './cobros.js';
+import { openEventoForm } from './calendario.js';
 
 export function renderObras(container, actionsEl, path) {
   const parts = path.split('/');
@@ -260,8 +262,8 @@ function renderObraDetail(container, actionsEl, obraId) {
   const pres = obra.presupuestoId ? DataService.getById('presupuestos', obra.presupuestoId) : null;
   const total = DataService.getObraTotal(obraId);
   const cobrado = DataService.getObraCobrado(obraId);
-  const cobros = DataService.getAll('cobros').filter(c => c.obraId === obraId);
-  const stockMovimientosObra = DataService.getAll('stockMovimientos').filter(m => m.obraId === obraId || (m.referencia && m.referencia.includes('#' + obraId)));
+  const cobros = DataService.getAll('cobros').filter(c => String(c.obraId) === String(obraId));
+  const stockMovimientosObra = DataService.getAll('stockMovimientos').filter(m => String(m.obraId) === String(obraId) || (m.referencia && m.referencia.includes('#' + obraId)));
 
   actionsEl.innerHTML = `
     <button class="btn btn-primary" id="btn-obra-edit-top">${Icons.edit} Planificar / Editar obra</button>
@@ -273,10 +275,11 @@ function renderObraDetail(container, actionsEl, obraId) {
     <div class="card mb-4">
       <div class="card-body" style="display:flex;gap:var(--space-2);flex-wrap:wrap">
         <button class="btn btn-primary" id="btn-obra-edit-action" style="flex:1;min-width:130px;justify-content:center">${Icons.edit} Planificar</button>
-        <button class="btn btn-pdf" id="btn-obra-pdf" style="flex:1;min-width:130px;justify-content:center">${Icons['file-pdf']} Ficha PDF</button>
-        <button class="btn btn-word" id="btn-obra-word" style="flex:1;min-width:130px;justify-content:center">${Icons['file-word']} Ficha Word</button>
-        <button class="btn btn-secondary" id="btn-obra-preview" style="flex:1;min-width:130px;justify-content:center">${Icons.eye} Vista previa</button>
-        ${(cliente?.whatsapp || obra.contacto || obra.telefono) ? `<button class="btn btn-secondary" id="btn-obra-whatsapp" style="flex:1;min-width:130px;justify-content:center">${Icons.whatsapp} WhatsApp</button>` : ''}
+        <button class="btn btn-secondary" id="btn-obra-agendar" style="flex:1;min-width:120px;justify-content:center">${Icons.calendar} Agendar</button>
+        <button class="btn btn-pdf" id="btn-obra-pdf" style="flex:1;min-width:120px;justify-content:center">${Icons['file-pdf']} Ficha PDF</button>
+        <button class="btn btn-word" id="btn-obra-word" style="flex:1;min-width:120px;justify-content:center">${Icons['file-word']} Ficha Word</button>
+        <button class="btn btn-secondary" id="btn-obra-preview" style="flex:1;min-width:120px;justify-content:center">${Icons.eye} Vista previa</button>
+        ${(cliente?.whatsapp || obra.contacto || obra.telefono) ? `<button class="btn btn-secondary" id="btn-obra-whatsapp" style="flex:1;min-width:120px;justify-content:center">${Icons.whatsapp} WhatsApp</button>` : ''}
       </div>
     </div>
 
@@ -436,13 +439,18 @@ function renderObraDetail(container, actionsEl, obraId) {
     </div>
 
     <div class="card mb-4">
-      <div class="card-header"><h3 class="card-title">Cobros asociados (${cobros.length})</h3></div>
+      <div class="card-header flex justify-between items-center" style="flex-wrap:wrap;gap:var(--space-2)">
+        <h3 class="card-title">Cobros asociados (${cobros.length})</h3>
+        <button class="btn btn-sm btn-primary" id="btn-obra-new-cobro" style="gap:5px">
+          ${Icons.plus} Registrar cobro
+        </button>
+      </div>
       ${cobros.length > 0 ? renderDataTable({ columns: [
         { label: 'Fecha', render: c => formatDate(c.fecha) },
         { label: 'Importe', align: 'right', render: c => `<span class="cell-currency">${formatCurrency(c.importe)}</span>` },
         { label: 'Método', render: c => escapeHtml(c.metodoPago) },
         { label: 'Observaciones', render: c => escapeHtml(c.observaciones || '-'), className: 'cell-secondary' }
-      ], data: cobros }) : '<div class="card-body text-center text-muted" style="padding:var(--space-6)">No hay cobros registrados</div>'}
+      ], data: cobros }) : '<div class="card-body text-center text-muted" style="padding:var(--space-6)">No hay cobros registrados para esta obra</div>'}
     </div>
 
     ${obra.observaciones ? `
@@ -498,6 +506,29 @@ function renderObraDetail(container, actionsEl, obraId) {
       console.error(e);
       Toast.error('Error al generar archivo Word');
     }
+  });
+
+  document.getElementById('btn-obra-agendar')?.addEventListener('click', () => {
+    openEventoForm({
+      clienteId: obra.clienteId,
+      clienteNombre: obra.clienteNombre || (cliente ? `${cliente.nombre} ${cliente.apellido || ''}`.trim() : ''),
+      direccion: obra.direccion,
+      notas: `Obra #${obra.id} — ${obra.descripcion || ''}`,
+      tipo: 'instalacion'
+    }, () => {
+      Toast.success('Trabajo agendado en el calendario');
+    });
+  });
+
+  document.getElementById('btn-obra-new-cobro')?.addEventListener('click', () => {
+    const saldoPendiente = total - cobrado;
+    openCobroForm(null, {
+      obraId: obra.id,
+      clienteId: obra.clienteId,
+      importe: saldoPendiente > 0 ? saldoPendiente : ''
+    }, () => {
+      renderObraDetail(container, actionsEl, obraId);
+    });
   });
 
   const handleEditObra = () => {

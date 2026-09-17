@@ -36,22 +36,30 @@ export function confirmDialog({
       <button class="btn ${btnClass}" id="confirm-ok">${confirmText}</button>
     `;
 
+    let settled = false;
+    const safeResolve = (val) => {
+      if (!settled) {
+        settled = true;
+        resolve(val);
+      }
+    };
+
     const modal = Modal.open({
       title,
       content,
       size: 'sm',
       footer,
-      onClose: () => resolve(false)
+      onClose: () => safeResolve(false)
     });
 
-    modal.querySelector('#confirm-cancel').addEventListener('click', () => {
+    modal.querySelector('#confirm-cancel')?.addEventListener('click', () => {
+      safeResolve(false);
       Modal.close();
-      resolve(false);
     });
 
-    modal.querySelector('#confirm-ok').addEventListener('click', () => {
+    modal.querySelector('#confirm-ok')?.addEventListener('click', () => {
+      safeResolve(true);
       Modal.close();
-      resolve(true);
     });
   });
 }

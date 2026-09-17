@@ -103,8 +103,8 @@ function renderProveedorDetail(container, actionsEl, provId) {
   if (!prov) { container.innerHTML = renderEmptyState({ title: 'Proveedor no encontrado' }); return; }
 
   const saldo = DataService.getProveedorSaldo(provId);
-  const facturas = DataService.getAll('facturas').filter(f => f.proveedorId === provId);
-  const pagos = DataService.getAll('pagos').filter(p => p.proveedorId === provId);
+  const facturas = DataService.getAll('facturas').filter(f => String(f.proveedorId) === String(provId));
+  const pagos = DataService.getAll('pagos').filter(p => String(p.proveedorId) === String(provId));
 
   actionsEl.innerHTML = `<a href="#/proveedores" class="btn btn-secondary">${Icons['chevron-left']} Volver</a>`;
 

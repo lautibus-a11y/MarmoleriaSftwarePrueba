@@ -107,12 +107,29 @@ export function renderCobros(container, actionsEl) {
       });
       return;
     }
-    if (action === 'edit') { openForm(id); return; }
+    if (action === 'edit') { openCobroForm(id, {}, () => { cobros = DataService.getAll('cobros'); render(); }); return; }
     if (action === 'delete') { handleDelete(id); return; }
   };
 
-  function openForm(editId = null) {
-    const cobro = (editId ? DataService.getById('cobros', editId) : null) || {};
+  async function handleDelete(id) {
+    const confirmed = await confirmDialog({ title: 'Eliminar cobro', message: '¿Estás seguro de eliminar este cobro?', confirmText: 'Eliminar', type: 'danger' });
+    if (confirmed) {
+      DataService.remove('cobros', id);
+      Toast.success('Cobro eliminado');
+      cobros = DataService.getAll('cobros');
+      render();
+    }
+  }
+
+  actionsEl.querySelector('#btn-new-cobro')?.addEventListener('click', () => openCobroForm(null, {}, () => {
+    cobros = DataService.getAll('cobros');
+    render();
+  }));
+  render();
+}
+
+export function openCobroForm(editId = null, prefill = {}, onSaved = null) {
+  const cobro = (editId ? DataService.getById('cobros', editId) : null) || { ...prefill };
     const isEdit = !!editId && !!cobro.id;
     const clientes = DataService.getAll('clientes');
     const obrasDisp = DataService.getAll('obras').filter(o => !['cancelada'].includes(o.estado));
@@ -264,29 +281,19 @@ export function renderCobros(container, actionsEl) {
         data.presupuestoId = obra?.presupuestoId || null;
       }
 
+      let saved;
       if (isEdit) {
-        DataService.update('cobros', editId, data);
+        saved = DataService.update('cobros', editId, data);
         Toast.success('Cobro actualizado');
       } else {
-        DataService.create('cobros', data);
+        saved = DataService.create('cobros', data);
         Toast.success('Cobro registrado');
       }
       Drawer.close();
-      cobros = DataService.getAll('cobros');
-      render();
+      if (onSaved) {
+        onSaved(saved);
+      } else {
+        window.location.hash = '#/cobros';
+      }
     });
-  }
-
-  async function handleDelete(id) {
-    const confirmed = await confirmDialog({ title: 'Eliminar cobro', message: '¿Estás seguro?', confirmText: 'Eliminar', type: 'danger' });
-    if (confirmed) {
-      DataService.remove('cobros', id);
-      Toast.success('Cobro eliminado');
-      cobros = DataService.getAll('cobros');
-      render();
-    }
-  }
-
-  actionsEl.querySelector('#btn-new-cobro')?.addEventListener('click', () => openForm());
-  render();
 }
