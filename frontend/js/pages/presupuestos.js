@@ -1460,6 +1460,12 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
   actionsEl.innerHTML = `
     <a href="#/presupuestos" class="btn btn-secondary">${Icons['chevron-left']} Volver</a>
     <button class="btn btn-secondary" id="btn-edit-header">${Icons.edit} Editar presupuesto</button>
+    <button class="btn btn-secondary" id="btn-header-share-pdf" style="color:#15803D;border-color:#BBF7D0;background:#F0FDF4;font-weight:var(--font-semibold)" title="Compartir presupuesto en PDF por WhatsApp">
+      ${Icons.share || Icons.whatsapp} Compartir PDF por WPP
+    </button>
+    <button class="btn btn-secondary" id="btn-header-chat" style="color:#128C7E;border-color:#99F6E4;background:#F0FDFA;font-weight:var(--font-semibold)" title="Abrir chat directo con el cliente en WhatsApp">
+      ${Icons.whatsapp} Hablar por WPP
+    </button>
     ${pres.obraId ? `
       <button class="btn btn-primary" id="btn-header-planificar" style="font-weight:var(--font-semibold);gap:6px">
         ${Icons.edit} Planificar obra
@@ -1643,6 +1649,12 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
 
         <!-- Export & View Actions Below (2-column grid on mobile) -->
         <div class="presupuesto-secondary-grid">
+          <button class="btn btn-secondary btn-sm presupuesto-secondary-btn" id="btn-pres-share-pdf" style="color:#15803D;border-color:#BBF7D0;background:#F0FDF4;font-weight:var(--font-bold)" title="Compartir presupuesto en PDF por WhatsApp">
+            ${Icons.share || Icons.whatsapp} <span>Compartir PDF por WPP</span>
+          </button>
+          <button class="btn btn-secondary btn-sm presupuesto-secondary-btn" id="btn-pres-chat" style="color:#128C7E;border-color:#99F6E4;background:#F0FDFA;font-weight:var(--font-bold)" title="Abrir chat directo con el cliente">
+            ${Icons.whatsapp} <span>Hablar por WPP</span>
+          </button>
           <button class="btn btn-secondary btn-sm presupuesto-secondary-btn" id="btn-preview">
             ${Icons.eye} <span>Vista previa</span>
           </button>
@@ -1739,10 +1751,15 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
   const docFilename = `Presupuesto_${pres.numero}`;
 
   const openPreview = () => {
+    const phone = (contact.whatsapp || contact.phone || '').replace(/\D/g, '');
     DocumentModal.open({
       title: `Presupuesto ${pres.numero}`,
       filename: docFilename,
-      htmlContent: getDocHtml()
+      htmlContent: getDocHtml(),
+      whatsappData: {
+        phone,
+        text: `Hola ${contact.name ? contact.name + '! ' : ''}Te envío el presupuesto ${pres.numero} de Marmolería Benjamin por un total de ${formatCurrency(total, pres.moneda)}.\n\nDescripción: ${pres.descripcion || 'Presupuesto a medida'}\n\nAdjunto presupuesto completo en PDF. ¡Saludos!`
+      }
     });
   };
 
@@ -1762,6 +1779,28 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
     }
   };
 
+  // WhatsApp Share & Chat Handlers
+  const handleSharePdf = async () => {
+    const phone = (contact.whatsapp || contact.phone || '').replace(/\D/g, '');
+    const msg = `Hola ${contact.name ? contact.name + '! ' : ''}Te adjunto el presupuesto *${pres.numero}* de Marmolería Benjamin.\n\n*Detalle:* ${pres.descripcion || 'Trabajo a medida en marmolería'}\n*Total:* ${formatCurrency(total, pres.moneda)}\n\nCualquier consulta estamos a disposición.`;
+    await shareViaWhatsAppAndPdf({
+      phone,
+      text: msg,
+      htmlContent: getDocHtml(),
+      filename: docFilename,
+      title: `Presupuesto ${pres.numero}`
+    });
+  };
+
+  const handleDirectChat = () => {
+    const phone = (contact.whatsapp || contact.phone || '').replace(/\D/g, '');
+    const readyMsg = `Hola ${contact.name ? contact.name + '! ' : ''}Te avisamos que ya está listo tu presupuesto ${pres.numero} de Marmolería Benjamin por un total de ${formatCurrency(total, pres.moneda)}.\n\nDescripción: ${pres.descripcion || 'Presupuesto a medida'}\n\nQuedamos a tu disposición para coordinar o resolver cualquier duda. ¡Saludos!`;
+    openDirectWhatsAppChat({
+      phone,
+      text: readyMsg
+    });
+  };
+
   document.getElementById('btn-header-preview')?.addEventListener('click', openPreview);
   document.getElementById('btn-preview')?.addEventListener('click', openPreview);
   document.getElementById('btn-header-pdf')?.addEventListener('click', handlePdf);
@@ -1770,15 +1809,11 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
   document.getElementById('btn-word')?.addEventListener('click', handleWord);
   document.getElementById('btn-share-modal')?.addEventListener('click', () => openShareModal(pres));
 
-  // WhatsApp
-  document.getElementById('btn-whatsapp')?.addEventListener('click', async () => {
-    const phone = (contact.whatsapp || contact.phone || '').replace(/\D/g, '');
-    const msg = `Hola ${contact.name ? contact.name + '! ' : ''}Te envío el presupuesto ${pres.numero} de Marmolería Benjamin.\n\n${pres.descripcion || ''}\nTotal: ${formatCurrency(total, pres.moneda)}\n\n¡Saludos!`;
-    await shareViaWhatsAppAndPdf({
-      phone,
-      text: msg,
-      htmlContent: getDocHtml(),
-      filename: docFilename
-    });
-  });
+  // WhatsApp click bindings (both top header, bottom grid, and legacy btn-whatsapp)
+  document.getElementById('btn-header-share-pdf')?.addEventListener('click', handleSharePdf);
+  document.getElementById('btn-pres-share-pdf')?.addEventListener('click', handleSharePdf);
+  document.getElementById('btn-whatsapp')?.addEventListener('click', handleSharePdf);
+
+  document.getElementById('btn-header-chat')?.addEventListener('click', handleDirectChat);
+  document.getElementById('btn-pres-chat')?.addEventListener('click', handleDirectChat);
 }

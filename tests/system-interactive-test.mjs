@@ -209,6 +209,36 @@ console.log('\n--- 3.5. BOTONES DE WHATSAPP EN PROVEEDORES ---');
   assert(!!waDatosLink, 'Enlace de WhatsApp presente en la pestaña Datos del proveedor');
 }
 
+// ── 3.6. BOTONES DE WHATSAPP EN DETALLE DE PRESUPUESTO ──
+console.log('\n--- 3.6. BOTONES DE WHATSAPP EN DETALLE DE PRESUPUESTO ---');
+{
+  const presupuestosList = DataService.getAll('presupuestos');
+  const testPres = presupuestosList[0];
+  assert(!!testPres, 'Existe al menos un presupuesto para prueba');
+
+  renderPresupuestos(container, actions, `/presupuestos/${testPres.id}`);
+
+  // Botones en encabezado (actions)
+  const headerShareBtn = actions.querySelector('#btn-header-share-pdf');
+  assert(!!headerShareBtn, 'Botón #btn-header-share-pdf presente en encabezado de presupuesto');
+  assert(headerShareBtn.textContent.includes('Compartir PDF por WPP'), 'Botón de encabezado dice "Compartir PDF por WPP"');
+  assert(headerShareBtn.innerHTML.includes('<svg'), 'Botón de encabezado compartir contiene SVG');
+
+  const headerChatBtn = actions.querySelector('#btn-header-chat');
+  assert(!!headerChatBtn, 'Botón #btn-header-chat presente en encabezado de presupuesto');
+  assert(headerChatBtn.textContent.includes('Hablar por WPP'), 'Botón de encabezado dice "Hablar por WPP"');
+  assert(headerChatBtn.innerHTML.includes('<svg'), 'Botón de encabezado hablar contiene SVG');
+
+  // Botones en la botonera secundaria dentro del detalle
+  const detailShareBtn = container.querySelector('#btn-pres-share-pdf');
+  assert(!!detailShareBtn, 'Botón #btn-pres-share-pdf presente en botonera de presupuesto');
+  assert(detailShareBtn.textContent.includes('Compartir PDF por WPP'), 'Botón interior dice "Compartir PDF por WPP"');
+
+  const detailChatBtn = container.querySelector('#btn-pres-chat');
+  assert(!!detailChatBtn, 'Botón #btn-pres-chat presente en botonera de presupuesto');
+  assert(detailChatBtn.textContent.includes('Hablar por WPP'), 'Botón interior dice "Hablar por WPP"');
+}
+
 // ── 4. APERTURA Y CIERRE DE DRAWERS DE FORMULARIOS ──
 console.log('\n--- 4. DRAWERS Y FORMULARIOS DE ALTA ---');
 {
