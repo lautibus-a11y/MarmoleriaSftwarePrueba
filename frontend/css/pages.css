@@ -1362,4 +1362,54 @@
   }
 }
 
+/* ── Obra Secondary Actions Grid (PDF, Word, Preview, WhatsApp) ── */
+.obra-secondary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+  width: 100%;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-stone-200);
+}
+
+.obra-secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  border-radius: var(--radius-md);
+  text-align: center;
+  width: 100%;
+  min-height: 38px;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.obra-secondary-btn svg {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+}
+
+@media (max-width: 768px) {
+  .obra-secondary-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .obra-secondary-grid .obra-secondary-btn:last-child:nth-child(odd) {
+    grid-column: span 2;
+  }
+
+  .obra-secondary-btn {
+    padding: 8px 6px;
+    font-size: var(--text-xs);
+    min-height: 40px;
+    white-space: normal;
+  }
+}
+
 

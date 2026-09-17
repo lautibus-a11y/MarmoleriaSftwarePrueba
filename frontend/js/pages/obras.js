@@ -354,13 +354,21 @@ function renderObraDetail(container, actionsEl, obraId) {
           </button>
         </div>
 
-        <!-- Export & View Actions Below -->
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end;padding-top:10px;border-top:1px solid var(--color-stone-200)">
-          <button class="btn btn-secondary btn-sm" id="btn-obra-preview">${Icons.eye} Vista previa</button>
-          <button class="btn btn-pdf btn-sm" id="btn-obra-pdf">${Icons['file-pdf']} Ficha PDF</button>
-          <button class="btn btn-word btn-sm" id="btn-obra-word">${Icons['file-word']} Ficha Word</button>
+        <!-- Export & View Actions Below (2-column grid on mobile) -->
+        <div class="obra-secondary-grid">
+          <button class="btn btn-secondary btn-sm obra-secondary-btn" id="btn-obra-preview">
+            ${Icons.eye} <span>Vista previa</span>
+          </button>
+          <button class="btn btn-pdf btn-sm obra-secondary-btn" id="btn-obra-pdf">
+            ${Icons['file-pdf']} <span>Ficha PDF</span>
+          </button>
+          <button class="btn btn-word btn-sm obra-secondary-btn" id="btn-obra-word">
+            ${Icons['file-word']} <span>Ficha Word</span>
+          </button>
           ${(cliente?.whatsapp || obra.contacto || obra.telefono) ? `
-            <button class="btn btn-secondary btn-sm" id="btn-obra-whatsapp">${Icons.whatsapp} WhatsApp</button>
+            <button class="btn btn-secondary btn-sm obra-secondary-btn" id="btn-obra-whatsapp" style="color:#15803D;border-color:#BBF7D0;background:#F0FDF4">
+              ${Icons.whatsapp} <span>WhatsApp</span>
+            </button>
           ` : ''}
         </div>
       </div>
