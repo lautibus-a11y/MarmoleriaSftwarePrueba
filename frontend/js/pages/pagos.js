@@ -4,7 +4,7 @@
 
 import { DataService } from '../services/mockData.js';
 import { Api } from '../services/api.js';
-import { formatCurrency, formatDate, escapeHtml, debounce, resolveFileUrl, compareNewestFirst } from '../utils/helpers.js';
+import { formatCurrency, formatDate, escapeHtml, debounce, resolveFileUrl, compareNewestFirst, resolveEntityContact } from '../utils/helpers.js';
 import { Icons, renderDataTable, renderSearchInput, renderBadge, renderFileUpload, renderStatsCard } from '../components/ui.js';
 import { Drawer } from '../components/drawer.js';
 import { Modal, previewAttachment } from '../components/modal.js';
@@ -19,25 +19,33 @@ export function renderPagos(container, actionsEl) {
   let searchTerm = '', filterEstado = '', filterMetodo = '';
 
   function render() {
+    pagos = DataService.getAll('pagos');
     let filtered = pagos;
     if (filterEstado) filtered = filtered.filter(p => p.estado === filterEstado);
     if (filterMetodo) filtered = filtered.filter(p => p.metodoPago === filterMetodo);
     if (searchTerm) {
       const provs = DataService.getAll('proveedores');
       filtered = filtered.filter(p => {
-        const prov = provs.find(pr => pr.id === p.proveedorId);
-        const combined = `${p.destinatarioConcepto || ''} ${p.concepto || ''} ${prov?.nombre || ''}`.toLowerCase();
+        const prov = p.proveedorId ? provs.find(pr => pr.id === p.proveedorId) : null;
+        const contact = resolveEntityContact(prov, { proveedorNombre: p.destinatarioConcepto || p.concepto });
+        const combined = `${contact.name || ''} ${p.destinatarioConcepto || ''} ${p.concepto || ''}`.toLowerCase();
         return combined.includes(searchTerm.toLowerCase());
       });
     }
 
     const proveedores = DataService.getAll('proveedores');
+    const facturas = DataService.getAll('facturas');
     const columns = [
       {
         label: 'Destinatario / Concepto',
         render: (p) => {
-          const pr = proveedores.find(x => x.id === p.proveedorId);
-          const text = p.destinatarioConcepto || p.concepto || pr?.nombre || '-';
+          let pr = p.proveedorId ? proveedores.find(x => x.id === p.proveedorId) : null;
+          if (!pr && p.facturaId) {
+            const fac = facturas.find(f => f.id === p.facturaId);
+            if (fac?.proveedorId) pr = proveedores.find(x => x.id === fac.proveedorId);
+          }
+          const contact = resolveEntityContact(pr, { proveedorNombre: p.destinatarioConcepto || p.concepto });
+          const text = contact.name || p.destinatarioConcepto || p.concepto || '-';
           return `<span class="cell-primary">${escapeHtml(text)}</span>`;
         }
       },
@@ -89,6 +97,16 @@ export function renderPagos(container, actionsEl) {
     const fm = container.querySelector('#filter-metodo');
     if (fm) fm.onchange = e => { filterMetodo = e.target.value; render(); };
   }
+
+  // Escuchar eventos de cambios de datos en tiempo real
+  const handleDataChanged = () => {
+    if (container.isConnected) {
+      render();
+    } else {
+      window.removeEventListener('mb-data-changed', handleDataChanged);
+    }
+  };
+  window.addEventListener('mb-data-changed', handleDataChanged);
 
   container.onclick = e => {
     const btn = e.target.closest('[data-action]'); if (!btn) return;
@@ -260,7 +278,7 @@ export function renderPagos(container, actionsEl) {
       data.destinatarioConcepto = dest;
       data.concepto = dest;
       data.facturaId = (data.facturaId && data.facturaId.trim()) ? data.facturaId.trim() : null;
-      const matched = proveedores.find(p => p.nombre.toLowerCase() === dest.toLowerCase());
+      const matched = proveedores.find(p => p.nombre.toLowerCase() === dest.toLowerCase() || (p.razonSocial && p.razonSocial.toLowerCase() === dest.toLowerCase()));
       data.proveedorId = matched ? matched.id : (pago.proveedorId || null);
 
       if (data.facturaId && !data.proveedorId) {

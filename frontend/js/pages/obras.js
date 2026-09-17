@@ -3,19 +3,19 @@
    ======================================== */
 
 import { DataService } from '../services/mockData.js';
-import { formatCurrency, formatDate, escapeHtml, debounce, searchFilter, compareNewestFirst } from '../utils/helpers.js';
+import { formatCurrency, formatDate, escapeHtml, debounce, searchFilter, compareNewestFirst, resolveEntityContact } from '../utils/helpers.js';
 import { Icons, renderDataTable, renderSearchInput, renderBadge, renderEmptyState, renderProgressBar } from '../components/ui.js';
 import { Drawer } from '../components/drawer.js';
 import { Toast } from '../components/toast.js';
 import { confirmDialog } from '../components/confirmDialog.js';
 import { DocumentModal } from '../components/documentModal.js';
-import { generateObraHtml, exportToPdf, exportToWord } from '../services/documentExporter.js';
+import { generateObraHtml, exportToPdf, exportToWord, shareViaWhatsAppAndPdf } from '../services/documentExporter.js';
 import { OBRA_ESTADO_LABELS, OBRA_ESTADO_COLORS } from '../utils/constants.js';
 import { openDescontarStockObraModal } from '../services/stockAutomation.js';
 import { openCobroForm } from './cobros.js';
 import { openEventoForm } from './calendario.js';
 
-export function renderObras(container, actionsEl, path) {
+export function renderObras(container, actionsEl, path = '/obras') {
   const parts = path.split('/');
   if (parts.length > 2 && parts[2]) { renderObraDetail(container, actionsEl, parts[2]); return; }
 
@@ -26,6 +26,7 @@ export function renderObras(container, actionsEl, path) {
   let searchTerm = '', filterEstado = '';
 
   function render() {
+    obras = DataService.getAll('obras');
     let filtered = obras;
     if (filterEstado) filtered = filtered.filter(o => o.estado === filterEstado);
     if (searchTerm) filtered = searchFilter(filtered, searchTerm, ['direccion', 'descripcion', 'material', 'clienteNombre', 'presupuestoNumero']);
@@ -33,11 +34,11 @@ export function renderObras(container, actionsEl, path) {
     const clientes = DataService.getAll('clientes');
     const columns = [
       { label: 'Cliente y Obra', render: (o) => {
-        const c = clientes.find(c => String(c.id) === String(o.clienteId));
-        const cliName = c ? `${c.nombre} ${c.apellido || ''}`.trim() : (o.clienteNombre || 'Cliente sin asignar');
+        const c = o.clienteId ? DataService.getById('clientes', o.clienteId) : clientes.find(c => String(c.id) === String(o.clienteId));
+        const contact = resolveEntityContact(c, { clienteNombre: o.clienteNombre });
         const shortId = (o.id && o.id.length > 8) ? o.id.slice(-6).toUpperCase() : o.id;
         return `<div>
-          <span class="cell-primary" style="font-weight:var(--font-semibold);display:block;line-height:1.3">${escapeHtml(cliName)}</span>
+          <span class="cell-primary" style="font-weight:var(--font-semibold);display:block;line-height:1.3">${escapeHtml(contact.name)}</span>
           <div style="display:flex;align-items:center;gap:6px;margin-top:2px;font-size:11px">
             <span class="cell-mono" style="color:var(--color-primary);font-weight:var(--font-bold)">#${shortId}</span>
             ${o.presupuestoNumero ? `<a href="#/presupuestos/${o.presupuestoId}" class="badge badge-neutral" style="font-family:var(--font-mono);font-size:10px;padding:1px 6px;text-decoration:none" title="Ver presupuesto">${escapeHtml(o.presupuestoNumero)}</a>` : ''}
@@ -58,7 +59,9 @@ export function renderObras(container, actionsEl, path) {
       }},
       { label: '', align: 'right', className: 'cell-actions', render: (o) => `
         <div class="table-actions-group">
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="schedule" data-id="${o.id}" title="Agendar obra en calendario">${Icons.calendar}</button>
           <button class="btn btn-ghost btn-icon btn-sm" data-action="view" data-id="${o.id}" title="Ver ficha y detalle de obra">${Icons.eye}</button>
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="share" data-id="${o.id}" title="Compartir Ficha por WhatsApp + PDF" style="color:#25D366">${Icons.whatsapp}</button>
           <button class="btn btn-ghost btn-icon btn-sm" data-action="export" data-id="${o.id}" title="Exportar Ficha / Orden">${Icons.download}</button>
           <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-id="${o.id}" title="Eliminar obra" style="color:var(--color-error)">${Icons.trash}</button>
         </div>
@@ -93,6 +96,25 @@ export function renderObras(container, actionsEl, path) {
     if (btn) {
       e.stopPropagation();
       const { action, id } = btn.dataset;
+      if (action === 'schedule') {
+        const o = DataService.getById('obras', id);
+        if (o) {
+          const cli = o.clienteId ? DataService.getById('clientes', o.clienteId) : null;
+          const contact = resolveEntityContact(cli, { clienteNombre: o.clienteNombre, telefono: o.contacto || o.telefono });
+          openEventoForm({
+            clienteId: o.clienteId,
+            clienteNombre: contact.name || o.clienteNombre,
+            obraId: o.id,
+            presupuestoId: o.presupuestoId,
+            direccion: o.direccion,
+            notas: `Obra #${o.id} - ${o.descripcion || ''}${o.material ? ` | Material: ${o.material}` : ''}`,
+            tipo: 'instalacion'
+          }, () => {
+            Toast.success('Obra agendada en el calendario');
+          });
+        }
+        return;
+      }
       if (action === 'view') { window.location.hash = `#/obras/${id}`; return; }
       if (action === 'export') {
         const o = DataService.getById('obras', id);
@@ -100,10 +122,31 @@ export function renderObras(container, actionsEl, path) {
         const cli = o.clienteId ? DataService.getById('clientes', o.clienteId) : null;
         const pr = o.presupuestoId ? DataService.getById('presupuestos', o.presupuestoId) : null;
         const cobs = DataService.getAll('cobros').filter(c => String(c.obraId) === String(id));
+        const contact = resolveEntityContact(cli, { clienteNombre: o.clienteNombre, telefono: o.contacto || o.telefono });
         DocumentModal.open({
           title: `Ficha Técnica — Obra #${o.id}`,
           filename: `Ficha_Obra_${o.id}`,
-          htmlContent: generateObraHtml(o, cli, pr, cobs)
+          htmlContent: generateObraHtml(o, cli, pr, cobs),
+          whatsappData: {
+            phone: contact.whatsapp || contact.phone,
+            text: `Hola ${contact.name}! Te envío la ficha técnica de la obra #${o.id} (${o.descripcion || 'Obra'}) de Marmolería Benjamin.\nDirección: ${o.direccion || '-'}\nEstado: ${OBRA_ESTADO_LABELS[o.estado] || o.estado || '-'}\nAdjunto ficha en PDF.`
+          }
+        });
+        return;
+      }
+      if (action === 'share') {
+        const o = DataService.getById('obras', id);
+        if (!o) return;
+        const cli = o.clienteId ? DataService.getById('clientes', o.clienteId) : null;
+        const pr = o.presupuestoId ? DataService.getById('presupuestos', o.presupuestoId) : null;
+        const cobs = DataService.getAll('cobros').filter(c => String(c.obraId) === String(id));
+        const contact = resolveEntityContact(cli, { clienteNombre: o.clienteNombre, telefono: o.contacto || o.telefono });
+        const msg = `Hola ${contact.name}! Te envío la ficha técnica de la obra #${o.id} (${o.descripcion || 'Obra'}) de Marmolería Benjamin.\n\nDirección: ${o.direccion || '-'}\nEstado: ${OBRA_ESTADO_LABELS[o.estado] || o.estado || '-'}\n\nAdjunto la ficha completa en PDF. ¡Saludos!`;
+        shareViaWhatsAppAndPdf({
+          phone: contact.whatsapp || contact.phone,
+          text: msg,
+          htmlContent: generateObraHtml(o, cli, pr, cobs),
+          filename: `Ficha_Obra_${o.id}`
         });
         return;
       }
@@ -258,6 +301,7 @@ function renderObraDetail(container, actionsEl, obraId) {
   if (!obra) { container.innerHTML = renderEmptyState({ title: 'Obra no encontrada' }); return; }
 
   const cliente = DataService.getById('clientes', obra.clienteId);
+  const obraContact = resolveEntityContact(cliente, { clienteNombre: obra.clienteNombre, telefono: obra.contacto || obra.telefono, direccion: obra.direccion });
   const pres = obra.presupuestoId ? DataService.getById('presupuestos', obra.presupuestoId) : null;
   const total = DataService.getObraTotal(obraId);
   const cobrado = DataService.getObraCobrado(obraId);
@@ -287,12 +331,12 @@ function renderObraDetail(container, actionsEl, obraId) {
               ${escapeHtml(obra.descripcion || `Obra #${obra.id}`)}
             </h2>
             <div style="display:flex;align-items:center;gap:var(--space-3);color:var(--color-stone-600);font-size:var(--text-sm);flex-wrap:wrap">
-              <span><strong>Cliente:</strong> ${cliente ? `<a href="#/clientes/${cliente.id}" style="color:var(--color-stone-900);font-weight:var(--font-semibold)">${escapeHtml(cliente.nombre)} ${escapeHtml(cliente.apellido || '')}</a>` : escapeHtml(obra.clienteNombre || 'Sin cliente')}</span>
+              <span><strong>Cliente:</strong> ${cliente ? `<a href="#/clientes/${cliente.id}" style="color:var(--color-stone-900);font-weight:var(--font-semibold)">${escapeHtml(obraContact.name)}</a>` : escapeHtml(obraContact.name)}</span>
               <span>•</span>
-              <span><strong>Dirección:</strong> ${escapeHtml(obra.direccion || 'Sin dirección')}</span>
-              ${(obra.contacto || obra.telefono || cliente?.telefono || cliente?.whatsapp) ? `
+              <span><strong>Dirección:</strong> ${escapeHtml(obraContact.direccion || obra.direccion || 'Sin dirección')}</span>
+              ${obraContact.phone ? `
                 <span>•</span>
-                <span><strong>Contacto:</strong> ${escapeHtml(obra.contacto || obra.telefono || cliente?.telefono || cliente?.whatsapp || '')}</span>
+                <span><strong>Contacto:</strong> ${escapeHtml(obraContact.phone)}</span>
               ` : ''}
             </div>
           </div>
@@ -594,8 +638,8 @@ function renderObraDetail(container, actionsEl, obraId) {
             ${Icons['file-word']} <span>Ficha Word</span>
           </button>
           ${(cliente?.whatsapp || obra.contacto || obra.telefono) ? `
-            <button class="btn btn-secondary btn-sm obra-secondary-btn" id="btn-obra-whatsapp" style="color:#15803D;border-color:#BBF7D0;background:#F0FDF4">
-              ${Icons.whatsapp} <span>WhatsApp</span>
+            <button class="btn btn-secondary btn-sm obra-secondary-btn" id="btn-obra-whatsapp" style="color:#15803D;border-color:#BBF7D0;background:#F0FDF4" title="Enviar ficha por WhatsApp y descargar copia en PDF">
+              ${Icons.whatsapp} <span>WhatsApp + PDF</span>
             </button>
           ` : ''}
         </div>
@@ -607,21 +651,27 @@ function renderObraDetail(container, actionsEl, obraId) {
   const getDocHtml = () => generateObraHtml(obra, cliente, pres, cobros);
   const docFilename = `Ficha_Obra_${obra.id}`;
 
-  document.getElementById('btn-obra-whatsapp')?.addEventListener('click', () => {
-    const phone = (cliente?.whatsapp || cliente?.telefono || '').replace(/\D/g, '');
-    const msg = `Hola! Te envío la información de la obra #${obra.id} de Marmolería Benjamin.\n${obra.descripcion || ''}\nDirección: ${obra.direccion || ''}\nEstado: ${obra.estado || ''}\n\n¡Saludos!`;
-    if (phone) {
-      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-    } else {
-      Toast.info('WhatsApp', 'El cliente no tiene teléfono o WhatsApp registrado');
-    }
+  document.getElementById('btn-obra-whatsapp')?.addEventListener('click', async () => {
+    const contact = resolveEntityContact(cliente, { clienteNombre: obra.clienteNombre, telefono: obra.contacto || obra.telefono });
+    const msg = `Hola! Te envío la información de la obra #${obra.id} (${obra.descripcion || 'Obra'}) de Marmolería Benjamin.\n\nDirección: ${obra.direccion || '-'}\nEstado: ${OBRA_ESTADO_LABELS[obra.estado] || obra.estado || '-'}\n\nAdjunto la ficha completa en PDF. ¡Saludos!`;
+    await shareViaWhatsAppAndPdf({
+      phone: contact.whatsapp || contact.phone,
+      text: msg,
+      htmlContent: getDocHtml(),
+      filename: docFilename
+    });
   });
 
   document.getElementById('btn-obra-preview')?.addEventListener('click', () => {
+    const contact = resolveEntityContact(cliente, { clienteNombre: obra.clienteNombre, telefono: obra.contacto || obra.telefono });
     DocumentModal.open({
       title: `Ficha Técnica — Obra #${obra.id}`,
       filename: docFilename,
-      htmlContent: getDocHtml()
+      htmlContent: getDocHtml(),
+      whatsappData: {
+        phone: contact.whatsapp || contact.phone,
+        text: `Hola! Te envío la ficha técnica de la obra #${obra.id} de Marmolería Benjamin.\nDirección: ${obra.direccion || '-'}\nEstado: ${OBRA_ESTADO_LABELS[obra.estado] || obra.estado || '-'}\nAdjunto ficha en PDF.`
+      }
     });
   });
 

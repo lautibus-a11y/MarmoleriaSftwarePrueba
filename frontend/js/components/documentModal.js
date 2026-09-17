@@ -3,13 +3,13 @@
    ========================================================= */
 
 import { Icons } from './ui.js';
-import { exportToPdf, exportToWord, printDocument } from '../services/documentExporter.js';
+import { exportToPdf, exportToWord, printDocument, shareViaWhatsAppAndPdf } from '../services/documentExporter.js';
 import { Toast } from './toast.js';
 
 let modalEl = null;
 
 export const DocumentModal = {
-  open({ title = 'Vista previa de documento', filename = 'documento', htmlContent = '' }) {
+  open({ title = 'Vista previa de documento', filename = 'documento', htmlContent = '', whatsappData = null }) {
     this.close();
 
     modalEl = document.createElement('div');
@@ -29,6 +29,11 @@ export const DocumentModal = {
             </button>
           </div>
           <div class="doc-modal-toolbar-actions">
+            ${whatsappData ? `
+              <button class="btn btn-sm" id="btn-doc-modal-wa" style="background:#25D366;border-color:#25D366;color:#fff;font-weight:600" title="Descargar copia en PDF y abrir chat de WhatsApp">
+                ${Icons.whatsapp} <span>WhatsApp + PDF</span>
+              </button>
+            ` : ''}
             <button class="btn btn-pdf btn-sm" id="btn-doc-modal-pdf">
               ${Icons['file-pdf']} <span>PDF</span>
             </button>
@@ -59,6 +64,18 @@ export const DocumentModal = {
 
     // Event listeners
     const sheetEl = modalEl.querySelector('#doc-sheet-content');
+
+    // WhatsApp + PDF button
+    if (whatsappData) {
+      modalEl.querySelector('#btn-doc-modal-wa')?.addEventListener('click', async () => {
+        await shareViaWhatsAppAndPdf({
+          phone: whatsappData.phone || '',
+          text: whatsappData.text || '',
+          htmlContent: sheetEl.innerHTML,
+          filename: filename
+        });
+      });
+    }
 
     // PDF button
     modalEl.querySelector('#btn-doc-modal-pdf')?.addEventListener('click', async () => {

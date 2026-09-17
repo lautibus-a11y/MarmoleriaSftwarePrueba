@@ -5,7 +5,7 @@
    ======================================== */
 
 import { DataService } from '../services/mockData.js';
-import { formatCurrency, formatDate, escapeHtml } from '../utils/helpers.js';
+import { formatCurrency, formatDate, escapeHtml, createWhatsAppLink, resolveEntityContact } from '../utils/helpers.js';
 import { Icons, renderBadge, renderEmptyState } from '../components/ui.js';
 import { Drawer } from '../components/drawer.js';
 import { Modal } from '../components/modal.js';
@@ -72,6 +72,16 @@ export function renderCalendario(container, actionsEl, path) {
       openEventoForm({ fecha: selectedDateStr }, () => render());
     });
   }
+
+  // Escuchar eventos de cambios de datos en tiempo real
+  const handleDataChanged = () => {
+    if (container.isConnected) {
+      render();
+    } else {
+      window.removeEventListener('mb-data-changed', handleDataChanged);
+    }
+  };
+  window.addEventListener('mb-data-changed', handleDataChanged);
 
   function render() {
     renderHeaderActions();
@@ -252,14 +262,15 @@ export function renderCalendario(container, actionsEl, path) {
 
   function renderAgendaCard(e) {
     const cliente = e.clienteId ? DataService.getById('clientes', e.clienteId) : null;
-    const cliName = cliente ? `${cliente.nombre} ${cliente.apellido || ''}`.trim() : (e.clienteNombre || 'Sin cliente');
+    const contact = resolveEntityContact(cliente, { clienteNombre: e.clienteNombre, direccion: e.direccion });
+    const cliName = contact.name || 'Sin cliente';
     const pres = e.presupuestoId ? DataService.getById('presupuestos', e.presupuestoId) : null;
     const isDone = e.estado === 'realizado';
     const isCancel = e.estado === 'cancelado';
     const tipoLabel = EVENTO_TIPO_LABELS[e.tipo] || e.tipo;
     const tipoColor = EVENTO_TIPO_COLORS[e.tipo] || 'neutral';
 
-    const subtitle = e.direccion || (pres?.material ? `Material: ${pres.material}` : '');
+    const subtitle = contact.direccion || e.direccion || (pres?.material ? `Material: ${pres.material}` : '');
 
     return `
       <div class="agenda-card ${isDone ? 'is-done' : ''} ${isCancel ? 'is-canceled' : ''}" data-event-id="${e.id}">
@@ -504,9 +515,9 @@ export function openEventoDetailModal(eventId, onUpdated = null) {
   if (!evt) return;
 
   const cliente = evt.clienteId ? DataService.getById('clientes', evt.clienteId) : null;
-  const cliName = cliente ? `${cliente.nombre} ${cliente.apellido || ''}`.trim() : (evt.clienteNombre || 'Sin cliente registrado');
-  const cliPhone = cliente?.whatsapp || cliente?.telefono || '';
-  const cleanPhone = cliPhone.replace(/\D/g, '');
+  const contact = resolveEntityContact(cliente, { clienteNombre: evt.clienteNombre, direccion: evt.direccion, telefono: evt.telefono });
+  const cliName = contact.name || 'Sin cliente registrado';
+  const cliPhone = contact.whatsapp || contact.phone || '';
 
   const pres = evt.presupuestoId ? DataService.getById('presupuestos', evt.presupuestoId) : null;
   const isDone = evt.estado === 'realizado';
@@ -526,13 +537,13 @@ export function openEventoDetailModal(eventId, onUpdated = null) {
           <div style="font-size:11.5px;font-weight:var(--font-bold);color:var(--color-stone-500);text-transform:uppercase;letter-spacing:0.5px">Cliente</div>
           <div style="font-size:var(--text-lg);font-weight:var(--font-bold);color:var(--color-stone-900);margin-top:2px;display:flex;align-items:center;justify-content:space-between">
             <span>${escapeHtml(cliName)}</span>
-            ${cleanPhone ? `
-              <a href="https://wa.me/${cleanPhone}" target="_blank" class="btn btn-ghost btn-sm" style="color:#25D366;padding:4px 8px;gap:4px">
+            ${cliPhone ? `
+              <a href="${createWhatsAppLink(cliPhone)}" target="_blank" class="btn btn-ghost btn-sm" style="color:#25D366;padding:4px 8px;gap:4px">
                 ${Icons.whatsapp} <span style="font-size:12px">WhatsApp</span>
               </a>
             ` : ''}
           </div>
-          ${cliente?.direccion ? `<div style="font-size:12.5px;color:var(--color-stone-600);margin-top:2px">${escapeHtml(cliente.direccion)}</div>` : ''}
+          ${contact.direccion ? `<div style="font-size:12.5px;color:var(--color-stone-600);margin-top:2px">${escapeHtml(contact.direccion)}</div>` : ''}
         </div>
 
         <!-- Fecha y Hora -->

@@ -3,8 +3,17 @@
    Synchronized reactive store persisting to Cloudflare R2 & localStorage
    ======================================== */
 
-import { generateId, compareNewestFirst } from '../utils/helpers.js';
+import { generateId, compareNewestFirst, formatWhatsAppPhone } from '../utils/helpers.js';
 import { Api } from './api.js';
+
+// Notifica a todas las pestañas y vistas abiertas que hubo un cambio en los datos
+function notifyDataChanged(collection, id, action) {
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    window.dispatchEvent(new CustomEvent('mb-data-changed', {
+      detail: { collection, id, action, timestamp: Date.now() }
+    }));
+  }
+}
 
 // ── In-memory data store ──
 const store = {
@@ -90,6 +99,24 @@ function initLocalCache() {
       store[col].sort(compareNewestFirst);
     }
   });
+
+  // Migración y saneamiento: sincronizar WhatsApp con Teléfono en clientes existentes
+  if (Array.isArray(store.clientes)) {
+    let clientsChanged = false;
+    store.clientes.forEach(c => {
+      if (!c) return;
+      const cleanTel = (c.telefono || '').replace(/\D/g, '');
+      const cleanWa = (c.whatsapp || '').replace(/\D/g, '');
+      // Si el teléfono fue editado pero el whatsapp quedó con un teléfono de prueba viejo
+      if (cleanTel && cleanWa && cleanTel !== cleanWa && (cleanWa.startsWith('5491145678901') || cleanWa === '5491145678901' || cleanWa === '5491123456789' || cleanWa === '5491156781234')) {
+        c.whatsapp = c.telefono;
+        clientsChanged = true;
+      }
+    });
+    if (clientsChanged) {
+      try { localStorage.setItem('mb_clientes', JSON.stringify(store.clientes)); } catch (e) {}
+    }
+  }
 }
 
 initLocalCache();
@@ -169,6 +196,7 @@ export const DataService = {
       this.recalcularEstadoFactura(record.facturaId);
     }
 
+    notifyDataChanged(collection, id, 'create');
     return record;
   },
 
@@ -178,7 +206,22 @@ export const DataService = {
     
     const prevPago = collection === 'pagos' ? { ...store.pagos[idx] } : null;
 
+    // Sincronización inteligente de contacto para Clientes
+    if (collection === 'clientes') {
+      const prevClient = store.clientes[idx] || {};
+      // Si se editó teléfono y whatsapp está vacío o era igual al teléfono anterior
+      if (data.telefono && (!data.whatsapp || data.whatsapp === prevClient.whatsapp || data.whatsapp === prevClient.telefono)) {
+        data.whatsapp = data.telefono;
+      }
+    } else if (collection === 'proveedores') {
+      const prevProv = store.proveedores[idx] || {};
+      if (data.telefono && (!data.whatsapp || data.whatsapp === prevProv.whatsapp || data.whatsapp === prevProv.telefono)) {
+        data.whatsapp = data.telefono;
+      }
+    }
+
     store[collection][idx] = { ...store[collection][idx], ...data, updatedAt: new Date().toISOString() };
+    const updatedRecord = store[collection][idx];
     try { localStorage.setItem(`mb_${collection}`, JSON.stringify(store[collection])); } catch (e) {}
 
     // Async sync to Cloudflare Worker R2
@@ -187,6 +230,81 @@ export const DataService = {
       Api.put(`${route}/${id}`, data).catch(err => {
         console.warn(`Background sync failed for update on ${collection}:`, err.message);
       });
+    }
+
+    // Cascada de sincronización de seguridad para entidades dependientes
+    if (collection === 'clientes') {
+      const cliName = `${updatedRecord.nombre || ''} ${updatedRecord.apellido || ''}`.trim();
+      const cliPhone = updatedRecord.telefono || updatedRecord.whatsapp || '';
+
+      if (store.presupuestos) {
+        store.presupuestos.forEach(p => {
+          if (p && String(p.clienteId) === String(id)) {
+            p.clienteNombre = cliName;
+            p.telefono = cliPhone;
+            if (updatedRecord.direccion) p.direccion = updatedRecord.direccion;
+          }
+        });
+        try { localStorage.setItem('mb_presupuestos', JSON.stringify(store.presupuestos)); } catch (e) {}
+      }
+
+      if (store.obras) {
+        store.obras.forEach(o => {
+          if (o && String(o.clienteId) === String(id)) {
+            o.clienteNombre = cliName;
+            o.contacto = cliPhone;
+            o.telefono = cliPhone;
+            if (updatedRecord.direccion) o.direccion = updatedRecord.direccion;
+          }
+        });
+        try { localStorage.setItem('mb_obras', JSON.stringify(store.obras)); } catch (e) {}
+      }
+
+      if (store.cobros) {
+        store.cobros.forEach(c => {
+          if (c && String(c.clienteId) === String(id)) {
+            c.clienteNombre = cliName;
+          }
+        });
+        try { localStorage.setItem('mb_cobros', JSON.stringify(store.cobros)); } catch (e) {}
+      }
+
+      if (store.eventos) {
+        store.eventos.forEach(ev => {
+          if (ev && String(ev.clienteId) === String(id)) {
+            ev.clienteNombre = cliName;
+            if (updatedRecord.direccion) ev.direccion = updatedRecord.direccion;
+          }
+        });
+        try { localStorage.setItem('mb_eventos', JSON.stringify(store.eventos)); } catch (e) {}
+      }
+    } else if (collection === 'proveedores') {
+      const provName = updatedRecord.nombre || 'Proveedor';
+      if (store.facturas) {
+        store.facturas.forEach(f => {
+          if (f && String(f.proveedorId) === String(id)) {
+            f.proveedorNombre = provName;
+          }
+        });
+        try { localStorage.setItem('mb_facturas', JSON.stringify(store.facturas)); } catch (e) {}
+      }
+      if (store.pagos) {
+        store.pagos.forEach(p => {
+          if (p && String(p.proveedorId) === String(id)) {
+            p.destinatarioConcepto = provName;
+          }
+        });
+        try { localStorage.setItem('mb_pagos', JSON.stringify(store.pagos)); } catch (e) {}
+      }
+    } else if (collection === 'obras') {
+      if (updatedRecord.clienteId && store.cobros) {
+        store.cobros.forEach(c => {
+          if (c && String(c.obraId) === String(id) && (!c.clienteId || c.clienteId !== updatedRecord.clienteId)) {
+            c.clienteId = updatedRecord.clienteId;
+          }
+        });
+        try { localStorage.setItem('mb_cobros', JSON.stringify(store.cobros)); } catch (e) {}
+      }
     }
 
     // Automación: actualizar estado de factura si se modificó un pago
@@ -199,7 +317,8 @@ export const DataService = {
       this.recalcularEstadoFactura(id);
     }
 
-    return store[collection][idx];
+    notifyDataChanged(collection, id, 'update');
+    return updatedRecord;
   },
 
   remove(collection, id) {
@@ -224,7 +343,25 @@ export const DataService = {
       this.recalcularEstadoFactura(pagoEliminado.facturaId);
     }
 
+    notifyDataChanged(collection, id, 'delete');
     return true;
+  },
+
+  // ── Entity Resolution Helpers ──
+  resolveCliente(clienteId, fallback = {}) {
+    if (clienteId) {
+      const found = this.getById('clientes', clienteId);
+      if (found) return found;
+    }
+    return fallback;
+  },
+
+  resolveProveedor(proveedorId, fallback = {}) {
+    if (proveedorId) {
+      const found = this.getById('proveedores', proveedorId);
+      if (found) return found;
+    }
+    return fallback;
   },
 
   // ── Facturas & Pagos Automation ──
@@ -347,7 +484,7 @@ export const DataService = {
 
   getObraCobrado(obraId) {
     return (store.cobros || [])
-      .filter(c => String(c.obraId) === String(obraId) && c.estado === 'cobrado')
+      .filter(c => String(c.obraId) === String(obraId) && (c.estado === 'cobrado' || !c.estado))
       .reduce((s, c) => s + (parseFloat(c.importe) || 0), 0);
   },
 

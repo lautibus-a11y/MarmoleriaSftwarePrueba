@@ -307,10 +307,63 @@ export function escapeHtml(str) {
 }
 
 /**
+ * Format phone number to international WhatsApp format (especially Argentina 549)
+ */
+export function formatWhatsAppPhone(phone) {
+  if (!phone) return '';
+  let clean = String(phone).replace(/\D/g, '');
+  if (!clean) return '';
+  // Eliminar 0 inicial si existe
+  if (clean.startsWith('0')) clean = clean.slice(1);
+  // Eliminar prefijo celular local "15" después del código de área
+  if (clean.startsWith('1115') && clean.length === 12) {
+    clean = '11' + clean.slice(4);
+  } else if (/^\d{3}15\d{7}$/.test(clean)) {
+    clean = clean.slice(0, 3) + clean.slice(5);
+  } else if (/^\d{4}15\d{6}$/.test(clean)) {
+    clean = clean.slice(0, 4) + clean.slice(6);
+  }
+
+  if (clean.length === 10) {
+    clean = '549' + clean;
+  } else if (clean.startsWith('54') && !clean.startsWith('549') && clean.length === 12) {
+    clean = '549' + clean.slice(2);
+  }
+  return clean;
+}
+
+/**
+ * Resolve unified and up-to-date contact information for any client or provider entity
+ */
+export function resolveEntityContact(entity, fallbackObj = {}) {
+  const target = entity || fallbackObj || {};
+
+  const rawPhone = (target.telefono || target.contacto || fallbackObj?.telefono || fallbackObj?.contacto || '').trim();
+  const rawWa = (target.whatsapp || fallbackObj?.whatsapp || rawPhone).trim();
+
+  const cleanPhone = formatWhatsAppPhone(rawPhone);
+  const cleanWa = formatWhatsAppPhone(rawWa) || cleanPhone;
+
+  const name = target.nombre 
+    ? `${target.nombre} ${target.apellido || ''}`.trim()
+    : (target.clienteNombre || target.proveedorNombre || fallbackObj?.clienteNombre || fallbackObj?.proveedorNombre || 'Cliente');
+
+  return {
+    name,
+    phone: rawPhone || rawWa,
+    whatsapp: cleanWa,
+    rawWhatsapp: rawWa,
+    email: target.email || fallbackObj?.email || '',
+    direccion: target.direccion || fallbackObj?.direccion || '',
+    cuit: target.cuit || fallbackObj?.cuit || ''
+  };
+}
+
+/**
  * Create WhatsApp link
  */
 export function createWhatsAppLink(phone, message = '') {
-  const cleanPhone = phone.replace(/\D/g, '');
+  const cleanPhone = formatWhatsAppPhone(phone);
   const encoded = encodeURIComponent(message);
   return `https://wa.me/${cleanPhone}?text=${encoded}`;
 }

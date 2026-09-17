@@ -9,6 +9,10 @@ class DrawerManager {
     this.onCloseCallback = null;
   }
 
+  get isOpen() {
+    return !!(this.drawer && document.body.contains(this.drawer));
+  }
+
   open({ title = '', content = '', size = '', onClose = null, footer = null, headerActions = null } = {}) {
     this.close(true);
     document.querySelectorAll('.drawer, .drawer-overlay').forEach(el => el.remove());

@@ -14,15 +14,16 @@ import {
 import { openEventoDetailModal, openEventoForm } from './calendario.js';
 
 export function renderDashboard(container, actionsEl) {
-  const stats = DataService.getDashboardStats();
-  const vencimientos = DataService.getProximosVencimientos(30);
-  const ultPresupuestos = DataService.getUltimosPresupuestos(5);
-  const ultPagos = DataService.getUltimosPagos(5);
-  const ultCobros = DataService.getUltimosCobros(5);
-  const todayStr = new Date().toISOString().split('T')[0];
-  const allUpcoming = DataService.getProximosEventos(8);
-  const eventosHoy = allUpcoming.filter(e => e.fecha === todayStr);
-  const eventosProximos = allUpcoming.filter(e => e.fecha > todayStr);
+  function render() {
+    const stats = DataService.getDashboardStats();
+    const vencimientos = DataService.getProximosVencimientos(30);
+    const ultPresupuestos = DataService.getUltimosPresupuestos(5);
+    const ultPagos = DataService.getUltimosPagos(5);
+    const ultCobros = DataService.getUltimosCobros(5);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const allUpcoming = DataService.getProximosEventos(8);
+    const eventosHoy = allUpcoming.filter(e => e.fecha === todayStr);
+    const eventosProximos = allUpcoming.filter(e => e.fecha > todayStr);
 
   // Stock bajo alerts
   const stockAlerts = stats.stockBajo.map(mat => {
@@ -237,17 +238,30 @@ export function renderDashboard(container, actionsEl) {
     </div>
   `;
 
-  // Calendar event listeners
-  container.querySelectorAll('.dashboard-evento-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const evId = item.dataset.eventId;
-      if (evId) openEventoDetailModal(evId);
+    // Calendar event listeners
+    container.querySelectorAll('.dashboard-evento-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const evId = item.dataset.eventId;
+        if (evId) openEventoDetailModal(evId);
+      });
     });
-  });
 
-  document.getElementById('btn-dash-new-event')?.addEventListener('click', () => {
-    openEventoForm({}, () => {
-      renderDashboard(container, actionsEl);
+    document.getElementById('btn-dash-new-event')?.addEventListener('click', () => {
+      openEventoForm({}, () => {
+        render();
+      });
     });
-  });
+  }
+
+  // Escuchar cambios de datos en tiempo real entre pestañas
+  const handleDataChanged = () => {
+    if (container.isConnected) {
+      render();
+    } else {
+      window.removeEventListener('mb-data-changed', handleDataChanged);
+    }
+  };
+  window.addEventListener('mb-data-changed', handleDataChanged);
+
+  render();
 }

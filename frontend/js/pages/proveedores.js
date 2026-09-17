@@ -10,7 +10,7 @@ import { Toast } from '../components/toast.js';
 import { confirmDialog } from '../components/confirmDialog.js';
 import { FACTURA_TIPO_LABELS } from '../utils/constants.js';
 
-export function renderProveedores(container, actionsEl, path) {
+export function renderProveedores(container, actionsEl, path = '/proveedores') {
   const parts = path.split('/');
   if (parts.length > 2 && parts[2]) { renderProveedorDetail(container, actionsEl, parts[2]); return; }
 
@@ -63,31 +63,10 @@ export function renderProveedores(container, actionsEl, path) {
     }
   };
 
-  function openForm(editId=null){
-    const prov = (editId ? DataService.getById('proveedores', editId) : null) || {};
-    const isEdit = !!editId;
-    Drawer.open({title:isEdit?'Editar proveedor':'Nuevo proveedor',
-      content:`<form id="prov-form">
-        <div class="form-row-2"><div class="form-group"><label class="form-label">Nombre <span class="required">*</span></label><input type="text" class="form-input" name="nombre" value="${escapeHtml(prov.nombre||'')}" required></div>
-        <div class="form-group"><label class="form-label">Razón Social</label><input type="text" class="form-input" name="razonSocial" value="${escapeHtml(prov.razonSocial||'')}"></div></div>
-        <div class="form-group"><label class="form-label">CUIT</label><input type="text" class="form-input" name="cuit" value="${escapeHtml(prov.cuit||'')}" placeholder="XX-XXXXXXXX-X"></div>
-        <div class="form-row-2"><div class="form-group"><label class="form-label">Teléfono</label><input type="tel" class="form-input" name="telefono" value="${escapeHtml(prov.telefono||'')}"></div>
-        <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" name="email" value="${escapeHtml(prov.email||'')}"></div></div>
-        <div class="form-group"><label class="form-label">Dirección</label><input type="text" class="form-input" name="direccion" value="${escapeHtml(prov.direccion||'')}"></div>
-        <div class="form-group"><label class="form-label">Contacto</label><input type="text" class="form-input" name="contacto" value="${escapeHtml(prov.contacto||'')}"></div>
-        <div class="form-group"><label class="form-label">Observaciones</label><textarea class="form-textarea" name="observaciones" rows="3">${escapeHtml(prov.observaciones||'')}</textarea></div>
-      </form>`,
-      footer:`<button class="btn btn-secondary" id="drawer-cancel">Cancelar</button><button class="btn btn-primary" id="drawer-save">${isEdit?'Guardar':'Crear'}</button>`
-    });
-    document.getElementById('drawer-cancel').addEventListener('click',()=>Drawer.close());
-    document.getElementById('drawer-save').addEventListener('click',()=>{
-      const data=Object.fromEntries(new FormData(document.getElementById('prov-form')));
-      if(!data.nombre?.trim()){Toast.warning('El nombre es obligatorio');return;}
-      if(isEdit){DataService.update('proveedores',editId,data);Toast.success('Proveedor actualizado');}
-      else{DataService.create('proveedores',data);Toast.success('Proveedor creado');}
-      Drawer.close();proveedores=DataService.getAll('proveedores');render();
-    });
-  }
+  const openForm = (id) => openProveedorForm(id, () => {
+    proveedores = DataService.getAll('proveedores');
+    render();
+  });
 
   async function handleDelete(id){
     const confirmed=await confirmDialog({title:'Eliminar proveedor',message:'¿Estás seguro?',confirmText:'Eliminar',type:'danger'});
@@ -96,6 +75,33 @@ export function renderProveedores(container, actionsEl, path) {
 
   actionsEl.querySelector('#btn-new-prov')?.addEventListener('click', () => openForm());
   render();
+}
+
+export function openProveedorForm(editId=null, onDone=null){
+  const prov = (editId ? DataService.getById('proveedores', editId) : null) || {};
+  const isEdit = !!editId;
+  Drawer.open({title:isEdit?'Editar proveedor':'Nuevo proveedor',
+    content:`<form id="prov-form">
+      <div class="form-row-2"><div class="form-group"><label class="form-label">Nombre <span class="required">*</span></label><input type="text" class="form-input" name="nombre" value="${escapeHtml(prov.nombre||'')}" required></div>
+      <div class="form-group"><label class="form-label">Razón Social</label><input type="text" class="form-input" name="razonSocial" value="${escapeHtml(prov.razonSocial||'')}"></div></div>
+      <div class="form-group"><label class="form-label">CUIT</label><input type="text" class="form-input" name="cuit" value="${escapeHtml(prov.cuit||'')}" placeholder="XX-XXXXXXXX-X"></div>
+      <div class="form-row-2"><div class="form-group"><label class="form-label">Teléfono</label><input type="tel" class="form-input" name="telefono" value="${escapeHtml(prov.telefono||'')}"></div>
+      <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" name="email" value="${escapeHtml(prov.email||'')}"></div></div>
+      <div class="form-group"><label class="form-label">Dirección</label><input type="text" class="form-input" name="direccion" value="${escapeHtml(prov.direccion||'')}"></div>
+      <div class="form-group"><label class="form-label">Contacto</label><input type="text" class="form-input" name="contacto" value="${escapeHtml(prov.contacto||'')}"></div>
+      <div class="form-group"><label class="form-label">Observaciones</label><textarea class="form-textarea" name="observaciones" rows="3">${escapeHtml(prov.observaciones||'')}</textarea></div>
+    </form>`,
+    footer:`<button class="btn btn-secondary" id="drawer-cancel">Cancelar</button><button class="btn btn-primary" id="drawer-save">${isEdit?'Guardar':'Crear'}</button>`
+  });
+  document.getElementById('drawer-cancel').addEventListener('click',()=>Drawer.close());
+  document.getElementById('drawer-save').addEventListener('click',()=>{
+    const data=Object.fromEntries(new FormData(document.getElementById('prov-form')));
+    if(!data.nombre?.trim()){Toast.warning('El nombre es obligatorio');return;}
+    if(isEdit){DataService.update('proveedores',editId,data);Toast.success('Proveedor actualizado');}
+    else{DataService.create('proveedores',data);Toast.success('Proveedor creado');}
+    Drawer.close();
+    if (onDone) onDone();
+  });
 }
 
 function renderProveedorDetail(container, actionsEl, provId) {

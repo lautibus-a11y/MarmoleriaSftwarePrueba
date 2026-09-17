@@ -12,7 +12,7 @@ import { EVENTO_TIPO_LABELS, EVENTO_TIPO_COLORS, EVENTO_ESTADO_LABELS, EVENTO_ES
 import { openEventoForm, openEventoDetailModal } from './calendario.js';
 import { openCobroForm } from './cobros.js';
 
-export function renderClientes(container, actionsEl, path) {
+export function renderClientes(container, actionsEl, path = '/clientes') {
   // Check if we're viewing a specific client
   const parts = path.split('/');
   if (parts.length > 2 && parts[2]) {
@@ -29,6 +29,7 @@ export function renderClientes(container, actionsEl, path) {
   let searchTerm = '';
 
   function render() {
+    clientes = DataService.getAll('clientes');
     const filtered = searchFilter(clientes, searchTerm, ['nombre', 'apellido', 'telefono', 'email']);
 
     const columns = [
@@ -202,6 +203,21 @@ export function openClienteForm(editId = null, onSaved = null) {
     `
   });
 
+  // Sincronizar automáticamente WhatsApp con Teléfono si el usuario edita el teléfono
+  const telInput = document.querySelector('#cliente-form input[name="telefono"]');
+  const waInput = document.querySelector('#cliente-form input[name="whatsapp"]');
+  let waManuallyEdited = isEdit && cliente.whatsapp && cliente.whatsapp !== cliente.telefono;
+
+  waInput?.addEventListener('input', () => {
+    waManuallyEdited = true;
+  });
+
+  telInput?.addEventListener('input', () => {
+    if (!waManuallyEdited && waInput) {
+      waInput.value = telInput.value;
+    }
+  });
+
   document.getElementById('drawer-cancel').addEventListener('click', () => Drawer.close());
   document.getElementById('drawer-save').addEventListener('click', () => {
     const form = document.getElementById('cliente-form');
@@ -211,6 +227,13 @@ export function openClienteForm(editId = null, onSaved = null) {
     if (!data.nombre?.trim()) {
       Toast.warning('Campo requerido', 'El nombre es obligatorio');
       return;
+    }
+
+    // Si el usuario modificó teléfono y no puso un whatsapp distinto, asegurar sincronización
+    if (data.telefono && (!data.whatsapp || !waManuallyEdited)) {
+      data.whatsapp = data.telefono;
+    } else if (data.whatsapp && !data.telefono) {
+      data.telefono = data.whatsapp;
     }
 
     if (isEdit) {

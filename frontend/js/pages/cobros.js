@@ -4,14 +4,14 @@
 
 import { DataService } from '../services/mockData.js';
 import { Api } from '../services/api.js';
-import { formatCurrency, formatDate, escapeHtml, debounce, resolveFileUrl, compareNewestFirst } from '../utils/helpers.js';
+import { formatCurrency, formatDate, escapeHtml, debounce, resolveFileUrl, compareNewestFirst, resolveEntityContact } from '../utils/helpers.js';
 import { Icons, renderDataTable, renderSearchInput, renderBadge, renderFileUpload, renderStatsCard } from '../components/ui.js';
 import { Drawer } from '../components/drawer.js';
 import { Modal, previewAttachment } from '../components/modal.js';
 import { Toast } from '../components/toast.js';
 import { confirmDialog } from '../components/confirmDialog.js';
 import { DocumentModal } from '../components/documentModal.js';
-import { generateCobroHtml, exportToPdf, exportToWord } from '../services/documentExporter.js';
+import { generateCobroHtml, exportToPdf, exportToWord, shareViaWhatsAppAndPdf } from '../services/documentExporter.js';
 import { METODOS_PAGO, COBRO_ESTADO_LABELS, COBRO_ESTADO_COLORS } from '../utils/constants.js';
 
 export function renderCobros(container, actionsEl) {
@@ -21,20 +21,31 @@ export function renderCobros(container, actionsEl) {
   let searchTerm = '', filterEstado = '';
 
   function render() {
+    cobros = DataService.getAll('cobros');
     let filtered = cobros;
     if (filterEstado) filtered = filtered.filter(c => c.estado === filterEstado);
     if (searchTerm) {
       const clis = DataService.getAll('clientes');
+      const obrs = DataService.getAll('obras');
       filtered = filtered.filter(c => {
-        const cli = clis.find(cl => cl.id === c.clienteId);
-        return `${cli?.nombre||''} ${cli?.apellido||''} ${c.observaciones||''}`.toLowerCase().includes(searchTerm.toLowerCase());
+        const o = c.obraId ? obrs.find(x => x.id === c.obraId) : null;
+        const cliId = c.clienteId || o?.clienteId;
+        const cli = clis.find(cl => cl.id === cliId);
+        const contact = resolveEntityContact(cli, { clienteNombre: c.clienteNombre });
+        return `${contact.name} ${c.observaciones||''}`.toLowerCase().includes(searchTerm.toLowerCase());
       });
     }
 
     const clientes = DataService.getAll('clientes');
     const obras = DataService.getAll('obras');
     const columns = [
-      { label: 'Cliente', render: (c) => { const cl = clientes.find(x => x.id === c.clienteId); return `<span class="cell-primary">${escapeHtml(cl ? `${cl.nombre} ${cl.apellido||''}` : '-')}</span>`; }},
+      { label: 'Cliente', render: (c) => {
+        const o = c.obraId ? obras.find(x => x.id === c.obraId) : null;
+        const cliId = c.clienteId || o?.clienteId;
+        const cl = cliId ? clientes.find(x => x.id === cliId) : null;
+        const contact = resolveEntityContact(cl, { clienteNombre: c.clienteNombre });
+        return `<span class="cell-primary">${escapeHtml(contact.name)}</span>`;
+      }},
       { label: 'Obra', render: (c) => { const o = obras.find(x => x.id === c.obraId); return o ? `<span class="text-truncate" style="max-width:150px;display:inline-block">${escapeHtml(o.direccion)}</span>` : '-'; }, className: 'cell-secondary' },
       { label: 'Fecha', render: (c) => formatDate(c.fecha) },
       { label: 'Método', render: (c) => { const m = METODOS_PAGO.find(x => x.value === c.metodoPago); return escapeHtml(m?.label || c.metodoPago); }},
@@ -51,6 +62,7 @@ export function renderCobros(container, actionsEl) {
         }
       },
       { label: '', align: 'right', className: 'cell-actions', render: (c) => `
+        <button class="btn btn-ghost btn-icon btn-sm" data-action="share" data-id="${c.id}" title="Compartir Recibo por WhatsApp + PDF" style="color:#25D366">${Icons.whatsapp}</button>
         <button class="btn btn-ghost btn-icon btn-sm" data-action="export" data-id="${c.id}" title="Recibo PDF / Word">${Icons.download}</button>
         <button class="btn btn-ghost btn-icon btn-sm" data-action="edit" data-id="${c.id}" title="Editar">${Icons.edit}</button>
         <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-id="${c.id}" title="Eliminar">${Icons.trash}</button>
@@ -98,12 +110,34 @@ export function renderCobros(container, actionsEl) {
     if (action === 'export') {
       const c = DataService.getById('cobros', id);
       if (!c) return;
-      const cli = c.clienteId ? DataService.getById('clientes', c.clienteId) : null;
       const o = c.obraId ? DataService.getById('obras', c.obraId) : null;
+      const cliId = c.clienteId || o?.clienteId;
+      const cli = cliId ? DataService.getById('clientes', cliId) : null;
+      const contact = resolveEntityContact(cli, { clienteNombre: c.clienteNombre });
       DocumentModal.open({
         title: `Recibo de Cobro #${c.id}`,
         filename: `Recibo_${c.id}`,
-        htmlContent: generateCobroHtml(c, cli, o)
+        htmlContent: generateCobroHtml(c, cli, o),
+        whatsappData: {
+          phone: contact.whatsapp || contact.phone,
+          text: `Hola ${contact.name}! Te adjuntamos el recibo oficial de cobro #${c.id} de Marmolería Benjamin por un monto de ${formatCurrency(c.importe, c.moneda || 'ARS')}. ¡Muchas gracias!`
+        }
+      });
+      return;
+    }
+    if (action === 'share') {
+      const c = DataService.getById('cobros', id);
+      if (!c) return;
+      const o = c.obraId ? DataService.getById('obras', c.obraId) : null;
+      const cliId = c.clienteId || o?.clienteId;
+      const cli = cliId ? DataService.getById('clientes', cliId) : null;
+      const contact = resolveEntityContact(cli, { clienteNombre: c.clienteNombre });
+      const msg = `Hola ${contact.name}! Te adjuntamos el recibo oficial de cobro #${c.id} de Marmolería Benjamin por un monto de ${formatCurrency(c.importe, c.moneda || 'ARS')}.\n\nConcepto: ${c.concepto || 'Cobro registrado'}\nAdjunto el recibo en PDF. ¡Muchas gracias!`;
+      shareViaWhatsAppAndPdf({
+        phone: contact.whatsapp || contact.phone,
+        text: msg,
+        htmlContent: generateCobroHtml(c, cli, o),
+        filename: `Recibo_Cobro_${c.id}`
       });
       return;
     }

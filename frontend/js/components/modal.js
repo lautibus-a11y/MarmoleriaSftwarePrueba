@@ -9,6 +9,10 @@ class ModalManager {
     this.onCloseCallback = null;
   }
 
+  get isOpen() {
+    return !!(this.overlay && document.body.contains(this.overlay));
+  }
+
   open({ title = '', content = '', size = 'md', onClose = null, footer = null, closable = true } = {}) {
     this.close(true);
     document.querySelectorAll('.modal-overlay').forEach(el => el.remove());

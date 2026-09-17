@@ -4,14 +4,14 @@
 
 import { DataService } from '../services/mockData.js';
 import { Api } from '../services/api.js';
-import { formatCurrency, formatDate, escapeHtml, debounce, resolveFileUrl, compareNewestFirst } from '../utils/helpers.js';
+import { formatCurrency, formatDate, escapeHtml, debounce, resolveFileUrl, compareNewestFirst, resolveEntityContact } from '../utils/helpers.js';
 import { Icons, renderDataTable, renderSearchInput, renderBadge, renderFileUpload } from '../components/ui.js';
 import { Drawer } from '../components/drawer.js';
 import { Modal, previewAttachment } from '../components/modal.js';
 import { Toast } from '../components/toast.js';
 import { confirmDialog } from '../components/confirmDialog.js';
 import { DocumentModal } from '../components/documentModal.js';
-import { generateFacturaHtml } from '../services/documentExporter.js';
+import { generateFacturaHtml, exportToPdf, exportToWord, shareViaWhatsAppAndPdf } from '../services/documentExporter.js';
 import { FACTURA_TIPO_LABELS, FACTURA_ESTADOS, FACTURA_ESTADO_LABELS, FACTURA_ESTADO_COLORS, FACTURA_CATEGORIAS, MONEDAS } from '../utils/constants.js';
 
 export function renderFacturas(container, actionsEl) {
@@ -44,7 +44,11 @@ export function renderFacturas(container, actionsEl) {
     const columns = [
       { label: 'Tipo', render: (f) => renderBadge(FACTURA_TIPO_LABELS[f.tipo], f.tipo==='nota_credito'?'success':f.tipo==='nota_debito'?'warning':'neutral') },
       { label: 'Número', render: (f) => `<span class="cell-mono">${escapeHtml(f.numero)}</span>` },
-      { label: 'Proveedor', render: (f) => { const p = proveedores.find(p=>p.id===f.proveedorId); return escapeHtml(p?.nombre||'-'); }},
+      { label: 'Proveedor', render: (f) => {
+        const p = f.proveedorId ? proveedores.find(pr=>pr.id===f.proveedorId) : null;
+        const contact = resolveEntityContact(p, { proveedorNombre: f.proveedorNombre });
+        return escapeHtml(contact.name || '-');
+      }},
       { label: 'Fecha', render: (f) => formatDate(f.fecha), className: 'cell-secondary' },
       { label: 'Vencimiento', render: (f) => {
         if (!f.vencimiento) return '-';
@@ -79,6 +83,7 @@ export function renderFacturas(container, actionsEl) {
         }
       },
       { label: '', align: 'right', className: 'cell-actions', render: (f) => `
+        <button class="btn btn-ghost btn-icon btn-sm" data-action="share" data-id="${f.id}" title="Compartir Comprobante por WhatsApp + PDF" style="color:#25D366">${Icons.whatsapp}</button>
         <button class="btn btn-ghost btn-icon btn-sm" data-action="export" data-id="${f.id}" title="Comprobante PDF / Word">${Icons.download}</button>
         <button class="btn btn-ghost btn-icon btn-sm" data-action="edit" data-id="${f.id}" title="Editar">${Icons.edit}</button>
         <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-id="${f.id}" title="Eliminar">${Icons.trash}</button>
@@ -105,6 +110,16 @@ export function renderFacturas(container, actionsEl) {
     if (fe) fe.onchange = e => { filterEstado = e.target.value; render(); };
   }
 
+  // Escuchar cambios de datos en tiempo real entre pestañas
+  const handleDataChanged = () => {
+    if (container.isConnected) {
+      render();
+    } else {
+      window.removeEventListener('mb-data-changed', handleDataChanged);
+    }
+  };
+  window.addEventListener('mb-data-changed', handleDataChanged);
+
   container.onclick = e => {
     const btn = e.target.closest('[data-action]'); if (!btn) return;
     e.stopPropagation();
@@ -120,10 +135,33 @@ export function renderFacturas(container, actionsEl) {
       const f = DataService.getById('facturas', id);
       if (!f) return;
       const prov = f.proveedorId ? DataService.getById('proveedores', f.proveedorId) : null;
+      const contact = resolveEntityContact(prov, { proveedorNombre: f.proveedorNombre });
+      const phone = (contact.whatsapp || contact.phone || '').replace(/\D/g, '');
+      const provName = contact.name || 'Proveedor';
       DocumentModal.open({
         title: `Comprobante ${f.numero || f.id}`,
         filename: `Comprobante_${f.numero || f.id}`,
-        htmlContent: generateFacturaHtml(f, prov)
+        htmlContent: generateFacturaHtml(f, prov),
+        whatsappData: {
+          phone,
+          text: `Hola ${provName}! Te adjunto el comprobante ${f.numero || f.id} (${FACTURA_TIPO_LABELS[f.tipo] || f.tipo}) de Marmolería Benjamin por un total de ${formatCurrency(f.total, f.moneda || 'ARS')}. Adjunto copia oficial en PDF.`
+        }
+      });
+      return;
+    }
+    if (action === 'share') {
+      const f = DataService.getById('facturas', id);
+      if (!f) return;
+      const prov = f.proveedorId ? DataService.getById('proveedores', f.proveedorId) : null;
+      const contact = resolveEntityContact(prov, { proveedorNombre: f.proveedorNombre });
+      const phone = (contact.whatsapp || contact.phone || '').replace(/\D/g, '');
+      const provName = contact.name || 'Proveedor';
+      const msg = `Hola ${provName}! Te adjunto el comprobante ${f.numero || f.id} (${FACTURA_TIPO_LABELS[f.tipo] || f.tipo}) de Marmolería Benjamin.\n\nTotal: ${formatCurrency(f.total, f.moneda || 'ARS')}\nEstado: ${FACTURA_ESTADO_LABELS[f.estado] || f.estado}\n\nAdjunto copia oficial en PDF. ¡Saludos!`;
+      shareViaWhatsAppAndPdf({
+        phone,
+        text: msg,
+        htmlContent: generateFacturaHtml(f, prov),
+        filename: `Comprobante_${f.numero || f.id}`
       });
       return;
     }

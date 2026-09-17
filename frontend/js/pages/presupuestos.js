@@ -3,14 +3,14 @@
    ======================================== */
 
 import { DataService } from '../services/mockData.js';
-import { formatCurrency, formatDate, searchFilter, escapeHtml, debounce, generateAutoNumber, compareNewestFirst } from '../utils/helpers.js';
+import { formatCurrency, formatDate, searchFilter, escapeHtml, debounce, generateAutoNumber, compareNewestFirst, resolveEntityContact } from '../utils/helpers.js';
 import { Icons, renderDataTable, renderSearchInput, renderBadge, renderEmptyState } from '../components/ui.js';
 import { Drawer } from '../components/drawer.js';
 import { Modal } from '../components/modal.js';
 import { Toast } from '../components/toast.js';
 import { confirmDialog } from '../components/confirmDialog.js';
 import { DocumentModal } from '../components/documentModal.js';
-import { generatePresupuestoHtml, exportToPdf, exportToWord } from '../services/documentExporter.js';
+import { generatePresupuestoHtml, exportToPdf, exportToWord, shareViaWhatsAppAndPdf } from '../services/documentExporter.js';
 import { PRESUPUESTO_ESTADO_LABELS, PRESUPUESTO_ESTADO_COLORS, CONDICIONES_COMERCIALES_DEFAULT, MONEDAS } from '../utils/constants.js';
 import { openEventoForm } from './calendario.js';
 import { openDescontarStockObraModal } from '../services/stockAutomation.js';
@@ -133,7 +133,7 @@ export function aprobarPresupuesto(presId, onDone = null) {
   }
 }
 
-export function renderPresupuestos(container, actionsEl, path) {
+export function renderPresupuestos(container, actionsEl, path = '/presupuestos') {
   const parts = path.split('/');
   if (parts.length > 2 && parts[2]) {
     renderPresupuestoDetail(container, actionsEl, parts[2]);
@@ -148,14 +148,15 @@ export function renderPresupuestos(container, actionsEl, path) {
   let filterEstado = '';
 
   function render() {
+    presupuestos = DataService.getAll('presupuestos');
     let filtered = presupuestos;
     if (filterEstado) filtered = filtered.filter(p => p.estado === filterEstado);
     if (searchTerm) {
       const clientes = DataService.getAll('clientes');
       filtered = filtered.filter(p => {
         const cli = clientes.find(c => c.id === p.clienteId);
-        const cliName = cli ? `${cli.nombre} ${cli.apellido}` : (p.clienteNombre || '');
-        const combined = `${p.numero} ${cliName} ${p.descripcion}`.toLowerCase();
+        const contact = resolveEntityContact(cli, { clienteNombre: p.clienteNombre });
+        const combined = `${p.numero} ${contact.name || ''} ${p.descripcion}`.toLowerCase();
         return combined.includes(searchTerm.toLowerCase());
       });
     }
@@ -166,7 +167,8 @@ export function renderPresupuestos(container, actionsEl, path) {
       { label: 'Fecha', render: (p) => formatDate(p.fecha), className: 'cell-secondary' },
       { label: 'Cliente', render: (p) => {
         const cli = clientes.find(c => c.id === p.clienteId);
-        return escapeHtml(cli ? `${cli.nombre} ${cli.apellido || ''}` : (p.clienteNombre || '-'));
+        const contact = resolveEntityContact(cli, { clienteNombre: p.clienteNombre });
+        return escapeHtml(contact.name || '-');
       }},
       { label: 'Descripción', render: (p) => `<span class="text-truncate" style="max-width:200px;display:inline-block">${escapeHtml(p.descripcion)}</span>` },
       { label: 'Estado', render: (p) => renderBadge(PRESUPUESTO_ESTADO_LABELS[p.estado] || p.estado || 'Borrador', PRESUPUESTO_ESTADO_COLORS[p.estado] || 'neutral') },
@@ -214,6 +216,16 @@ export function renderPresupuestos(container, actionsEl, path) {
     }
   }
 
+  // Escuchar cambios de datos en tiempo real entre pestañas/módulos
+  const handleDataChanged = () => {
+    if (container.isConnected) {
+      render();
+    } else {
+      window.removeEventListener('mb-data-changed', handleDataChanged);
+    }
+  };
+  window.addEventListener('mb-data-changed', handleDataChanged);
+
   // Delegated single click handler on container (prevents duplicate listeners on render)
   container.onclick = (e) => {
     const btn = e.target.closest('[data-action]');
@@ -240,11 +252,17 @@ export function renderPresupuestos(container, actionsEl, path) {
         const pres = DataService.getById('presupuestos', id);
         if (!pres) return;
         const cli = pres.clienteId ? DataService.getById('clientes', pres.clienteId) : null;
+        const contact = resolveEntityContact(cli, { clienteNombre: pres.clienteNombre, telefono: pres.telefono || pres.contacto });
         const tot = DataService.getPresupuestoTotal(pres);
+        const presPhone = (contact.whatsapp || contact.phone || '').replace(/\D/g, '');
         DocumentModal.open({
           title: `Presupuesto ${pres.numero || pres.id}`,
           filename: `Presupuesto_${pres.numero || pres.id}`,
-          htmlContent: generatePresupuestoHtml(pres, cli, tot)
+          htmlContent: generatePresupuestoHtml(pres, cli, tot),
+          whatsappData: {
+            phone: presPhone,
+            text: `Hola ${contact.name || ''}! Te envío el presupuesto ${pres.numero || pres.id} de Marmolería Benjamin.\nTotal: ${formatCurrency(tot, pres.moneda)}\nAdjunto copia en PDF.`
+          }
         });
         return;
       }
@@ -1262,13 +1280,14 @@ export function renderPresupuestos(container, actionsEl, path) {
 
   function openShareModal(pres) {
     if (!pres) return;
-    const cliente = DataService.getById('clientes', pres.clienteId);
+    const cliente = pres.clienteId ? DataService.getById('clientes', pres.clienteId) : null;
+    const contact = resolveEntityContact(cliente, { clienteNombre: pres.clienteNombre, telefono: pres.telefono || pres.contacto });
     const total = DataService.getPresupuestoTotal(pres);
     const getDocHtml = () => generatePresupuestoHtml(pres, cliente, total);
     const docFilename = `Presupuesto_${pres.numero}`;
 
-    const cliName = cliente ? `${cliente.nombre} ${cliente.apellido || ''}`.trim() : (pres.clienteNombre || 'Cliente');
-    const cliPhone = cliente?.whatsapp || cliente?.telefono || '';
+    const cliName = contact.name || 'Cliente';
+    const cliPhone = contact.whatsapp || contact.phone || '';
     const cleanPhone = cliPhone.replace(/\D/g, '');
 
     const shareMsg = `Hola ${cliName}! Te adjunto el presupuesto *${pres.numero}* de Marmolería Benjamin.\n\n*Detalle:* ${pres.descripcion || 'Trabajo a medida en marmolería'}\n*Total:* ${formatCurrency(total, pres.moneda)}\n\nCualquier consulta estamos a disposición.`;
@@ -1288,17 +1307,17 @@ export function renderPresupuestos(container, actionsEl, path) {
           <!-- WhatsApp -->
           <div class="card" style="border:1.5px solid #25D366;background:rgba(37,211,102,0.06);padding:var(--space-3);border-radius:var(--radius-lg)">
             <div style="font-size:var(--text-xs);font-weight:var(--font-bold);color:#128C7E;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px">
-              ${Icons.whatsapp} Enviar por WhatsApp
+              ${Icons.whatsapp} Enviar por WhatsApp con copia en PDF
             </div>
             <div class="form-group mb-2">
               <label class="form-label-sm" style="font-size:12px">Teléfono / WhatsApp de destino</label>
               <div style="display:flex;gap:6px">
                 <input type="text" class="form-input" id="share-modal-phone" value="${escapeHtml(cleanPhone)}" placeholder="Ej: 5491145678901">
                 <button type="button" class="btn btn-success" id="share-modal-wa-btn" style="background:#25D366;color:#fff;border-color:#25D366;white-space:nowrap;font-weight:var(--font-bold)">
-                  ${Icons.whatsapp} Abrir chat
+                  ${Icons.whatsapp} Enviar + Descargar PDF
                 </button>
               </div>
-              <span class="text-muted" style="font-size:11px;display:block;margin-top:4px">Abre WhatsApp con el mensaje oficial listo para enviar</span>
+              <span class="text-muted" style="font-size:11px;display:block;margin-top:4px">Descarga automáticamente el PDF en tu equipo y abre WhatsApp con el mensaje listo para enviar</span>
             </div>
           </div>
 
@@ -1335,14 +1354,15 @@ export function renderPresupuestos(container, actionsEl, path) {
     document.getElementById('share-modal-close')?.addEventListener('click', () => Modal.close());
     document.getElementById('share-modal-detail-link')?.addEventListener('click', () => Modal.close());
 
-    document.getElementById('share-modal-wa-btn')?.addEventListener('click', () => {
+    document.getElementById('share-modal-wa-btn')?.addEventListener('click', async () => {
       const phoneInput = document.getElementById('share-modal-phone');
       const phone = phoneInput ? phoneInput.value.replace(/\D/g, '') : cleanPhone;
-      if (phone) {
-        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(shareMsg)}`, '_blank');
-      } else {
-        window.open(`https://wa.me/?text=${encodeURIComponent(shareMsg)}`, '_blank');
-      }
+      await shareViaWhatsAppAndPdf({
+        phone,
+        text: shareMsg,
+        htmlContent: getDocHtml(),
+        filename: docFilename
+      });
     });
 
     document.getElementById('share-modal-pdf-btn')?.addEventListener('click', async () => {
@@ -1365,7 +1385,11 @@ export function renderPresupuestos(container, actionsEl, path) {
       DocumentModal.open({
         title: `Presupuesto ${pres.numero}`,
         filename: docFilename,
-        htmlContent: getDocHtml()
+        htmlContent: getDocHtml(),
+        whatsappData: {
+          phone: cleanPhone,
+          text: shareMsg
+        }
       });
     });
 
@@ -1413,7 +1437,8 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
   const pres = DataService.getById('presupuestos', presId);
   if (!pres) { container.innerHTML = renderEmptyState({ title: 'Presupuesto no encontrado' }); return; }
 
-  const cliente = DataService.getById('clientes', pres.clienteId);
+  const cliente = pres.clienteId ? DataService.getById('clientes', pres.clienteId) : null;
+  const contact = resolveEntityContact(cliente, { clienteNombre: pres.clienteNombre, direccion: pres.direccion, telefono: pres.telefono || pres.contacto });
   const total = DataService.getPresupuestoTotal(pres);
 
   actionsEl.innerHTML = `
@@ -1478,7 +1503,7 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
         <div class="detail-list">
           <div class="detail-item">
             <span class="detail-label">Cliente</span>
-            <span class="detail-value">${cliente ? `${cliente.nombre} ${cliente.apellido || ''}`.trim() : escapeHtml(pres.clienteNombre || 'Cliente ocasional')}</span>
+            <span class="detail-value">${escapeHtml(contact.name || 'Cliente ocasional')}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Fecha</span>
@@ -1486,7 +1511,7 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
           </div>
           <div class="detail-item">
             <span class="detail-label">Dirección</span>
-            <span class="detail-value">${escapeHtml(pres.direccion || '-')}</span>
+            <span class="detail-value">${escapeHtml(contact.direccion || pres.direccion || '-')}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Moneda</span>
@@ -1541,17 +1566,29 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
       </div>
     </div>
 
-    <div class="summary-box mb-4">
-      <div class="summary-row"><span class="summary-row-label">Subtotal ítems</span><span class="summary-row-value">${formatCurrency((pres.items || []).reduce((s, i) => s + (i.subtotal || 0), 0), pres.moneda)}</span></div>
-      ${adicEntries.map(([k, v]) => `<div class="summary-row"><span class="summary-row-label">${k}</span><span class="summary-row-value">${formatCurrency(v, pres.moneda)}</span></div>`).join('')}
-      ${pres.descuento > 0 ? `<div class="summary-row"><span class="summary-row-label">Descuento (${pres.descuento}%)</span><span class="summary-row-value" style="color:var(--color-error)">-${formatCurrency(DataService.getPresupuestoTotal({ ...pres, descuento: 0, impuestos: 0 }) * pres.descuento / 100, pres.moneda)}</span></div>` : ''}
-      <div class="summary-row total"><span class="summary-row-label">Total</span><span class="summary-row-value">${formatCurrency(total, pres.moneda)}</span></div>
-      ${(pres.moneda === 'USD' && pres.cotizacionDolar) ? `
-        <div style="font-size:12px;color:var(--color-stone-600);text-align:right;padding:6px 12px;background:var(--color-stone-100);border-radius:var(--radius-sm);margin-top:6px">
-          Tipo de cambio: <strong>$${pres.cotizacionDolar} ARS</strong> · Equivalente en pesos: <strong style="color:var(--color-stone-900)">${formatCurrency(total * pres.cotizacionDolar, 'ARS')}</strong>
+    ${(() => {
+      const itemsSubtotal = (pres.items || []).reduce((s, i) => s + (i.subtotal || 0), 0);
+      const adicSubtotal = adicEntries.reduce((s, [, v]) => s + v, 0);
+      const baseImponible = itemsSubtotal + adicSubtotal;
+      const descMonto = pres.descuento > 0 ? (baseImponible * pres.descuento / 100) : 0;
+      const subtotalConDesc = baseImponible - descMonto;
+      const ivaMonto = pres.impuestos > 0 ? (subtotalConDesc * pres.impuestos / 100) : 0;
+
+      return `
+        <div class="summary-box mb-4">
+          <div class="summary-row"><span class="summary-row-label">Subtotal materiales e ítems</span><span class="summary-row-value">${formatCurrency(itemsSubtotal, pres.moneda)}</span></div>
+          ${adicEntries.map(([k, v]) => `<div class="summary-row"><span class="summary-row-label">${k}</span><span class="summary-row-value">${formatCurrency(v, pres.moneda)}</span></div>`).join('')}
+          ${pres.descuento > 0 ? `<div class="summary-row"><span class="summary-row-label">Descuento (${pres.descuento}%)</span><span class="summary-row-value" style="color:var(--color-error)">-${formatCurrency(descMonto, pres.moneda)}</span></div>` : ''}
+          ${pres.impuestos > 0 ? `<div class="summary-row"><span class="summary-row-label">IVA (${pres.impuestos}%)</span><span class="summary-row-value">${formatCurrency(ivaMonto, pres.moneda)}</span></div>` : ''}
+          <div class="summary-row total"><span class="summary-row-label">Total</span><span class="summary-row-value">${formatCurrency(total, pres.moneda)}</span></div>
+          ${(pres.moneda === 'USD' && pres.cotizacionDolar) ? `
+            <div style="font-size:12px;color:var(--color-stone-600);text-align:right;padding:6px 12px;background:var(--color-stone-100);border-radius:var(--radius-sm);margin-top:6px">
+              Tipo de cambio: <strong>$${pres.cotizacionDolar} ARS</strong> · Equivalente en pesos: <strong style="color:var(--color-stone-900)">${formatCurrency(total * pres.cotizacionDolar, 'ARS')}</strong>
+            </div>
+          ` : ''}
         </div>
-      ` : ''}
-    </div>
+      `;
+    })()}
 
     ${pres.condiciones ? `
     <div class="card mb-4">
@@ -1718,13 +1755,14 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
   document.getElementById('btn-share-modal')?.addEventListener('click', () => openShareModal(pres));
 
   // WhatsApp
-  document.getElementById('btn-whatsapp')?.addEventListener('click', () => {
-    const phone = (cliente?.whatsapp || cliente?.telefono || '').replace(/\D/g, '');
-    const msg = `Hola! Te envío el presupuesto ${pres.numero} de Marmolería Benjamin.\n\n${pres.descripcion || ''}\nTotal: ${formatCurrency(total, pres.moneda)}\n\n¡Saludos!`;
-    if (phone) {
-      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-    } else {
-      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-    }
+  document.getElementById('btn-whatsapp')?.addEventListener('click', async () => {
+    const phone = (contact.whatsapp || contact.phone || '').replace(/\D/g, '');
+    const msg = `Hola ${contact.name ? contact.name + '! ' : ''}Te envío el presupuesto ${pres.numero} de Marmolería Benjamin.\n\n${pres.descripcion || ''}\nTotal: ${formatCurrency(total, pres.moneda)}\n\n¡Saludos!`;
+    await shareViaWhatsAppAndPdf({
+      phone,
+      text: msg,
+      htmlContent: getDocHtml(),
+      filename: docFilename
+    });
   });
 }

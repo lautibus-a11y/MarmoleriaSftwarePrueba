@@ -5,5 +5,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.0"
   }
 }
