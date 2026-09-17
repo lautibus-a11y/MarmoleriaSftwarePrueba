@@ -324,19 +324,34 @@ body.doc-modal-open .mobile-fab {
   }
 
   .stat-card {
+    display: flex;
+    flex-direction: column;
     padding: var(--space-3);
     border-radius: var(--radius-lg);
   }
 
-  .stat-card-value {
-    font-size: 1.2rem;
-    line-height: 1.2;
-    margin-bottom: 2px;
+  .stat-card-header {
+    order: 1;
+    margin-bottom: var(--space-1);
   }
 
   .stat-card-label {
-    font-size: 11px;
+    order: 2;
+    font-size: 11.5px;
+    font-weight: var(--font-medium);
     color: var(--color-stone-500);
+    margin-top: 0;
+    margin-bottom: 3px;
+    line-height: 1.25;
+  }
+
+  .stat-card-value {
+    order: 3;
+    font-size: 1.15rem;
+    font-weight: var(--font-bold);
+    line-height: 1.2;
+    margin-bottom: 0;
+    word-break: break-word;
   }
 
   .stat-card-icon {
@@ -347,10 +362,6 @@ body.doc-modal-open .mobile-fab {
   .stat-card-icon svg {
     width: 16px;
     height: 16px;
-  }
-
-  .stat-card-header {
-    margin-bottom: var(--space-2);
   }
 
   /* Forms on Mobile */
