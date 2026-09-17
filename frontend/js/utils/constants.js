@@ -68,6 +68,7 @@ export const FACTURA_ESTADOS = {
 export const FACTURA_ESTADO_LABELS = {
   pendiente: 'Pendiente',
   pagada: 'Pagada',
+  pagado: 'Pagada',
   vencida: 'Vencida',
   parcial: 'Parcial'
 };
@@ -75,6 +76,7 @@ export const FACTURA_ESTADO_LABELS = {
 export const FACTURA_ESTADO_COLORS = {
   pendiente: 'warning',
   pagada: 'success',
+  pagado: 'success',
   vencida: 'error',
   parcial: 'info'
 };

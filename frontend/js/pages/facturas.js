@@ -21,10 +21,14 @@ export function renderFacturas(container, actionsEl) {
     <button class="btn btn-primary" id="btn-new-fac">${Icons.plus} Nueva factura</button>
   `;
 
+  // Sincronizar estados de facturas con sus pagos correspondientes
+  DataService.recalcularTodasLasFacturas();
   let facturas = DataService.getAll('facturas');
   let searchTerm = '', filterEstado = '', filterTipo = '';
 
   function render() {
+    // Re-evaluar por si hubo cambios recientes
+    facturas = DataService.getAll('facturas');
     let filtered = facturas;
     if (filterEstado) filtered = filtered.filter(f => f.estado === filterEstado);
     if (filterTipo) filtered = filtered.filter(f => f.tipo === filterTipo);
@@ -47,7 +51,22 @@ export function renderFacturas(container, actionsEl) {
         const isVencido = new Date(f.vencimiento) < new Date() && f.estado === 'pendiente';
         return `<span style="color:${isVencido?'var(--color-error)':''}">${formatDate(f.vencimiento)}</span>`;
       }},
-      { label: 'Importe', align: 'right', render: (f) => `<span class="cell-currency">${formatCurrency(f.importe)}</span>` },
+      {
+        label: 'Importe',
+        align: 'right',
+        render: (f) => {
+          const pagado = DataService.getFacturaTotalPagado(f.id);
+          if (pagado > 0 && f.estado !== 'pagada') {
+            const saldo = Math.max(0, (parseFloat(f.importe) || 0) - pagado);
+            return `<div>
+              <span class="cell-currency">${formatCurrency(f.importe)}</span>
+              <div style="font-size:11px;color:var(--color-stone-500)">Pagado: ${formatCurrency(pagado)}</div>
+              <div style="font-size:11px;color:var(--color-warning);font-weight:600">Resta: ${formatCurrency(saldo)}</div>
+            </div>`;
+          }
+          return `<span class="cell-currency">${formatCurrency(f.importe)}</span>`;
+        }
+      },
       { label: 'Estado', render: (f) => renderBadge(FACTURA_ESTADO_LABELS[f.estado]||f.estado, FACTURA_ESTADO_COLORS[f.estado]||'neutral') },
       {
         label: 'Adjunto',
@@ -71,7 +90,7 @@ export function renderFacturas(container, actionsEl) {
         <div class="table-toolbar-left">
           ${renderSearchInput('Buscar factura...')}
           <select class="filter-select" id="filter-tipo"><option value="">Todos los tipos</option>${Object.entries(FACTURA_TIPO_LABELS).map(([k,v])=>`<option value="${k}" ${filterTipo===k?'selected':''}>${v}</option>`).join('')}</select>
-          <select class="filter-select" id="filter-estado"><option value="">Todos los estados</option>${Object.entries(FACTURA_ESTADO_LABELS).map(([k,v])=>`<option value="${k}" ${filterEstado===k?'selected':''}>${v}</option>`).join('')}</select>
+          <select class="filter-select" id="filter-estado"><option value="">Todos los estados</option><option value="pendiente" ${filterEstado==='pendiente'?'selected':''}>Pendiente</option><option value="parcial" ${filterEstado==='parcial'?'selected':''}>Parcial</option><option value="pagada" ${filterEstado==='pagada'?'selected':''}>Pagada</option><option value="vencida" ${filterEstado==='vencida'?'selected':''}>Vencida</option></select>
         </div>
         <div class="table-toolbar-right"><span class="text-muted" style="font-size:var(--text-sm)">${filtered.length} registros</span></div>
       </div>

@@ -593,6 +593,17 @@
   letter-spacing: 0.01em;
 }
 
+.badge-interactive {
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+
+.badge-interactive:hover {
+  filter: brightness(0.93);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
 .badge-neutral {
   background: var(--color-stone-100);
   color: var(--color-stone-600);

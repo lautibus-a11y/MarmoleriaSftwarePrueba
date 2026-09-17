@@ -297,7 +297,25 @@ function renderObraDetail(container, actionsEl, obraId) {
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:var(--space-2)">
-            ${renderBadge(OBRA_ESTADO_LABELS[obra.estado] || obra.estado, OBRA_ESTADO_COLORS[obra.estado] || 'neutral')}
+            <div class="obra-status-badge-wrapper" style="position:relative;display:inline-flex;align-items:center">
+              <button type="button" 
+                      id="btn-obra-status-badge" 
+                      class="badge badge-${OBRA_ESTADO_COLORS[obra.estado] || 'neutral'} badge-interactive" 
+                      title="Clic para cambiar el estado de la obra"
+                      style="border:1px solid rgba(0,0,0,0.08);outline:none;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;font-size:var(--text-xs);font-weight:var(--font-bold);box-shadow:0 1px 2px rgba(0,0,0,0.06);border-radius:var(--radius-full);user-select:none">
+                <span class="badge-dot ${OBRA_ESTADO_COLORS[obra.estado] || 'neutral'}"></span>
+                <span>${escapeHtml(OBRA_ESTADO_LABELS[obra.estado] || obra.estado)}</span>
+                <span style="opacity:0.6;display:inline-flex;align-items:center;margin-left:2px">${Icons['chevron-down']}</span>
+              </button>
+
+              <select id="select-obra-status-dropdown" 
+                      class="form-select form-select-sm" 
+                      style="display:none;font-size:var(--text-xs);font-weight:var(--font-bold);border-radius:var(--radius-full);padding:6px 28px 6px 14px;cursor:pointer;background-position:right 8px center;box-shadow:0 2px 6px rgba(0,0,0,0.12);border-color:var(--color-primary);background-color:var(--color-surface)">
+                ${Object.entries(OBRA_ESTADO_LABELS).map(([k, v]) => `
+                  <option value="${k}" ${obra.estado === k ? 'selected' : ''}>${v}</option>
+                `).join('')}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -664,6 +682,40 @@ function renderObraDetail(container, actionsEl, obraId) {
   document.getElementById('btn-obra-edit-top')?.addEventListener('click', handleEditObra);
   document.getElementById('btn-obra-edit-action')?.addEventListener('click', handleEditObra);
   document.getElementById('btn-obra-edit-ficha')?.addEventListener('click', handleEditObra);
+
+  // Quick status change from badge
+  const statusBadgeBtn = document.getElementById('btn-obra-status-badge');
+  const statusDropdown = document.getElementById('select-obra-status-dropdown');
+  if (statusBadgeBtn && statusDropdown) {
+    statusBadgeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      statusBadgeBtn.style.display = 'none';
+      statusDropdown.style.display = 'inline-block';
+      statusDropdown.focus();
+      if (typeof statusDropdown.showPicker === 'function') {
+        try { statusDropdown.showPicker(); } catch (err) {}
+      }
+    });
+
+    statusDropdown.addEventListener('change', (e) => {
+      const nuevoEstado = e.target.value;
+      if (nuevoEstado && nuevoEstado !== obra.estado) {
+        DataService.update('obras', obraId, { estado: nuevoEstado });
+        Toast.success(`Estado de la obra cambiado a: ${OBRA_ESTADO_LABELS[nuevoEstado] || nuevoEstado}`);
+        renderObraDetail(container, actionsEl, obraId);
+      } else {
+        statusDropdown.style.display = 'none';
+        statusBadgeBtn.style.display = 'inline-flex';
+      }
+    });
+
+    statusDropdown.addEventListener('blur', () => {
+      setTimeout(() => {
+        statusDropdown.style.display = 'none';
+        statusBadgeBtn.style.display = 'inline-flex';
+      }, 150);
+    });
+  }
 
   // Tabs logic
   container.querySelectorAll('.tab-btn').forEach(btn => {

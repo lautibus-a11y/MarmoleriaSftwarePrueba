@@ -109,7 +109,7 @@ export function renderPagos(container, actionsEl) {
     const pago = (editId ? DataService.getById('pagos', editId) : null) || {};
     const isEdit = !!editId && !!pago.id;
     const proveedores = DataService.getAll('proveedores');
-    const facturasDisp = DataService.getAll('facturas').filter(f => f.tipo === 'factura' && (f.estado === 'pendiente' || f.estado === 'parcial'));
+    const facturasDisp = DataService.getAll('facturas').filter(f => f.tipo === 'factura' && (f.estado === 'pendiente' || f.estado === 'parcial' || (pago && f.id === pago.facturaId)));
 
     const existingDest = (pago && (pago.destinatarioConcepto || pago.concepto)) || (pago.proveedorId ? proveedores.find(p => p.id === pago.proveedorId)?.nombre : '') || '';
 
@@ -127,9 +127,20 @@ export function renderPagos(container, actionsEl) {
           </datalist>
           <span class="text-muted" style="font-size:11px;display:block;margin-top:4px">Podés escribir cualquier destinatario/concepto o seleccionar un proveedor habitual.</span>
         </div>
-        <div class="form-group"><label class="form-label">Factura asociada (opcional)</label><select class="form-select" name="facturaId"><option value="">Sin asociar</option>${facturasDisp.map(f=>{const prov=proveedores.find(p=>p.id===f.proveedorId);return`<option value="${f.id}" ${pago.facturaId===f.id?'selected':''}>${f.numero} - ${prov?.nombre||''} (${formatCurrency(f.importe)})</option>`;}).join('')}</select></div>
+        <div class="form-group">
+          <label class="form-label">Factura asociada (opcional)</label>
+          <select class="form-select" name="facturaId" id="pago-factura-select">
+            <option value="">Sin asociar</option>
+            ${facturasDisp.map(f => {
+              const prov = proveedores.find(p => p.id === f.proveedorId);
+              const saldo = DataService.getFacturaSaldoPendiente(f.id, isEdit ? editId : null);
+              const saldoInfo = (saldo < f.importe && saldo > 0) ? ` (Saldo: ${formatCurrency(saldo)})` : ` (${formatCurrency(f.importe)})`;
+              return `<option value="${f.id}" ${pago.facturaId === f.id ? 'selected' : ''}>${f.numero} - ${prov?.nombre || ''}${saldoInfo}</option>`;
+            }).join('')}
+          </select>
+        </div>
         <div class="form-row-2">
-          <div class="form-group"><label class="form-label">Importe <span class="required">*</span></label><input type="number" class="form-input" name="importe" value="${pago.importe||''}" min="0" step="0.01" required></div>
+          <div class="form-group"><label class="form-label">Importe <span class="required">*</span></label><input type="number" class="form-input" name="importe" id="pago-importe-input" value="${pago.importe||''}" min="0" step="0.01" required></div>
           <div class="form-group"><label class="form-label">Fecha</label><input type="date" class="form-input" name="fecha" value="${pago.fecha||new Date().toISOString().split('T')[0]}"></div>
         </div>
         <div class="form-row-2">
@@ -201,6 +212,30 @@ export function renderPagos(container, actionsEl) {
       });
     }
 
+    // Auto-completar proveedor e importe al seleccionar una factura
+    const facSelect = document.getElementById('pago-factura-select');
+    if (facSelect) {
+      facSelect.addEventListener('change', (e) => {
+        const selectedFacId = e.target.value;
+        if (!selectedFacId) return;
+        const fac = DataService.getById('facturas', selectedFacId);
+        if (!fac) return;
+
+        const destInput = document.getElementById('pago-destinatario-concepto');
+        const impInput = document.getElementById('pago-importe-input');
+        const prov = proveedores.find(p => p.id === fac.proveedorId);
+
+        if (destInput && (!destInput.value.trim() || destInput.value.trim() === '')) {
+          destInput.value = prov ? prov.nombre : `Factura ${fac.numero}`;
+        }
+
+        if (impInput && (!impInput.value || parseFloat(impInput.value) === 0 || !isEdit)) {
+          const saldo = DataService.getFacturaSaldoPendiente(fac.id, isEdit ? editId : null);
+          impInput.value = saldo > 0 ? saldo : fac.importe;
+        }
+      });
+    }
+
     function handleFileChosen(file) {
       selectedFile = file;
       removeExistingFile = false;
@@ -224,8 +259,15 @@ export function renderPagos(container, actionsEl) {
 
       data.destinatarioConcepto = dest;
       data.concepto = dest;
+      data.facturaId = (data.facturaId && data.facturaId.trim()) ? data.facturaId.trim() : null;
       const matched = proveedores.find(p => p.nombre.toLowerCase() === dest.toLowerCase());
       data.proveedorId = matched ? matched.id : (pago.proveedorId || null);
+
+      if (data.facturaId && !data.proveedorId) {
+        const linkedFac = DataService.getById('facturas', data.facturaId);
+        if (linkedFac?.proveedorId) data.proveedorId = linkedFac.proveedorId;
+      }
+
       data.importe = parseFloat(data.importe);
 
       // Handle file attachment
@@ -266,9 +308,14 @@ export function renderPagos(container, actionsEl) {
   }
 
   async function handleDelete(id) {
+    const p = DataService.getById('pagos', id);
+    const facId = p?.facturaId;
     const confirmed = await confirmDialog({ title: 'Eliminar pago', message: '¿Estás seguro?', confirmText: 'Eliminar', type: 'danger' });
     if (confirmed) {
       DataService.remove('pagos', id);
+      if (facId) {
+        DataService.recalcularEstadoFactura(facId);
+      }
       Toast.success('Pago eliminado');
       pagos = DataService.getAll('pagos');
       render();

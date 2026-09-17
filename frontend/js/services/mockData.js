@@ -114,6 +114,7 @@ export const DataService = {
         if (data.config && typeof data.config === 'object') {
           try { localStorage.setItem('mb_config', JSON.stringify(data.config)); } catch (e) {}
         }
+        this.recalcularTodasLasFacturas();
         return { success: true, timestamp: new Date().toISOString() };
       }
     } catch (err) {
@@ -163,6 +164,11 @@ export const DataService = {
       });
     }
 
+    // Automación: actualizar estado de factura si se registra un pago asociado
+    if (collection === 'pagos' && record.facturaId) {
+      this.recalcularEstadoFactura(record.facturaId);
+    }
+
     return record;
   },
 
@@ -170,6 +176,8 @@ export const DataService = {
     const idx = store[collection]?.findIndex(item => item && String(item.id) === String(id));
     if (idx === -1 || idx === undefined) return null;
     
+    const prevPago = collection === 'pagos' ? { ...store.pagos[idx] } : null;
+
     store[collection][idx] = { ...store[collection][idx], ...data, updatedAt: new Date().toISOString() };
     try { localStorage.setItem(`mb_${collection}`, JSON.stringify(store[collection])); } catch (e) {}
 
@@ -181,12 +189,24 @@ export const DataService = {
       });
     }
 
+    // Automación: actualizar estado de factura si se modificó un pago
+    if (collection === 'pagos') {
+      const prevFacId = prevPago?.facturaId;
+      const newFacId = data.facturaId !== undefined ? data.facturaId : prevFacId;
+      if (prevFacId) this.recalcularEstadoFactura(prevFacId);
+      if (newFacId && newFacId !== prevFacId) this.recalcularEstadoFactura(newFacId);
+    } else if (collection === 'facturas' && data.importe !== undefined) {
+      this.recalcularEstadoFactura(id);
+    }
+
     return store[collection][idx];
   },
 
   remove(collection, id) {
     const idx = store[collection]?.findIndex(item => item && String(item.id) === String(id));
     if (idx === -1 || idx === undefined) return false;
+
+    const pagoEliminado = collection === 'pagos' ? store.pagos[idx] : null;
 
     store[collection].splice(idx, 1);
     try { localStorage.setItem(`mb_${collection}`, JSON.stringify(store[collection])); } catch (e) {}
@@ -199,7 +219,84 @@ export const DataService = {
       });
     }
 
+    // Automación: si se eliminó un pago vinculado a factura, reevaluar su estado
+    if (pagoEliminado && pagoEliminado.facturaId) {
+      this.recalcularEstadoFactura(pagoEliminado.facturaId);
+    }
+
     return true;
+  },
+
+  // ── Facturas & Pagos Automation ──
+  getFacturaTotalPagado(facturaId) {
+    if (!facturaId) return 0;
+    const pagos = (store.pagos || []).filter(p =>
+      p && String(p.facturaId) === String(facturaId) && p.estado === 'pagado'
+    );
+    return pagos.reduce((sum, p) => sum + (parseFloat(p.importe) || 0), 0);
+  },
+
+  getFacturaSaldoPendiente(facturaId, excludePagoId = null) {
+    const fac = this.getById('facturas', facturaId);
+    if (!fac) return 0;
+    const pagos = (store.pagos || []).filter(p =>
+      p && String(p.facturaId) === String(facturaId) &&
+      p.estado === 'pagado' &&
+      (!excludePagoId || String(p.id) !== String(excludePagoId))
+    );
+    const totalPagado = pagos.reduce((sum, p) => sum + (parseFloat(p.importe) || 0), 0);
+    const saldo = (parseFloat(fac.importe) || 0) - totalPagado;
+    return Math.max(0, saldo);
+  },
+
+  recalcularEstadoFactura(facturaId, triggerSync = true) {
+    if (!facturaId) return false;
+    const fac = this.getById('facturas', facturaId);
+    if (!fac || fac.tipo !== 'factura') return false;
+
+    const totalPagado = this.getFacturaTotalPagado(facturaId);
+    const importeFac = parseFloat(fac.importe) || 0;
+
+    let nuevoEstado = fac.estado;
+    if (importeFac > 0 && totalPagado >= (importeFac - 0.01)) {
+      nuevoEstado = 'pagada';
+    } else if (totalPagado > 0) {
+      nuevoEstado = 'parcial';
+    } else {
+      // Sin pagos efectivos: si estaba pagada o parcial, vuelve a pendiente/vencida
+      if (fac.estado === 'pagada' || fac.estado === 'parcial' || fac.estado === 'pagado') {
+        const isVencida = fac.vencimiento && (new Date(fac.vencimiento) < new Date());
+        nuevoEstado = isVencida ? 'vencida' : 'pendiente';
+      }
+    }
+
+    if (fac.estado !== nuevoEstado) {
+      fac.estado = nuevoEstado;
+      try { localStorage.setItem('mb_facturas', JSON.stringify(store.facturas)); } catch (e) {}
+
+      if (triggerSync) {
+        const route = COLLECTION_ROUTES['facturas'];
+        if (route) {
+          Api.put(`${route}/${fac.id}`, { estado: nuevoEstado }).catch(err => {
+            console.warn('Error sincronizando estado de factura con API:', err.message);
+          });
+        }
+      }
+      return true;
+    }
+    return false;
+  },
+
+  recalcularTodasLasFacturas() {
+    const facturas = store.facturas || [];
+    let cambios = 0;
+    facturas.forEach(f => {
+      if (f && f.tipo === 'factura') {
+        const huboCambio = this.recalcularEstadoFactura(f.id, true);
+        if (huboCambio) cambios++;
+      }
+    });
+    return cambios;
   },
 
   // ── Computed Values ──
@@ -404,3 +501,7 @@ export const DataService = {
       .sort((a, b) => (b.fecha + (b.hora || '')).localeCompare(a.fecha + (a.hora || '')));
   }
 };
+
+// Auto-recalcular facturas al inicio con los datos de caché local
+DataService.recalcularTodasLasFacturas();
+
