@@ -5,7 +5,7 @@
 import { DataService } from '../services/mockData.js';
 import { Api } from '../services/api.js';
 import { formatCurrency, formatDate, escapeHtml, debounce, resolveFileUrl, compareNewestFirst } from '../utils/helpers.js';
-import { Icons, renderDataTable, renderSearchInput, renderBadge, renderFileUpload } from '../components/ui.js';
+import { Icons, renderDataTable, renderSearchInput, renderBadge, renderFileUpload, renderStatsCard } from '../components/ui.js';
 import { Drawer } from '../components/drawer.js';
 import { Modal, previewAttachment } from '../components/modal.js';
 import { Toast } from '../components/toast.js';
@@ -61,7 +61,16 @@ export function renderPagos(container, actionsEl) {
       `}
     ];
 
-    container.innerHTML = `<div class="table-container">
+    // Summary
+    const totalPagado = pagos.filter(p => p.estado === 'pagado').reduce((s, p) => s + p.importe, 0);
+    const totalPendiente = pagos.filter(p => p.estado === 'pendiente').reduce((s, p) => s + p.importe, 0);
+
+    container.innerHTML = `
+      <div class="stats-grid" style="margin-bottom:var(--space-4)">
+        ${renderStatsCard({ icon: 'credit-card', iconColor: 'error', value: formatCurrency(totalPagado), label: 'Total pagado' })}
+        ${renderStatsCard({ icon: 'file-clock', iconColor: 'warning', value: formatCurrency(totalPendiente), label: 'Pendiente de pago' })}
+      </div>
+      <div class="table-container">
       <div class="table-toolbar">
         <div class="table-toolbar-left">
           ${renderSearchInput('Buscar por destinatario o concepto...')}

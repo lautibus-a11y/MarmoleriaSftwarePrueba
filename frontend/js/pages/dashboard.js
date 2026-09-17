@@ -148,14 +148,14 @@ export function renderDashboard(container, actionsEl) {
 
   container.innerHTML = `
     <div class="stats-grid">
-      ${renderStatsCard({ icon: 'arrow-down-circle', iconColor: 'success', value: formatCurrency(stats.totalPorCobrar), label: 'Total por cobrar' })}
-      ${renderStatsCard({ icon: 'arrow-up-circle', iconColor: 'error', value: formatCurrency(stats.totalPorPagar), label: 'Total por pagar' })}
-      ${renderStatsCard({ icon: 'receipt', iconColor: 'warning', value: stats.facturasVencidas, label: 'Facturas vencidas' })}
-      ${renderStatsCard({ icon: 'file-text', iconColor: 'info', value: stats.presupuestosPendientes, label: 'Presupuestos pendientes' })}
-      ${renderStatsCard({ icon: 'check', iconColor: 'success', value: stats.presupuestosAprobados, label: 'Presupuestos aprobados' })}
+      ${renderStatsCard({ icon: 'hand-coins', iconColor: 'success', value: formatCurrency(stats.totalPorCobrar), label: 'Total por cobrar' })}
+      ${renderStatsCard({ icon: 'credit-card', iconColor: 'error', value: formatCurrency(stats.totalPorPagar), label: 'Total por pagar' })}
+      ${renderStatsCard({ icon: 'file-warning', iconColor: 'warning', value: stats.facturasVencidas, label: 'Facturas vencidas' })}
+      ${renderStatsCard({ icon: 'file-clock', iconColor: 'info', value: stats.presupuestosPendientes, label: 'Presupuestos pendientes' })}
+      ${renderStatsCard({ icon: 'file-check', iconColor: 'success', value: stats.presupuestosAprobados, label: 'Presupuestos aprobados' })}
       ${renderStatsCard({ icon: 'hard-hat', iconColor: 'accent', value: stats.obrasActivas, label: 'Obras activas' })}
-      ${renderStatsCard({ icon: 'arrow-down-circle', iconColor: 'success', value: formatCurrency(stats.cobrosDelMes), label: 'Cobros del mes' })}
-      ${renderStatsCard({ icon: 'arrow-up-circle', iconColor: 'error', value: formatCurrency(stats.pagosDelMes), label: 'Pagos del mes' })}
+      ${renderStatsCard({ icon: 'circle-dollar', iconColor: 'success', value: formatCurrency(stats.cobrosDelMes), label: 'Cobros del mes' })}
+      ${renderStatsCard({ icon: 'receipt-text', iconColor: 'error', value: formatCurrency(stats.pagosDelMes), label: 'Pagos del mes' })}
     </div>
 
     ${stats.stockBajo.length > 0 ? `

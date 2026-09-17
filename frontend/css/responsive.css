@@ -355,13 +355,15 @@ body.doc-modal-open .mobile-fab {
   }
 
   .stat-card-icon {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-md);
   }
 
   .stat-card-icon svg {
-    width: 16px;
-    height: 16px;
+    width: 19px;
+    height: 19px;
+    stroke-width: 2.15;
   }
 
   /* Forms on Mobile */

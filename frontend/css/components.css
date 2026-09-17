@@ -300,13 +300,24 @@
 }
 
 .stat-card-icon {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.stat-card:hover .stat-card-icon {
+  transform: scale(1.06);
+}
+
+.stat-card-icon svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2.15;
 }
 
 .stat-card-icon.accent {

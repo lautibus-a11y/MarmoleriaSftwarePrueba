@@ -5,7 +5,7 @@
 import { DataService } from '../services/mockData.js';
 import { Api } from '../services/api.js';
 import { formatCurrency, formatDate, escapeHtml, debounce, resolveFileUrl, compareNewestFirst } from '../utils/helpers.js';
-import { Icons, renderDataTable, renderSearchInput, renderBadge, renderFileUpload } from '../components/ui.js';
+import { Icons, renderDataTable, renderSearchInput, renderBadge, renderFileUpload, renderStatsCard } from '../components/ui.js';
 import { Drawer } from '../components/drawer.js';
 import { Modal, previewAttachment } from '../components/modal.js';
 import { Toast } from '../components/toast.js';
@@ -63,8 +63,8 @@ export function renderCobros(container, actionsEl) {
 
     container.innerHTML = `
       <div class="stats-grid" style="margin-bottom:var(--space-4)">
-        <div class="stat-card"><div class="stat-card-value" style="color:var(--color-success)">${formatCurrency(totalCobrado)}</div><div class="stat-card-label">Total cobrado</div></div>
-        <div class="stat-card"><div class="stat-card-value" style="color:var(--color-warning)">${formatCurrency(totalPendiente)}</div><div class="stat-card-label">Pendiente</div></div>
+        ${renderStatsCard({ icon: 'hand-coins', iconColor: 'success', value: formatCurrency(totalCobrado), label: 'Total cobrado' })}
+        ${renderStatsCard({ icon: 'file-clock', iconColor: 'warning', value: formatCurrency(totalPendiente), label: 'Pendiente de cobro' })}
       </div>
       <div class="table-container">
         <div class="table-toolbar">

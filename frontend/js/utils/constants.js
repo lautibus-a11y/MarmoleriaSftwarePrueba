@@ -291,7 +291,7 @@ export const NAV_ITEMS = [
   { id: 'stock', label: 'Stock e Inventario', icon: 'package', path: '/stock' },
   { id: 'proveedores', label: 'Proveedores', icon: 'truck', path: '/proveedores' },
   { id: 'facturas', label: 'Facturas / Cuentas', icon: 'receipt', path: '/facturas' },
-  { id: 'pagos', label: 'Pagos', icon: 'arrow-up-circle', path: '/pagos' },
-  { id: 'cobros', label: 'Cobros', icon: 'arrow-down-circle', path: '/cobros' },
+  { id: 'pagos', label: 'Pagos', icon: 'credit-card', path: '/pagos' },
+  { id: 'cobros', label: 'Cobros', icon: 'hand-coins', path: '/cobros' },
   { id: 'configuracion', label: 'Configuración', icon: 'settings', path: '/configuracion' }
 ];
