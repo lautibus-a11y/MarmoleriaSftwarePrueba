@@ -1460,12 +1460,6 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
   actionsEl.innerHTML = `
     <a href="#/presupuestos" class="btn btn-secondary">${Icons['chevron-left']} Volver</a>
     <button class="btn btn-secondary" id="btn-edit-header">${Icons.edit} Editar presupuesto</button>
-    <button class="btn btn-secondary" id="btn-header-share-pdf" style="color:#15803D;border-color:#BBF7D0;background:#F0FDF4;font-weight:var(--font-semibold)" title="Compartir presupuesto en PDF por WhatsApp">
-      ${Icons.share || Icons.whatsapp} Compartir PDF por WPP
-    </button>
-    <button class="btn btn-secondary" id="btn-header-chat" style="color:#128C7E;border-color:#99F6E4;background:#F0FDFA;font-weight:var(--font-semibold)" title="Abrir chat directo con el cliente en WhatsApp">
-      ${Icons.whatsapp} Hablar por WPP
-    </button>
     ${pres.obraId ? `
       <button class="btn btn-primary" id="btn-header-planificar" style="font-weight:var(--font-semibold);gap:6px">
         ${Icons.edit} Planificar obra
@@ -1642,27 +1636,24 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
               ${Icons['hard-hat']} <span>Ver Obra</span>
             </a>
           `)}
-          <button class="btn btn-secondary presupuesto-action-btn" id="btn-share-modal" style="color:#15803D;border-color:#BBF7D0;background:#F0FDF4">
-            ${Icons.whatsapp} <span>Compartir</span>
+          <button class="btn btn-secondary presupuesto-action-btn" id="btn-preview">
+            ${Icons.eye} <span>Vista previa</span>
           </button>
         </div>
 
-        <!-- Export & View Actions Below (2-column grid on mobile) -->
+        <!-- Export & View Actions Below (4 columns on Desktop, 2-column grid on mobile) -->
         <div class="presupuesto-secondary-grid">
-          <button class="btn btn-secondary btn-sm presupuesto-secondary-btn" id="btn-pres-share-pdf" style="color:#15803D;border-color:#BBF7D0;background:#F0FDF4;font-weight:var(--font-bold)" title="Compartir presupuesto en PDF por WhatsApp">
-            ${Icons.share || Icons.whatsapp} <span>Compartir PDF por WPP</span>
-          </button>
-          <button class="btn btn-secondary btn-sm presupuesto-secondary-btn" id="btn-pres-chat" style="color:#128C7E;border-color:#99F6E4;background:#F0FDFA;font-weight:var(--font-bold)" title="Abrir chat directo con el cliente">
-            ${Icons.whatsapp} <span>Hablar por WPP</span>
-          </button>
-          <button class="btn btn-secondary btn-sm presupuesto-secondary-btn" id="btn-preview">
-            ${Icons.eye} <span>Vista previa</span>
-          </button>
           <button class="btn btn-pdf btn-sm presupuesto-secondary-btn" id="btn-pdf">
             ${Icons['file-pdf']} <span>Descargar PDF</span>
           </button>
           <button class="btn btn-word btn-sm presupuesto-secondary-btn" id="btn-word">
             ${Icons['file-word']} <span>Descargar Word</span>
+          </button>
+          <button class="btn btn-secondary btn-sm presupuesto-secondary-btn" id="btn-pres-share-pdf" style="color:#15803D;border-color:#BBF7D0;background:#F0FDF4;font-weight:var(--font-bold)" title="Compartir presupuesto en PDF por WhatsApp">
+            ${Icons.share || Icons.whatsapp} <span>Compartir PDF por WPP</span>
+          </button>
+          <button class="btn btn-secondary btn-sm presupuesto-secondary-btn" id="btn-pres-chat" style="color:#128C7E;border-color:#99F6E4;background:#F0FDFA;font-weight:var(--font-bold)" title="Abrir chat directo con el cliente">
+            ${Icons.whatsapp} <span>Hablar por WPP</span>
           </button>
           ${pres.obraId ? `
             <button type="button" class="btn btn-secondary btn-sm presupuesto-secondary-btn" id="btn-planificar-obra-bottom">

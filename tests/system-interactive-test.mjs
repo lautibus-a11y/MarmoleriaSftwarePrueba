@@ -218,18 +218,19 @@ console.log('\n--- 3.6. BOTONES DE WHATSAPP EN DETALLE DE PRESUPUESTO ---');
 
   renderPresupuestos(container, actions, `/presupuestos/${testPres.id}`);
 
-  // Botones en encabezado (actions)
+  // Encabezado limpio: NO debe duplicar botones de WhatsApp
   const headerShareBtn = actions.querySelector('#btn-header-share-pdf');
-  assert(!!headerShareBtn, 'Botón #btn-header-share-pdf presente en encabezado de presupuesto');
-  assert(headerShareBtn.textContent.includes('Compartir PDF por WPP'), 'Botón de encabezado dice "Compartir PDF por WPP"');
-  assert(headerShareBtn.innerHTML.includes('<svg'), 'Botón de encabezado compartir contiene SVG');
-
+  assert(!headerShareBtn, 'Encabezado limpio: no duplica botón de compartir');
   const headerChatBtn = actions.querySelector('#btn-header-chat');
-  assert(!!headerChatBtn, 'Botón #btn-header-chat presente en encabezado de presupuesto');
-  assert(headerChatBtn.textContent.includes('Hablar por WPP'), 'Botón de encabezado dice "Hablar por WPP"');
-  assert(headerChatBtn.innerHTML.includes('<svg'), 'Botón de encabezado hablar contiene SVG');
+  assert(!headerChatBtn, 'Encabezado limpio: no duplica botón de chat');
+  const editHeaderBtn = actions.querySelector('#btn-edit-header');
+  assert(!!editHeaderBtn, 'Encabezado contiene botón Editar presupuesto');
 
-  // Botones en la botonera secundaria dentro del detalle
+  // Botón Vista previa en la botonera principal del detalle
+  const previewBtn = container.querySelector('#btn-preview');
+  assert(!!previewBtn, 'Botón #btn-preview presente en botonera de presupuesto');
+
+  // Botones de WhatsApp en la botonera de documentos dentro del detalle
   const detailShareBtn = container.querySelector('#btn-pres-share-pdf');
   assert(!!detailShareBtn, 'Botón #btn-pres-share-pdf presente en botonera de presupuesto');
   assert(detailShareBtn.textContent.includes('Compartir PDF por WPP'), 'Botón interior dice "Compartir PDF por WPP"');
