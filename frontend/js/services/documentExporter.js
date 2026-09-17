@@ -929,42 +929,118 @@ export async function shareViaWhatsAppAndPdf({
 
   // =========================================================================
   // 1. EN CELULARES / TABLETS (Android / iOS):
-  // Usar el menú nativo de Compartir del celular para adjuntar el PDF DIRECTO a WhatsApp
-  // NUNCA descargar el archivo en la memoria del celular.
+  // Flujo idéntico a Hoja de Ruta:
+  // 1. Mostrar 'Generando PDF...'
+  // 2. Disparar el modal nativo de compartir del celular (AirDrop, WhatsApp, Mail, etc.)
   // =========================================================================
   if (isMobile) {
-    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-      try {
-        let pdfFile = null;
-        if (htmlContent && typeof window !== 'undefined' && typeof window.html2pdf === 'function') {
-          Toast.info('Preparando WhatsApp', 'Generando PDF para adjuntar...');
-          const pdfBlob = await generatePdfBlob(htmlContent, filename);
-          if (pdfBlob) {
-            pdfFile = new File([pdfBlob], cleanFilename, { type: 'application/pdf' });
-          }
-        }
+    // Indicador visual 'Generando PDF...'
+    let loader = null;
+    if (typeof document !== 'undefined' && document.body) {
+      loader = document.createElement('div');
+      loader.id = 'generating-pdf-overlay';
+      loader.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+        z-index: 9999999; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; color: white;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      `;
+      loader.innerHTML = `
+        <div style="background: #1C1917; border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; padding: 26px 32px; text-align: center; box-shadow: 0 12px 30px rgba(0,0,0,0.5); max-width: 270px">
+          <div class="spinner" style="width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.2); border-top-color: #25D366; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 14px auto"></div>
+          <div style="font-weight: 700; font-size: 16px; color: #fff; margin-bottom: 4px">Generando PDF...</div>
+          <div style="font-size: 12px; color: #A8A29E">Preparando documento para compartir</div>
+        </div>
+      `;
+      document.body.appendChild(loader);
+    }
 
-        // Si el navegador móvil soporta compartir archivos nativamente
-        if (pdfFile && typeof navigator.canShare === 'function' && navigator.canShare({ files: [pdfFile] })) {
-          await navigator.share({
-            title: title || filename,
-            text: text,
-            files: [pdfFile]
-          });
-          Toast.success('Compartido', 'Documento en PDF adjuntado y listo para enviar');
-          return true;
+    let pdfFile = null;
+    try {
+      if (htmlContent && typeof window !== 'undefined' && typeof window.html2pdf === 'function') {
+        const pdfBlob = await generatePdfBlob(htmlContent, filename);
+        if (pdfBlob) {
+          pdfFile = new File([pdfBlob], cleanFilename, { type: 'application/pdf' });
         }
-      } catch (err) {
-        // Si el usuario canceló la hoja de compartir (AbortError), no hacer nada
-        if (err.name === 'AbortError') {
-          return false;
-        }
-        console.warn('Share nativo con archivo no disponible o falló:', err);
+      }
+    } catch (err) {
+      console.warn('Error al generar PDF en memoria:', err);
+    } finally {
+      if (loader && loader.parentNode) {
+        loader.parentNode.removeChild(loader);
       }
     }
 
-    // Si el navegador móvil no soporta compartir archivos o falló el share nativo:
-    // Abrir DIRECTO la APP de WhatsApp en el celular ¡SIN DESCARGAR NINGÚN ARCHIVO!
+    // Si se generó el archivo PDF y el dispositivo soporta navigator.share
+    if (pdfFile && typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      // IMPORTANTE: En iOS Safari no se debe mezclar un cuerpo de texto largo con files porque la API de iOS rechaza el share.
+      const shareData = {
+        title: title || filename,
+        files: [pdfFile]
+      };
+
+      let shareSuccess = false;
+      try {
+        if (typeof navigator.canShare !== 'function' || navigator.canShare(shareData)) {
+          await navigator.share(shareData);
+          Toast.success('Compartido', 'Documento en PDF adjuntado con éxito');
+          return true;
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          // El usuario canceló la hoja de compartir en su teléfono
+          return false;
+        }
+        console.warn('Intento directo de share falló o expiró activación táctil:', err);
+      }
+
+      // Si la activación táctil expiró durante la generación del PDF (frecuente en iOS):
+      // Mostramos un modal de toque directo para abrir la hoja nativa inmediatamente al clic
+      if (!shareSuccess && typeof document !== 'undefined' && document.body) {
+        const promptModal = document.createElement('div');
+        promptModal.id = 'touch-share-prompt';
+        promptModal.style.cssText = `
+          position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+          background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+          z-index: 9999999; display: flex; align-items: center; justify-content: center;
+          padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        `;
+        promptModal.innerHTML = `
+          <div style="background: #1C1917; border: 1px solid rgba(255,255,255,0.15); border-radius: 18px; padding: 24px; text-align: center; max-width: 320px; width: 100%; box-shadow: 0 15px 35px rgba(0,0,0,0.6)">
+            <div style="font-size: 38px; margin-bottom: 8px">📄</div>
+            <div style="font-weight: 700; font-size: 17px; color: #fff; margin-bottom: 6px">PDF listo para compartir</div>
+            <div style="font-size: 13px; color: #A8A29E; margin-bottom: 20px; word-break: break-all">${escapeHtml(cleanFilename)}</div>
+            <button id="btn-do-native-share" class="btn btn-primary" style="width: 100%; height: 48px; background: #25D366; border-color: #25D366; font-size: 15px; font-weight: 700; justify-content: center; margin-bottom: 10px">
+              Compartir por WhatsApp
+            </button>
+            <button id="btn-cancel-native-share" class="btn btn-ghost" style="width: 100%; height: 38px; color: #A8A29E; justify-content: center; font-size: 14px">
+              Cancelar
+            </button>
+          </div>
+        `;
+        document.body.appendChild(promptModal);
+
+        return new Promise((resolve) => {
+          promptModal.querySelector('#btn-do-native-share')?.addEventListener('click', async () => {
+            promptModal.remove();
+            try {
+              await navigator.share(shareData);
+              Toast.success('Compartido', 'Documento en PDF adjuntado');
+              resolve(true);
+            } catch (e) {
+              resolve(false);
+            }
+          });
+          promptModal.querySelector('#btn-cancel-native-share')?.addEventListener('click', () => {
+            promptModal.remove();
+            resolve(false);
+          });
+        });
+      }
+    }
+
+    // Fallback únicamente si el navegador no cuenta con Web Share de archivos
     Toast.info('Abriendo WhatsApp', 'Iniciando chat en la aplicación...');
     const mobileWaUrl = cleanPhone 
       ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(text)}`
