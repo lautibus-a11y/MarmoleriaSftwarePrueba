@@ -1335,27 +1335,6 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
   }).filter(([, v]) => v > 0);
 
   container.innerHTML = `
-    <!-- Action buttons bar -->
-    <div class="card mb-4">
-      <div class="card-body" style="display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center">
-        <button class="btn btn-secondary" id="btn-edit-detail" style="flex:1;min-width:110px;justify-content:center;font-weight:var(--font-semibold)">${Icons.edit} Editar</button>
-        <button class="btn btn-secondary" id="btn-agendar-pres" style="flex:1;min-width:140px;justify-content:center;font-weight:var(--font-semibold)">${Icons.calendar} Agendar trabajo</button>
-        <button class="btn btn-success" id="btn-share-modal" style="flex:1;min-width:120px;justify-content:center;background:#25D366;color:#fff;border-color:#25D366;font-weight:var(--font-bold)">${Icons.whatsapp} Compartir</button>
-        <button class="btn btn-pdf" id="btn-pdf" style="flex:1;min-width:130px;justify-content:center">${Icons['file-pdf']} Descargar PDF</button>
-        <button class="btn btn-word" id="btn-word" style="flex:1;min-width:130px;justify-content:center">${Icons['file-word']} Descargar Word</button>
-        <button class="btn btn-secondary" id="btn-preview" style="flex:1;min-width:120px;justify-content:center">${Icons.eye} Vista previa</button>
-        ${pres.estado !== 'aprobado' ? `
-          <button class="btn btn-success" id="btn-aprobar" style="flex:1.5;min-width:160px;justify-content:center;background:#059669;color:#fff;border-color:#059669;font-weight:var(--font-bold);box-shadow:0 4px 12px rgba(5,150,105,0.25)">
-            ${Icons.check} Aprobar presupuesto
-          </button>
-        ` : (!pres.obraId ? `
-          <button class="btn btn-primary" id="btn-crear-obra" style="flex:1.5;min-width:160px;justify-content:center;font-weight:var(--font-bold);box-shadow:0 4px 12px rgba(230,81,0,0.25)">
-            ${Icons['hard-hat']} Generar Obra
-          </button>
-        ` : '')}
-      </div>
-    </div>
-
     ${pres.obraId ? `
       <div class="card mb-4" style="border-left: 4px solid var(--color-primary); background: rgba(230, 81, 0, 0.04); border-color: rgba(230,81,0,0.25);">
         <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap;padding:16px 20px">
@@ -1500,6 +1479,55 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
       <div class="card-header"><h3 class="card-title">Condiciones comerciales</h3></div>
       <div class="card-body"><pre style="white-space:pre-wrap;font-family:inherit;font-size:var(--text-sm);color:var(--color-stone-600);line-height:1.6">${escapeHtml(pres.condiciones)}</pre></div>
     </div>` : ''}
+
+    <!-- Quick Operations & Actions Bar (Abajo de todo) -->
+    <div class="card mb-4" style="border:1px solid var(--color-stone-200);background:var(--color-stone-50);margin-top:var(--space-4)">
+      <div class="card-body" style="padding:var(--space-3) var(--space-4)">
+        <!-- 4 Action buttons grid: 2x2 on Mobile, 4 in a row on Desktop -->
+        <div class="presupuesto-actions-grid mb-3">
+          <button class="btn btn-primary presupuesto-action-btn" id="btn-edit-detail">
+            ${Icons.edit} <span>Editar</span>
+          </button>
+          <button class="btn btn-secondary presupuesto-action-btn" id="btn-agendar-pres">
+            ${Icons.calendar} <span>Agendar trabajo</span>
+          </button>
+          ${pres.estado !== 'aprobado' ? `
+            <button class="btn btn-success presupuesto-action-btn" id="btn-aprobar" style="background:#059669;border-color:#059669;color:#fff">
+              ${Icons.check} <span>Aprobar</span>
+            </button>
+          ` : (!pres.obraId ? `
+            <button class="btn btn-primary presupuesto-action-btn" id="btn-crear-obra" style="background:var(--color-primary);border-color:var(--color-primary);color:#fff">
+              ${Icons['hard-hat']} <span>Generar Obra</span>
+            </button>
+          ` : `
+            <a href="#/obras/${pres.obraId}" class="btn btn-secondary presupuesto-action-btn" style="color:var(--color-primary);border-color:var(--color-primary);text-decoration:none">
+              ${Icons['hard-hat']} <span>Ver Obra</span>
+            </a>
+          `)}
+          <button class="btn btn-secondary presupuesto-action-btn" id="btn-share-modal" style="color:#15803D;border-color:#BBF7D0;background:#F0FDF4">
+            ${Icons.whatsapp} <span>Compartir</span>
+          </button>
+        </div>
+
+        <!-- Export & View Actions Below (2-column grid on mobile) -->
+        <div class="presupuesto-secondary-grid">
+          <button class="btn btn-secondary btn-sm presupuesto-secondary-btn" id="btn-preview">
+            ${Icons.eye} <span>Vista previa</span>
+          </button>
+          <button class="btn btn-pdf btn-sm presupuesto-secondary-btn" id="btn-pdf">
+            ${Icons['file-pdf']} <span>Descargar PDF</span>
+          </button>
+          <button class="btn btn-word btn-sm presupuesto-secondary-btn" id="btn-word">
+            ${Icons['file-word']} <span>Descargar Word</span>
+          </button>
+          ${pres.obraId ? `
+            <button type="button" class="btn btn-secondary btn-sm presupuesto-secondary-btn" id="btn-planificar-obra-bottom">
+              ${Icons.edit} <span>Planificar obra</span>
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    </div>
   `;
 
   // Agendar trabajo
@@ -1538,6 +1566,7 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
   };
   document.getElementById('btn-header-planificar')?.addEventListener('click', handlePlanificarObra);
   document.getElementById('btn-planificar-obra-direct')?.addEventListener('click', handlePlanificarObra);
+  document.getElementById('btn-planificar-obra-bottom')?.addEventListener('click', handlePlanificarObra);
 
   // Completar datos de cliente desde el banner de alerta
   document.getElementById('btn-completar-cliente-pres')?.addEventListener('click', (e) => {

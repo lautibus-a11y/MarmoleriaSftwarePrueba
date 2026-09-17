@@ -1319,15 +1319,17 @@
   }
 }
 
-/* ── Obra Detail Actions Grid ── */
-.obra-actions-grid {
+/* ── Obra & Presupuesto Detail Actions Grid ── */
+.obra-actions-grid,
+.presupuesto-actions-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: var(--space-3);
   width: 100%;
 }
 
-.obra-action-btn {
+.obra-action-btn,
+.presupuesto-action-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1342,19 +1344,22 @@
   box-sizing: border-box;
 }
 
-.obra-action-btn svg {
+.obra-action-btn svg,
+.presupuesto-action-btn svg {
   flex-shrink: 0;
   width: 16px;
   height: 16px;
 }
 
 @media (max-width: 768px) {
-  .obra-actions-grid {
+  .obra-actions-grid,
+  .presupuesto-actions-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
   }
 
-  .obra-action-btn {
+  .obra-action-btn,
+  .presupuesto-action-btn {
     padding: 10px 8px;
     font-size: var(--text-xs);
     min-height: 46px;
@@ -1362,8 +1367,9 @@
   }
 }
 
-/* ── Obra Secondary Actions Grid (PDF, Word, Preview, WhatsApp) ── */
-.obra-secondary-grid {
+/* ── Obra & Presupuesto Secondary Actions Grid (PDF, Word, Preview, WhatsApp) ── */
+.obra-secondary-grid,
+.presupuesto-secondary-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: var(--space-2);
@@ -1372,7 +1378,8 @@
   border-top: 1px solid var(--color-stone-200);
 }
 
-.obra-secondary-btn {
+.obra-secondary-btn,
+.presupuesto-secondary-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1388,23 +1395,27 @@
   white-space: nowrap;
 }
 
-.obra-secondary-btn svg {
+.obra-secondary-btn svg,
+.presupuesto-secondary-btn svg {
   flex-shrink: 0;
   width: 15px;
   height: 15px;
 }
 
 @media (max-width: 768px) {
-  .obra-secondary-grid {
+  .obra-secondary-grid,
+  .presupuesto-secondary-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
   }
 
-  .obra-secondary-grid .obra-secondary-btn:last-child:nth-child(odd) {
+  .obra-secondary-grid .obra-secondary-btn:last-child:nth-child(odd),
+  .presupuesto-secondary-grid .presupuesto-secondary-btn:last-child:nth-child(odd) {
     grid-column: span 2;
   }
 
-  .obra-secondary-btn {
+  .obra-secondary-btn,
+  .presupuesto-secondary-btn {
     padding: 8px 6px;
     font-size: var(--text-xs);
     min-height: 40px;
