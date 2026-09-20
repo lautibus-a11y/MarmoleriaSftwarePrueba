@@ -5,6 +5,7 @@
 import { renderSidebar, initSidebar, updateSidebarActive } from './components/sidebar.js';
 import { renderMobileNav, initMobileNav, updateMobileNav } from './components/mobileNav.js';
 import { renderDashboard } from './pages/dashboard.js';
+import { renderPasoAPaso } from './pages/pasoAPaso.js';
 import { renderCalendario } from './pages/calendario.js';
 import { renderClientes } from './pages/clientes.js';
 import { renderPresupuestos } from './pages/presupuestos.js';
@@ -145,6 +146,7 @@ class App {
     // Route matching
     const routes = {
       '/dashboard': { title: 'Inicio', render: renderDashboard },
+      '/paso-a-paso': { title: 'Paso a Paso — Flujo Guiado', render: renderPasoAPaso },
       '/calendario': { title: 'Calendario', render: renderCalendario },
       '/clientes': { title: 'Clientes', render: renderClientes },
       '/presupuestos': { title: 'Presupuestos', render: renderPresupuestos },

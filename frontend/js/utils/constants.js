@@ -286,6 +286,7 @@ export const EVENTO_ESTADO_COLORS = {
 // ── Navigation Items ──
 export const NAV_ITEMS = [
   { id: 'dashboard', label: 'Inicio', icon: 'home', path: '/dashboard' },
+  { id: 'paso-a-paso', label: 'Paso a Paso', icon: 'workflow', path: '/paso-a-paso' },
   { id: 'calendario', label: 'Calendario', icon: 'calendar', path: '/calendario' },
   { id: 'presupuestos', label: 'Presupuestos', icon: 'file-text', path: '/presupuestos' },
   { id: 'clientes', label: 'Clientes', icon: 'users', path: '/clientes' },

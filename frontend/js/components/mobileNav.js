@@ -79,6 +79,7 @@ export function updateMobileFab(path) {
   }
 
   const fabConfigs = {
+    'paso-a-paso': { label: 'Proceso', targetId: 'btn-workflow-new-process' },
     calendario: { label: 'Evento', targetId: 'btn-new-event' },
     presupuestos: { label: 'Presupuesto', targetId: 'btn-new-pres' },
     obras: { label: 'Obra', targetId: 'btn-new-obra' },

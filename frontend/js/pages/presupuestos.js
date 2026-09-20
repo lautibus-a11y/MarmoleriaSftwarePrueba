@@ -302,26 +302,45 @@ export function renderPresupuestos(container, actionsEl, path = '/presupuestos')
     }
   };
 
-  function openPresupuestoForm(editId = null, onSaved = null) {
-    const found = editId ? DataService.getById('presupuestos', editId) : null;
-    const isEdit = !!editId && !!found;
-    const configData = JSON.parse(localStorage.getItem('mb_config') || '{}');
-    const defaultCotizacion = parseFloat(configData.cotizacionDolar) || 1350;
+  render();
+}
 
-    const pres = found ? { ...found } : {
-      numero: generateAutoNumber('PRES', DataService.getAll('presupuestos')),
-      fecha: new Date().toISOString().split('T')[0],
-      moneda: 'ARS',
-      cotizacionDolar: defaultCotizacion,
-      estado: 'borrador',
-      items: [{ id: '1', descripcion: 'Pieza #1', material: '', unidadMedida: 'cm', largo: '', ancho: '', cantidad: 1, m2: 0, precioUnitario: 0, subtotal: 0 }],
-      adicionales: { colocacion: 0, manoDeObra: 0, inglete: 0, transporte: 0, bacha: 0, zocalos: 0, extras: 0 },
-      descuento: 0, impuestos: 21, condiciones: CONDICIONES_COMERCIALES_DEFAULT.join('\n')
-    };
-    if (!pres.cotizacionDolar) pres.cotizacionDolar = defaultCotizacion;
+export function openPresupuestoForm(editId = null, onSaved = null, prefill = null) {
+  const found = editId ? DataService.getById('presupuestos', editId) : null;
+  const isEdit = !!editId && !!found;
+  const configData = JSON.parse(localStorage.getItem('mb_config') || '{}');
+  const defaultCotizacion = parseFloat(configData.cotizacionDolar) || 1350;
 
-    const clientes = DataService.getAll('clientes').filter(Boolean);
-    const materiales = DataService.getAll('materiales').filter(Boolean);
+  const pres = found ? { ...found } : {
+    numero: generateAutoNumber('PRES', DataService.getAll('presupuestos')),
+    fecha: new Date().toISOString().split('T')[0],
+    moneda: 'ARS',
+    cotizacionDolar: defaultCotizacion,
+    estado: 'borrador',
+    clienteId: prefill?.clienteId || '',
+    clienteNombre: prefill?.clienteNombre || '',
+    telefono: prefill?.telefono || prefill?.whatsapp || '',
+    direccion: prefill?.direccion || '',
+    items: prefill?.items || [{ id: '1', descripcion: 'Pieza #1', material: '', unidadMedida: 'cm', largo: '', ancho: '', cantidad: 1, m2: 0, precioUnitario: 0, subtotal: 0 }],
+    adicionales: prefill?.adicionales || { colocacion: 0, manoDeObra: 0, inglete: 0, transporte: 0, bacha: 0, zocalos: 0, extras: 0 },
+    descuento: prefill?.descuento || 0,
+    impuestos: prefill?.impuestos !== undefined ? prefill.impuestos : 21,
+    condiciones: prefill?.condiciones || CONDICIONES_COMERCIALES_DEFAULT.join('\n'),
+    ...(prefill || {})
+  };
+  if (!pres.cotizacionDolar) pres.cotizacionDolar = defaultCotizacion;
+
+  if (pres.clienteId && !pres.clienteNombre) {
+    const c = DataService.getById('clientes', pres.clienteId);
+    if (c) {
+      pres.clienteNombre = `${c.nombre} ${c.apellido || ''}`.trim();
+      if (!pres.telefono) pres.telefono = c.telefono || c.whatsapp || '';
+      if (!pres.direccion) pres.direccion = c.direccion || '';
+    }
+  }
+
+  const clientes = DataService.getAll('clientes').filter(Boolean);
+  const materiales = DataService.getAll('materiales').filter(Boolean);
 
     const isNuevoInicial = !pres.clienteId && !!pres.clienteNombre;
 
@@ -1222,9 +1241,6 @@ export function renderPresupuestos(container, actionsEl, path = '/presupuestos')
         aprobarPresupuesto(saved.id, (approvedPres) => {
           if (onSaved) {
             onSaved(approvedPres);
-          } else {
-            presupuestos = DataService.getAll('presupuestos');
-            render();
           }
           if (andShare && approvedPres) {
             setTimeout(() => {
@@ -1248,9 +1264,6 @@ export function renderPresupuestos(container, actionsEl, path = '/presupuestos')
       }
       if (onSaved) {
         onSaved(saved);
-      } else {
-        presupuestos = DataService.getAll('presupuestos');
-        render();
       }
 
       if (andShare && saved) {
@@ -1278,7 +1291,7 @@ export function renderPresupuestos(container, actionsEl, path = '/presupuestos')
     attachBtn('btn-inline-preview', previewDraft);
   }
 
-  function openShareModal(pres) {
+export function openShareModal(pres) {
     if (!pres) return;
     const cliente = pres.clienteId ? DataService.getById('clientes', pres.clienteId) : null;
     const contact = resolveEntityContact(cliente, { clienteNombre: pres.clienteNombre, telefono: pres.telefono || pres.contacto });
@@ -1422,30 +1435,22 @@ export function renderPresupuestos(container, actionsEl, path = '/presupuestos')
     });
   }
 
-  function handleDuplicate(id) {
-    const orig = DataService.getById('presupuestos', id);
-    if (!orig) return;
-    const dup = { ...JSON.parse(JSON.stringify(orig)), id: undefined, numero: generateAutoNumber('PRES', DataService.getAll('presupuestos')), estado: 'borrador', fecha: new Date().toISOString().split('T')[0] };
-    DataService.create('presupuestos', dup);
-    Toast.success('Presupuesto duplicado');
-    presupuestos = DataService.getAll('presupuestos');
-    render();
-  }
+export function handleDuplicate(id) {
+  const orig = DataService.getById('presupuestos', id);
+  if (!orig) return;
+  const dup = { ...JSON.parse(JSON.stringify(orig)), id: undefined, numero: generateAutoNumber('PRES', DataService.getAll('presupuestos')), estado: 'borrador', fecha: new Date().toISOString().split('T')[0] };
+  DataService.create('presupuestos', dup);
+  Toast.success('Presupuesto duplicado');
+}
 
-  async function handleDelete(id) {
-    const pres = DataService.getById('presupuestos', id);
-    if (!pres) return;
-    const confirmed = await confirmDialog({ title: 'Eliminar presupuesto', message: `¿Eliminar ${pres.numero || 'este presupuesto'}?`, confirmText: 'Eliminar', type: 'danger' });
-    if (confirmed) {
-      DataService.remove('presupuestos', id);
-      Toast.success('Presupuesto eliminado');
-      presupuestos = DataService.getAll('presupuestos');
-      render();
-    }
+export async function handleDelete(id) {
+  const pres = DataService.getById('presupuestos', id);
+  if (!pres) return;
+  const confirmed = await confirmDialog({ title: 'Eliminar presupuesto', message: `¿Eliminar ${pres.numero || 'este presupuesto'}?`, confirmText: 'Eliminar', type: 'danger' });
+  if (confirmed) {
+    DataService.remove('presupuestos', id);
+    Toast.success('Presupuesto eliminado');
   }
-
-  setTimeout(() => { document.getElementById('btn-new-pres')?.addEventListener('click', () => openPresupuestoForm()); }, 100);
-  render();
 }
 
 // ── Presupuesto Detail ──

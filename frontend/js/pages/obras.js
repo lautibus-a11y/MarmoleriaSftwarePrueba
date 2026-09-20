@@ -173,8 +173,8 @@ export function renderObras(container, actionsEl, path = '/obras') {
   render();
 }
 
-export function openObraForm(editId = null, onSaved = null) {
-  const obra = (editId ? DataService.getById('obras', editId) : null) || {};
+export function openObraForm(editId = null, onSaved = null, prefill = null) {
+  const obra = (editId ? DataService.getById('obras', editId) : (prefill ? { ...prefill } : null)) || {};
   const isEdit = !!editId && !!obra.id;
   const clientes = DataService.getAll('clientes').filter(Boolean);
 
@@ -194,6 +194,10 @@ export function openObraForm(editId = null, onSaved = null) {
             <span class="badge badge-success" style="font-weight:var(--font-bold)">Importe: ${formatCurrency(obra.importe || DataService.getObraTotal(obra.id))}</span>
           </div>
         ` : ''}
+
+        <input type="hidden" name="presupuestoId" value="${escapeHtml(obra.presupuestoId || '')}">
+        <input type="hidden" name="presupuestoNumero" value="${escapeHtml(obra.presupuestoNumero || '')}">
+        <input type="hidden" name="moneda" value="${escapeHtml(obra.moneda || 'ARS')}">
 
         <div class="form-group">
           <label class="form-label">Cliente <span class="required">*</span></label>
@@ -284,7 +288,15 @@ export function openObraForm(editId = null, onSaved = null) {
     } else {
       data.archivos = [];
       data.estado = data.estado || 'pendiente';
+      if (obra.items) data.items = obra.items;
+      if (obra.importe) data.importe = Number(obra.importe) || 0;
+      if (data.presupuestoId) {
+        data.presupuestoNumero = data.presupuestoNumero || obra.presupuestoNumero || '';
+      }
       saved = DataService.create('obras', data);
+      if (data.presupuestoId) {
+        DataService.update('presupuestos', data.presupuestoId, { obraId: saved.id });
+      }
       Toast.success('Obra creada con éxito');
     }
     Drawer.close();
