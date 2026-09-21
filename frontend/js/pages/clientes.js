@@ -53,6 +53,12 @@ export function renderClientes(container, actionsEl, path = '/clientes') {
         }
       },
       {
+        label: 'Condición',
+        render: (item) => item.condicionComercial === 'especial'
+          ? `<span class="badge badge-accent" title="${escapeHtml(item.motivoCondicion || 'Condición especial habitual')}" style="font-weight:600">⭐ Especial (${item.descuentoHabitual || 0}%)</span>`
+          : `<span class="badge badge-neutral" style="color:var(--color-stone-500)">Estándar</span>`
+      },
+      {
         label: 'Saldo pendiente', field: 'saldo', align: 'right',
         render: (item) => {
           const saldo = DataService.getClienteSaldo(item.id);
@@ -195,12 +201,43 @@ export function openClienteForm(editId = null, onSaved = null) {
           <label class="form-label">Observaciones</label>
           <textarea class="form-textarea" name="observaciones" rows="3">${escapeHtml(cliente.observaciones || '')}</textarea>
         </div>
+        <div class="form-group" style="border-top:1px solid var(--color-stone-200);padding-top:var(--space-3);margin-top:var(--space-3)">
+          <label class="form-label" style="font-weight:var(--font-bold);display:flex;align-items:center;gap:6px">
+            ${Icons.tag || '🏷️'} Condición comercial habitual
+          </label>
+          <select class="form-select" name="condicionComercial" id="cliente-condicion-comercial-select">
+            <option value="estandar" ${(cliente.condicionComercial !== 'especial') ? 'selected' : ''}>Estándar</option>
+            <option value="especial" ${cliente.condicionComercial === 'especial' ? 'selected' : ''}>Especial</option>
+          </select>
+          <span class="text-muted" style="font-size:11.5px;display:block;margin-top:4px">
+            Preferencia habitual del cliente. Se sugerirá en sus presupuestos sin ser obligatoria.
+          </span>
+        </div>
+        <div id="cliente-condicion-especial-wrap" style="${cliente.condicionComercial === 'especial' ? 'display:block' : 'display:none'};background:var(--color-stone-50);border:1px solid var(--color-stone-200);border-radius:var(--radius-md);padding:12px;margin-bottom:var(--space-3)">
+          <div class="form-group">
+            <label class="form-label">Descuento habitual (%)</label>
+            <input type="number" step="0.5" min="0" max="100" class="form-input" name="descuentoHabitual" id="cliente-descuento-habitual" value="${cliente.descuentoHabitual || ''}" placeholder="Ej: 10">
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label">Nota interna / Motivo</label>
+            <input type="text" class="form-input" name="motivoCondicion" id="cliente-motivo-condicion" value="${escapeHtml(cliente.motivoCondicion || '')}" placeholder="Ej: Cliente frecuente, Precio mayorista, Acuerdo comercial">
+          </div>
+        </div>
       </form>
     `,
     footer: `
       <button class="btn btn-secondary" id="drawer-cancel">Cancelar</button>
       <button class="btn btn-primary" id="drawer-save">${isEdit ? 'Guardar cambios' : 'Crear cliente'}</button>
     `
+  });
+
+  // Toggle de campos especiales en formulario de cliente
+  const condSelect = document.querySelector('#cliente-condicion-comercial-select');
+  const condWrap = document.querySelector('#cliente-condicion-especial-wrap');
+  condSelect?.addEventListener('change', () => {
+    if (condWrap) {
+      condWrap.style.display = condSelect.value === 'especial' ? 'block' : 'none';
+    }
   });
 
   // Sincronizar automáticamente WhatsApp con Teléfono si el usuario edita el teléfono
@@ -235,6 +272,11 @@ export function openClienteForm(editId = null, onSaved = null) {
     } else if (data.whatsapp && !data.telefono) {
       data.telefono = data.whatsapp;
     }
+
+    // Normalizar condición comercial habitual
+    data.condicionComercial = data.condicionComercial || 'estandar';
+    data.descuentoHabitual = data.condicionComercial === 'especial' ? (Math.max(0, Math.min(100, parseFloat(data.descuentoHabitual) || 0))) : 0;
+    data.motivoCondicion = data.condicionComercial === 'especial' ? (data.motivoCondicion || '').trim() : '';
 
     if (isEdit) {
       DataService.update('clientes', editId, data);
@@ -322,6 +364,7 @@ function renderClienteDetail(container, actionsEl, clienteId) {
               ${cliente.email ? `<span class="detail-header-meta-item">${Icons.mail} ${escapeHtml(cliente.email)}</span>` : ''}
               ${cliente.direccion ? `<span class="detail-header-meta-item">${Icons['map-pin']} ${escapeHtml(cliente.direccion)}</span>` : ''}
               ${cliente.cuit ? `<span class="detail-header-meta-item">CUIT: ${escapeHtml(cliente.cuit)}</span>` : ''}
+              ${cliente.condicionComercial === 'especial' ? `<span class="detail-header-meta-item" style="color:var(--color-accent-dark);font-weight:var(--font-semibold)">⭐ Condición Especial (${cliente.descuentoHabitual || 0}% desc.)</span>` : ''}
             </div>
           </div>
         </div>
@@ -485,6 +528,14 @@ function renderClienteDetail(container, actionsEl, clienteId) {
               <div class="detail-item">
                 <span class="detail-label">CUIT / DNI</span>
                 <span class="detail-value">${escapeHtml(cliente.cuit || '-')}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Condición comercial habitual</span>
+                <span class="detail-value">
+                  ${cliente.condicionComercial === 'especial'
+                    ? `<span class="badge badge-accent" style="font-weight:600">⭐ Especial (${cliente.descuentoHabitual || 0}% de descuento)</span>${cliente.motivoCondicion ? `<span class="text-muted" style="margin-left:8px;font-size:12.5px">— Motivo: <em>${escapeHtml(cliente.motivoCondicion)}</em></span>` : ''}`
+                    : '<span class="badge badge-neutral">Estándar</span>'}
+                </span>
               </div>
               <div class="detail-item">
                 <span class="detail-label">Observaciones</span>

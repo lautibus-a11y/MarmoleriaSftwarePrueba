@@ -321,7 +321,10 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
     clienteNombre: prefill?.clienteNombre || '',
     telefono: prefill?.telefono || prefill?.whatsapp || '',
     direccion: prefill?.direccion || '',
-    items: prefill?.items || [{ id: '1', descripcion: 'Pieza #1', material: '', unidadMedida: 'cm', largo: '', ancho: '', cantidad: 1, m2: 0, precioUnitario: 0, subtotal: 0 }],
+    condicionTipo: prefill?.condicionTipo || found?.condicionTipo || found?.condicionComercial?.tipo || 'estandar',
+    condicionPorcentaje: prefill?.condicionPorcentaje !== undefined ? prefill.condicionPorcentaje : (found?.condicionPorcentaje !== undefined ? found.condicionPorcentaje : (found?.condicionComercial?.porcentaje || 0)),
+    condicionNota: prefill?.condicionNota || found?.condicionNota || found?.condicionComercial?.nota || '',
+    items: prefill?.items || [{ id: '1', descripcion: 'Pieza #1', material: '', unidadMedida: 'cm', largo: '', ancho: '', cantidad: 1, m2: 0, precioBase: 0, precioUnitario: 0, subtotal: 0 }],
     adicionales: prefill?.adicionales || { colocacion: 0, manoDeObra: 0, inglete: 0, transporte: 0, bacha: 0, zocalos: 0, extras: 0 },
     descuento: prefill?.descuento || 0,
     impuestos: prefill?.impuestos !== undefined ? prefill.impuestos : 21,
@@ -329,6 +332,9 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
     ...(prefill || {})
   };
   if (!pres.cotizacionDolar) pres.cotizacionDolar = defaultCotizacion;
+  if (!pres.condicionTipo) pres.condicionTipo = pres.condicionComercial?.tipo || 'estandar';
+  if (pres.condicionPorcentaje === undefined) pres.condicionPorcentaje = pres.condicionComercial?.porcentaje !== undefined ? pres.condicionComercial.porcentaje : 0;
+  if (!pres.condicionNota) pres.condicionNota = pres.condicionComercial?.nota || '';
 
   if (pres.clienteId && !pres.clienteNombre) {
     const c = DataService.getById('clientes', pres.clienteId);
@@ -419,6 +425,8 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
                   <input type="text" class="form-input" name="direccion" id="pres-direccion-input" value="${escapeHtml(pres.direccion || '')}" placeholder="Ej: San Martín 450">
                 </div>
               </div>
+              <!-- Banner informativo de cliente con condición especial -->
+              <div id="cliente-condicion-banner" style="display:none;margin-top:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:var(--radius-md);padding:10px 14px"></div>
             </div>
 
             <div id="cliente-nuevo-wrap" style="${isNuevoInicial ? 'display:block' : 'display:none'}">
@@ -458,6 +466,40 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
             <div class="form-group mt-3">
               <label class="form-label">Descripción del proyecto</label>
               <input type="text" class="form-input" name="descripcion" value="${escapeHtml(pres.descripcion || '')}" placeholder="Ej: Mesada de cocina en L con isla">
+            </div>
+          </div>
+
+          <!-- Sección Condición Comercial -->
+          <div class="presupuesto-form-section" id="section-condicion-comercial">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-2)">
+              <h4 class="presupuesto-form-section-title mb-0" style="display:flex;align-items:center;gap:6px">
+                ${Icons.tag || '🏷️'} Condición comercial
+              </h4>
+              <span class="text-muted" style="font-size:12px">Precios y condiciones para este presupuesto</span>
+            </div>
+            <div class="form-row-2">
+              <div class="form-group mb-0">
+                <label class="form-label">Condición de precios</label>
+                <select class="form-select" name="condicionTipo" id="pres-condicion-tipo-select">
+                  <option value="estandar" ${pres.condicionTipo === 'estandar' ? 'selected' : ''}>Precio estándar (precios de catálogo/stock)</option>
+                  <option value="personalizado" ${pres.condicionTipo === 'personalizado' ? 'selected' : ''}>Precio personalizado (manual por ítem)</option>
+                  <option value="descuento" ${pres.condicionTipo === 'descuento' ? 'selected' : ''}>Descuento especial (%)</option>
+                  <option value="recargo" ${pres.condicionTipo === 'recargo' ? 'selected' : ''}>Recargo (%)</option>
+                </select>
+              </div>
+              <div class="form-group mb-0" id="pres-condicion-porcentaje-wrap" style="${(pres.condicionTipo === 'descuento' || pres.condicionTipo === 'recargo') ? 'display:block' : 'display:none'}">
+                <label class="form-label" id="pres-condicion-porcentaje-label">
+                  ${pres.condicionTipo === 'recargo' ? 'Porcentaje de recargo (%)' : 'Porcentaje de descuento (%)'} <span class="required">*</span>
+                </label>
+                <input type="number" step="0.5" min="0" max="100" class="form-input calc-field" name="condicionPorcentaje" id="pres-condicion-porcentaje-input" value="${pres.condicionPorcentaje || ''}" placeholder="Ej: 10">
+              </div>
+            </div>
+            <div class="form-group mt-3 mb-0" id="pres-condicion-nota-wrap" style="${pres.condicionTipo !== 'estandar' ? 'display:block' : 'display:none'}">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <label class="form-label mb-1">Nota interna / Motivo</label>
+                <span style="font-size:11px;color:var(--color-stone-500);display:flex;align-items:center;gap:3px">🔒 Solo uso interno (no se mostrará en el PDF del cliente)</span>
+              </div>
+              <input type="text" class="form-input" name="condicionNota" id="pres-condicion-nota-input" value="${escapeHtml(pres.condicionNota || '')}" placeholder="Ej: Cliente habitual, Precio mayorista, Promoción, Acuerdo comercial">
             </div>
           </div>
 
@@ -598,11 +640,116 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
       });
     });
 
+    let userHasManuallyChangedCondition = isEdit;
+
+    function applyCondicionToPrice(basePrice, tipo, porcentaje, manualPrice = null) {
+      if (tipo === 'personalizado') {
+        return (manualPrice !== null && manualPrice !== undefined && !isNaN(manualPrice) && manualPrice >= 0)
+          ? manualPrice
+          : basePrice;
+      }
+      if (tipo === 'descuento') {
+        const pct = Math.max(0, Math.min(100, parseFloat(porcentaje) || 0));
+        return Math.round(basePrice * (1 - pct / 100) * 100) / 100;
+      }
+      if (tipo === 'recargo') {
+        const pct = Math.max(0, parseFloat(porcentaje) || 0);
+        return Math.round(basePrice * (1 + pct / 100) * 100) / 100;
+      }
+      return basePrice;
+    }
+
+    function getCurCondTipo() {
+      return qEl('#pres-condicion-tipo-select')?.value || pres.condicionTipo || 'estandar';
+    }
+
+    function getCurCondPorcentaje() {
+      const val = parseFloat(qEl('#pres-condicion-porcentaje-input')?.value);
+      return !isNaN(val) ? val : (pres.condicionPorcentaje || 0);
+    }
+
+    function recalculateAllItemPrices() {
+      const condTipo = getCurCondTipo();
+      const condPorcentaje = getCurCondPorcentaje();
+
+      items.forEach(it => {
+        if (condTipo === 'estandar') {
+          it.precioUnitario = it.precioBase;
+        } else if (condTipo === 'descuento') {
+          it.precioUnitario = applyCondicionToPrice(it.precioBase, 'descuento', condPorcentaje);
+        } else if (condTipo === 'recargo') {
+          it.precioUnitario = applyCondicionToPrice(it.precioBase, 'recargo', condPorcentaje);
+        }
+        // If 'personalizado', each item retains its own it.precioUnitario
+        calculateItem(it);
+      });
+    }
+
+    function updateClienteCondicionBanner(selectedCli, isInitial = false) {
+      const banner = qEl('#cliente-condicion-banner');
+      if (!banner) return;
+      if (selectedCli && selectedCli.condicionComercial === 'especial') {
+        const desc = selectedCli.descuentoHabitual || 0;
+        const motivo = selectedCli.motivoCondicion || '';
+        banner.style.display = 'block';
+        banner.innerHTML = `
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <div style="display:flex;align-items:flex-start;gap:8px">
+              <span style="font-size:18px;line-height:1">⭐</span>
+              <div style="font-size:12.5px;color:#92400E">
+                <div style="font-weight:700">Cliente con condición especial habitual</div>
+                <div>Descuento habitual: <strong>${desc}%</strong></div>
+                ${motivo ? `<div style="color:#B45309;font-size:11.5px;margin-top:2px">Nota interna: <em>${escapeHtml(motivo)}</em></div>` : ''}
+              </div>
+            </div>
+            <button type="button" class="btn btn-xs btn-outline-warning" id="btn-aplicar-condicion-cli" style="font-size:11px;padding:3px 9px;font-weight:700;border-color:#D97706;color:#92400E;background:transparent;cursor:pointer">
+              ${Icons.check || '✓'} Aplicar descuento (${desc}%)
+            </button>
+          </div>
+        `;
+
+        qEl('#btn-aplicar-condicion-cli')?.addEventListener('click', () => {
+          applyClientCondition(selectedCli);
+        });
+
+        // Auto-precargar si es un presupuesto nuevo y la condición no fue modificada manualmente
+        if (!isEdit && !userHasManuallyChangedCondition) {
+          applyClientCondition(selectedCli);
+        }
+      } else {
+        banner.style.display = 'none';
+        banner.innerHTML = '';
+      }
+    }
+
+    function applyClientCondition(cli) {
+      const condSelect = qEl('#pres-condicion-tipo-select');
+      const pctInput = qEl('#pres-condicion-porcentaje-input');
+      const pctWrap = qEl('#pres-condicion-porcentaje-wrap');
+      const pctLabel = qEl('#pres-condicion-porcentaje-label');
+      const notaInput = qEl('#pres-condicion-nota-input');
+      const notaWrap = qEl('#pres-condicion-nota-wrap');
+
+      if (condSelect) condSelect.value = 'descuento';
+      if (pctWrap) pctWrap.style.display = 'block';
+      if (pctLabel) pctLabel.innerHTML = 'Porcentaje de descuento (%) <span class="required">*</span>';
+      if (pctInput) pctInput.value = cli.descuentoHabitual || 0;
+      if (notaWrap) notaWrap.style.display = 'block';
+      if (notaInput && !notaInput.value) notaInput.value = cli.motivoCondicion || 'Cliente habitual con condición especial';
+
+      recalculateAllItemPrices();
+      renderItems();
+      renderMaterialSummary();
+      updateSummary();
+      Toast.info(`Condición especial del cliente aplicada: ${cli.descuentoHabitual || 0}%`);
+    }
+
     cliSelect?.addEventListener('change', (e) => {
       const selectedCli = clientes.find(c => String(c.id) === String(e.target.value));
       if (selectedCli && dirInput && !dirInput.value) {
         dirInput.value = selectedCli.direccion || '';
       }
+      updateClienteCondicionBanner(selectedCli);
     });
 
     // Setup Items and Calculation
@@ -628,9 +775,12 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
     let items = (pres.items && pres.items.length > 0)
       ? pres.items.map((it, idx) => {
           const matName = it.material || pres.material || defaultFirstMat;
+          const baseP = (it.precioBase !== undefined && it.precioBase !== null && it.precioBase > 0)
+            ? it.precioBase
+            : getMaterialPrice(matName, initialMoneda, initialTC);
           const pM2 = (it.precioUnitario !== undefined && it.precioUnitario !== null && it.precioUnitario > 0)
             ? it.precioUnitario
-            : getMaterialPrice(matName, initialMoneda, initialTC);
+            : baseP;
 
           let u = it.unidadMedida;
           let lVal = it.largo !== undefined && it.largo !== null ? it.largo : '';
@@ -655,6 +805,7 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
             largo: lVal,
             ancho: aVal,
             m2: parseFloat(it.m2) || 0,
+            precioBase: baseP,
             precioUnitario: pM2,
             subtotal: parseFloat(it.subtotal) || 0
           };
@@ -669,6 +820,7 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
             largo: '',
             ancho: '',
             m2: 0,
+            precioBase: defaultFirstMatPrice,
             precioUnitario: defaultFirstMatPrice,
             subtotal: 0
           }
@@ -706,16 +858,21 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
       // Redondeo limpio a 4 decimales
       it.m2 = Math.round((it.m2 + Number.EPSILON) * 10000) / 10000;
 
-      // Precio por m² del material si no está fijado
-      if (it.material && (!it.precioUnitario || it.precioUnitario === 0)) {
-        const curMoneda = qEl('#pres-moneda-select')?.value || pres.moneda || 'ARS';
-        const curTC = parseFloat(qEl('#pres-cotizacion-input')?.value) || pres.cotizacionDolar || defaultCotizacion;
-        it.precioUnitario = getMaterialPrice(it.material, curMoneda, curTC);
+      const curMoneda = qEl('#pres-moneda-select')?.value || pres.moneda || 'ARS';
+      const curTC = parseFloat(qEl('#pres-cotizacion-input')?.value) || pres.cotizacionDolar || defaultCotizacion;
+
+      if (it.material && (!it.precioBase || it.precioBase === 0)) {
+        it.precioBase = getMaterialPrice(it.material, curMoneda, curTC);
+      }
+
+      if (it.precioUnitario === undefined || it.precioUnitario === null) {
+        it.precioUnitario = it.precioBase || 0;
       }
 
       // Multiplicación automática: m² * precio por m²
       it.subtotal = it.m2 * (it.precioUnitario || 0);
     }
+
 
     function getItemPreviewHtml(item) {
       const u = item.unidadMedida || 'cm';
@@ -845,10 +1002,43 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
               <span class="pres-item-stat-label">Superficie</span>
               <span class="pres-item-stat-val item-m2">${(item.m2 || 0).toFixed(2).replace('.', ',')} m²</span>
             </div>
-            <div class="pres-item-stat-pill">
-              <span class="pres-item-stat-label">Precio / m²</span>
-              <span class="pres-item-stat-val item-precio-val">${formatCurrency(item.precioUnitario || 0, curMoneda)}</span>
-            </div>
+            ${(() => {
+              const condTipo = getCurCondTipo();
+              const condPct = getCurCondPorcentaje();
+              if (condTipo === 'personalizado') {
+                return `
+                  <div class="pres-item-stat-pill" style="min-width:150px">
+                    <span class="pres-item-stat-label">Precio manual / m²</span>
+                    <div style="display:flex;align-items:center;gap:4px;margin-top:2px">
+                      <span style="font-size:11px;font-weight:var(--font-bold);color:var(--color-stone-600)">$</span>
+                      <input type="number" step="1" min="0" class="form-input item-field item-custom-price-input" data-field="precioUnitario" value="${item.precioUnitario || item.precioBase || 0}" style="padding:2px 6px;font-size:12px;font-weight:var(--font-bold);height:26px;width:115px">
+                    </div>
+                  </div>
+                `;
+              }
+              if (condTipo === 'descuento' && condPct > 0) {
+                return `
+                  <div class="pres-item-stat-pill">
+                    <span class="pres-item-stat-label">Precio / m² <span class="text-muted" style="font-size:10px">(Base: ${formatCurrency(item.precioBase || 0, curMoneda)})</span></span>
+                    <span class="pres-item-stat-val item-precio-val" style="color:var(--color-success)">${formatCurrency(item.precioUnitario || 0, curMoneda)} (-${condPct}%)</span>
+                  </div>
+                `;
+              }
+              if (condTipo === 'recargo' && condPct > 0) {
+                return `
+                  <div class="pres-item-stat-pill">
+                    <span class="pres-item-stat-label">Precio / m² <span class="text-muted" style="font-size:10px">(Base: ${formatCurrency(item.precioBase || 0, curMoneda)})</span></span>
+                    <span class="pres-item-stat-val item-precio-val" style="color:#D97706">${formatCurrency(item.precioUnitario || 0, curMoneda)} (+${condPct}%)</span>
+                  </div>
+                `;
+              }
+              return `
+                <div class="pres-item-stat-pill">
+                  <span class="pres-item-stat-label">Precio / m²</span>
+                  <span class="pres-item-stat-val item-precio-val">${formatCurrency(item.precioUnitario || 0, curMoneda)}</span>
+                </div>
+              `;
+            })()}
             <div class="pres-item-stat-pill subtotal-pill">
               <span class="pres-item-stat-label">Subtotal</span>
               <span class="pres-item-stat-val item-subtotal-val">${formatCurrency(item.subtotal || 0, curMoneda)}</span>
@@ -902,17 +1092,23 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
 
           if (field === 'material') {
             items[idx].material = val;
-            items[idx].precioUnitario = getMaterialPrice(val, curMoneda, curTC);
+            items[idx].precioBase = getMaterialPrice(val, curMoneda, curTC);
+            const condTipo = getCurCondTipo();
+            const condPorcentaje = getCurCondPorcentaje();
+            items[idx].precioUnitario = applyCondicionToPrice(items[idx].precioBase, condTipo, condPorcentaje, condTipo === 'personalizado' ? items[idx].precioUnitario : null);
+            calculateItem(items[idx]);
+            renderItems();
+            renderMaterialSummary();
+            updateSummary();
+          } else if (field === 'precioUnitario') {
+            const manualPrice = Math.max(0, parseFloat(val) || 0);
+            items[idx].precioUnitario = manualPrice;
             calculateItem(items[idx]);
 
-            const precioEl = card.querySelector('.item-precio-val');
-            if (precioEl) precioEl.textContent = formatCurrency(items[idx].precioUnitario || 0, curMoneda);
-            const m2El = card.querySelector('.item-m2');
-            if (m2El) m2El.textContent = `${(items[idx].m2 || 0).toFixed(2).replace('.', ',')} m²`;
             const subEl = card.querySelector('.item-subtotal-val');
             if (subEl) subEl.textContent = formatCurrency(items[idx].subtotal || 0, curMoneda);
-            const prevEl = card.querySelector('.preview-calc-text');
-            if (prevEl) prevEl.innerHTML = getItemPreviewHtml(items[idx]);
+            renderMaterialSummary();
+            updateSummary();
           } else {
             items[idx][field] = val;
             calculateItem(items[idx]);
@@ -949,7 +1145,12 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
       const lastItem = items[items.length - 1];
       const defaultMatName = lastItem?.material || (materiales[0]?.nombre || '');
       const defaultMat = materiales.find(m => m.nombre === defaultMatName) || materiales[0];
-      const pM2 = defaultMat ? (defaultMat.precioM2 ?? defaultMat.precioVenta ?? 0) : 0;
+      const curMoneda = qEl('#pres-moneda-select')?.value || pres.moneda || 'ARS';
+      const curTC = parseFloat(qEl('#pres-cotizacion-input')?.value) || pres.cotizacionDolar || defaultCotizacion;
+      const baseP = defaultMat ? getMaterialPrice(defaultMat.nombre, curMoneda, curTC) : 0;
+      const condTipo = getCurCondTipo();
+      const condPorcentaje = getCurCondPorcentaje();
+      const appliedP = applyCondicionToPrice(baseP, condTipo, condPorcentaje, null);
       const defaultUnit = lastItem?.unidadMedida || 'cm';
 
       items.push({
@@ -961,7 +1162,8 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
         largo: '',
         ancho: '',
         m2: 0,
-        precioUnitario: pM2,
+        precioBase: baseP,
+        precioUnitario: appliedP,
         subtotal: 0
       });
       renderItems();
@@ -1023,7 +1225,10 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
         // Recalcular precios unitarios según la moneda seleccionada
         items.forEach(it => {
           if (it.material) {
-            it.precioUnitario = getMaterialPrice(it.material, newMoneda, curTC);
+            it.precioBase = getMaterialPrice(it.material, newMoneda, curTC);
+            const condTipo = getCurCondTipo();
+            const condPorcentaje = getCurCondPorcentaje();
+            it.precioUnitario = applyCondicionToPrice(it.precioBase, condTipo, condPorcentaje, condTipo === 'personalizado' ? it.precioUnitario : null);
             calculateItem(it);
           }
         });
@@ -1041,7 +1246,10 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
         if (curMoneda === 'USD') {
           items.forEach(it => {
             if (it.material) {
-              it.precioUnitario = getMaterialPrice(it.material, 'USD', curTC);
+              it.precioBase = getMaterialPrice(it.material, 'USD', curTC);
+              const condTipo = getCurCondTipo();
+              const condPorcentaje = getCurCondPorcentaje();
+              it.precioUnitario = applyCondicionToPrice(it.precioBase, condTipo, condPorcentaje, condTipo === 'personalizado' ? it.precioUnitario : null);
               calculateItem(it);
             }
           });
@@ -1050,6 +1258,55 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
           updateSummary();
         }
       });
+    }
+
+    // Control de select de condición comercial y porcentaje
+    const condSelectEl = qEl('#pres-condicion-tipo-select');
+    const condPctWrap = qEl('#pres-condicion-porcentaje-wrap');
+    const condPctLabel = qEl('#pres-condicion-porcentaje-label');
+    const condPctInput = qEl('#pres-condicion-porcentaje-input');
+    const condNotaWrap = qEl('#pres-condicion-nota-wrap');
+
+    condSelectEl?.addEventListener('change', (e) => {
+      userHasManuallyChangedCondition = true;
+      const tipo = e.target.value;
+      if (tipo === 'descuento') {
+        if (condPctWrap) condPctWrap.style.display = 'block';
+        if (condPctLabel) condPctLabel.innerHTML = 'Porcentaje de descuento (%) <span class="required">*</span>';
+        if (condPctInput && !condPctInput.value) condPctInput.value = 10;
+        if (condNotaWrap) condNotaWrap.style.display = 'block';
+      } else if (tipo === 'recargo') {
+        if (condPctWrap) condPctWrap.style.display = 'block';
+        if (condPctLabel) condPctLabel.innerHTML = 'Porcentaje de recargo (%) <span class="required">*</span>';
+        if (condPctInput && !condPctInput.value) condPctInput.value = 10;
+        if (condNotaWrap) condNotaWrap.style.display = 'block';
+      } else if (tipo === 'personalizado') {
+        if (condPctWrap) condPctWrap.style.display = 'none';
+        if (condNotaWrap) condNotaWrap.style.display = 'block';
+      } else {
+        // estandar
+        if (condPctWrap) condPctWrap.style.display = 'none';
+        if (condNotaWrap) condNotaWrap.style.display = 'none';
+      }
+
+      recalculateAllItemPrices();
+      renderItems();
+      renderMaterialSummary();
+      updateSummary();
+    });
+
+    condPctInput?.addEventListener('input', () => {
+      userHasManuallyChangedCondition = true;
+      recalculateAllItemPrices();
+      renderItems();
+      renderMaterialSummary();
+      updateSummary();
+    });
+
+    // Inicializar detección de cliente si ya venía seleccionado
+    if (pres.clienteId) {
+      const initCli = clientes.find(c => String(c.id) === String(pres.clienteId));
+      if (initCli) updateClienteCondicionBanner(initCli, true);
     }
 
     (drawerEl?.querySelectorAll('.calc-field') || document.querySelectorAll('.calc-field')).forEach(f => {
@@ -1085,13 +1342,30 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
       adics.forEach(k => { adicionales[k] = parseFloat(data[`adic_${k}`]) || 0; });
 
       const matList = [...new Set(items.map(i => i.material).filter(Boolean))].join(', ');
+      const curCondTipo = getCurCondTipo();
+      const curCondPct = (curCondTipo === 'descuento' || curCondTipo === 'recargo') ? getCurCondPorcentaje() : 0;
+      const curCondNota = (qEl('#pres-condicion-nota-input')?.value || pres.condicionNota || '').trim();
+
       const draftPres = {
         ...pres,
         ...data,
+        condicionTipo: curCondTipo,
+        condicionPorcentaje: curCondPct,
+        condicionNota: curCondNota,
+        condicionComercial: {
+          tipo: curCondTipo,
+          porcentaje: curCondPct,
+          nota: curCondNota
+        },
         estado: data.estado || pres.estado || 'borrador',
         material: matList || items[0]?.material || '',
         precioM2: items[0]?.precioUnitario || 0,
-        items,
+        items: items.map(it => ({
+          ...it,
+          precioBase: it.precioBase || it.precioUnitario || 0,
+          precioUnitario: it.precioUnitario || 0,
+          subtotal: it.subtotal || 0
+        })),
         adicionales,
         descuento: parseFloat(data.descuento) || 0,
         impuestos: parseFloat(data.impuestos) || 0
@@ -1214,15 +1488,32 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
       const curMoneda = data.moneda || pres.moneda || 'ARS';
       const curTC = curMoneda === 'USD' ? (parseFloat(data.cotizacionDolar) || defaultCotizacion) : null;
 
+      const curCondTipo = getCurCondTipo();
+      const curCondPct = (curCondTipo === 'descuento' || curCondTipo === 'recargo') ? getCurCondPorcentaje() : 0;
+      const curCondNota = (qEl('#pres-condicion-nota-input')?.value || pres.condicionNota || '').trim();
+
       const record = {
         ...pres,
         ...data,
+        condicionTipo: curCondTipo,
+        condicionPorcentaje: curCondPct,
+        condicionNota: curCondNota,
+        condicionComercial: {
+          tipo: curCondTipo,
+          porcentaje: curCondPct,
+          nota: curCondNota
+        },
         moneda: curMoneda,
         cotizacionDolar: curTC,
         estado: estadoFinal,
         material: matList || items[0]?.material || '',
         precioM2: items[0]?.precioUnitario || 0,
-        items,
+        items: items.map(it => ({
+          ...it,
+          precioBase: it.precioBase || it.precioUnitario || 0,
+          precioUnitario: it.precioUnitario || 0,
+          subtotal: it.subtotal || 0
+        })),
         adicionales,
         descuento: parseFloat(data.descuento) || 0,
         impuestos: parseFloat(data.impuestos) || 0
@@ -1538,6 +1829,26 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
             <span class="detail-label">Moneda</span>
             <span class="detail-value">${pres.moneda}${pres.cotizacionDolar ? ` (TC: $${pres.cotizacionDolar})` : ''}</span>
           </div>
+          <div class="detail-item">
+            <span class="detail-label">Condición comercial</span>
+            <span class="detail-value">
+              ${(() => {
+                const tipo = pres.condicionTipo || pres.condicionComercial?.tipo || 'estandar';
+                const pct = pres.condicionPorcentaje !== undefined ? pres.condicionPorcentaje : (pres.condicionComercial?.porcentaje || 0);
+                const nota = pres.condicionNota || pres.condicionComercial?.nota || '';
+                if (tipo === 'descuento') {
+                  return `<span class="badge badge-success" style="font-weight:600">⭐ Descuento especial (${pct}%)</span>${nota ? `<span class="text-muted" style="margin-left:8px;font-size:12px">🔒 ${escapeHtml(nota)}</span>` : ''}`;
+                }
+                if (tipo === 'recargo') {
+                  return `<span class="badge badge-warning" style="font-weight:600">⚡ Recargo (+${pct}%)</span>${nota ? `<span class="text-muted" style="margin-left:8px;font-size:12px">🔒 ${escapeHtml(nota)}</span>` : ''}`;
+                }
+                if (tipo === 'personalizado') {
+                  return `<span class="badge badge-accent" style="font-weight:600">🛠️ Precio personalizado por ítem</span>${nota ? `<span class="text-muted" style="margin-left:8px;font-size:12px">🔒 ${escapeHtml(nota)}</span>` : ''}`;
+                }
+                return `<span class="badge badge-neutral">Precio estándar</span>`;
+              })()}
+            </span>
+          </div>
           ${pres.obraId ? `
           <div class="detail-item">
             <span class="detail-label">Obra vinculada</span>
@@ -1575,7 +1886,7 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
                 <div><span class="text-muted">Cantidad:</span> <strong>${item.cantidad || 1} ${item.cantidad > 1 ? 'piezas' : 'pieza'}</strong></div>
                 <div><span class="text-muted">Medidas:</span> <strong>${formatMeasure(item.largo)} × ${formatMeasure(item.ancho)}</strong></div>
                 <div><span class="text-muted">Superficie total:</span> <strong style="color:var(--color-primary)">${m2Formatted} m²</strong></div>
-                <div><span class="text-muted">Precio por m²:</span> <strong>${formatCurrency(item.precioUnitario || 0, pres.moneda)}</strong></div>
+                <div><span class="text-muted">Precio por m²:</span> <strong>${formatCurrency(item.precioUnitario || 0, pres.moneda)}</strong>${(item.precioBase && Math.abs(item.precioBase - (item.precioUnitario || 0)) > 0.01) ? ` <span class="text-muted" style="font-size:11px;font-weight:normal">(Base: ${formatCurrency(item.precioBase, pres.moneda)})</span>` : ''}</div>
               </div>
               <div class="detail-item-card-subtotal">
                 <span class="text-muted">Subtotal ítem:</span>
