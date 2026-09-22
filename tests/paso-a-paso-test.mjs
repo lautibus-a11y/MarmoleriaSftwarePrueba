@@ -406,6 +406,7 @@ console.log('\n--- TEST 6: RENDERIZADO VISUAL EN DOM DE PASO A PASO ---');
   assert(!!container.querySelector('.workflow-hero-banner'), 'Banner informativo renderizado');
   assert(!!container.querySelector('.workflow-tabs-group'), 'Grupo de pestañas de filtro presente');
   assert(container.querySelectorAll('.workflow-process-card').length > 0, 'Tarjetas de procesos renderizadas en el DOM');
+  assert(container.querySelectorAll('.workflow-card-delete-btn').length > 0, 'Botón de eliminar proceso presente en las tarjetas');
   assert(!!actionsEl.querySelector('#btn-workflow-new-process'), 'Botón "+ Iniciar nuevo proceso" presente en la cabecera');
 
   // Renderizar la vista guiada de un proceso específico
@@ -418,6 +419,7 @@ console.log('\n--- TEST 6: RENDERIZADO VISUAL EN DOM DE PASO A PASO ---');
     assert(container.querySelectorAll('.step-node').length === 8, 'Los 8 nodos del stepper están presentes');
     assert(!!container.querySelector('.workflow-step-card'), 'Tarjeta enfocada del paso presente');
     assert(!!actionsEl.querySelector('a[href="#/paso-a-paso"]'), 'Botón "Guardar y salir" presente en la cabecera');
+    assert(!!actionsEl.querySelector('#btn-workflow-delete-proc'), 'Botón "Eliminar proceso" presente en la cabecera del detalle');
   }
 }
 

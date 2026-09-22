@@ -570,7 +570,7 @@ export function renderPasoAPaso(container, actionsEl, path = '/paso-a-paso') {
 
     container.querySelectorAll('.workflow-process-card').forEach(card => {
       card.addEventListener('click', (e) => {
-        if (e.target.closest('[data-action="delete-draft"]') || e.target.closest('a')) {
+        if (e.target.closest('[data-action="delete-process"]') || e.target.closest('[data-action="delete-draft"]') || e.target.closest('a')) {
           return;
         }
         const id = card.dataset.processId;
@@ -588,20 +588,63 @@ export function renderPasoAPaso(container, actionsEl, path = '/paso-a-paso') {
       });
     });
 
-    container.querySelectorAll('[data-action="delete-draft"]').forEach(btn => {
+    container.querySelectorAll('[data-action="delete-process"], [data-action="delete-draft"]').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const id = btn.dataset.id;
+        const allProcs = getAllProcesses();
+        const proc = allProcs.find(p => p.processId === id || p.id === id);
+        if (!proc) return;
+
+        if (proc.type === 'draft') {
+          const ok = await confirmDialog({
+            title: 'Descartar borrador',
+            message: '¿Querés eliminar este borrador de proceso no guardado?',
+            confirmText: 'Descartar',
+            type: 'danger'
+          });
+          if (ok) {
+            removeDraft(proc.id);
+            Toast.success('Borrador descartado');
+            renderList();
+          }
+          return;
+        }
+
+        const detalles = [];
+        if (proc.presupuesto?.numero) detalles.push(`Presupuesto ${proc.presupuesto.numero}`);
+        if (proc.obra?.id) detalles.push(`Obra #${proc.obra.id}`);
+        const infoExtra = detalles.length > 0 ? `Se eliminarán los registros vinculados (${detalles.join(', ')}). ` : '';
+
         const ok = await confirmDialog({
-          title: 'Descartar borrador',
-          message: '¿Querés eliminar este borrador de proceso no guardado?',
-          confirmText: 'Descartar',
+          title: '¿Eliminar este proceso?',
+          message: `¿Estás seguro de eliminar el proceso de "${proc.clienteNombre}"? ${infoExtra}Esta acción no se puede deshacer.`,
+          confirmText: 'Sí, eliminar',
           type: 'danger'
         });
+
         if (ok) {
-          removeDraft(id);
-          Toast.success('Borrador descartado');
-          renderList();
+          try {
+            if (proc.obra?.id) {
+              const eventos = DataService.getAll('eventos').filter(ev => String(ev.obraId) === String(proc.obra.id));
+              eventos.forEach(ev => DataService.remove('eventos', ev.id));
+              const cobros = DataService.getAll('cobros').filter(c => String(c.obraId) === String(proc.obra.id));
+              cobros.forEach(c => DataService.remove('cobros', c.id));
+              DataService.remove('obras', proc.obra.id);
+            }
+
+            if (proc.presupuesto?.id) {
+              const evPres = DataService.getAll('eventos').filter(ev => String(ev.presupuestoId) === String(proc.presupuesto.id));
+              evPres.forEach(ev => DataService.remove('eventos', ev.id));
+              DataService.remove('presupuestos', proc.presupuesto.id);
+            }
+
+            Toast.success('Proceso eliminado correctamente');
+            renderList();
+          } catch (err) {
+            console.error('Error al eliminar proceso:', err);
+            Toast.error('Error al eliminar el proceso: ' + err.message);
+          }
         }
       });
     });
@@ -690,11 +733,9 @@ function renderProcessCard(proc) {
 
       <!-- Botonera de la tarjeta con alineación inferior fija -->
       <div class="workflow-card-footer">
-        ${isDraft ? `
-          <button type="button" class="btn btn-ghost btn-sm text-error" data-action="delete-draft" data-id="${escapeHtml(processId)}" title="Descartar borrador">
-            ${Icons.trash}
-          </button>
-        ` : ''}
+        <button type="button" class="btn btn-ghost workflow-card-delete-btn" data-action="delete-process" data-id="${escapeHtml(processId)}" title="${isDraft ? 'Descartar borrador' : 'Eliminar proceso'}">
+          ${Icons.trash}
+        </button>
         <button type="button" class="btn ${stateInfo.isCompleted ? 'btn-secondary' : 'btn-primary'} workflow-card-continue-btn" data-action="continue-process" data-id="${escapeHtml(processId)}">
           <span>${stateInfo.isCompleted ? 'Ver proceso completo' : `Continuar: Paso ${stateInfo.currentStep} · ${stateInfo.stepName}`}</span>
           ${Icons['chevron-right']}
@@ -729,6 +770,9 @@ export function renderPasoAPasoWorkflow(container, actionsEl, processId) {
 
   actionsEl.innerHTML = `
     <div style="display:flex;align-items:center;gap:var(--space-2)">
+      <button type="button" class="btn btn-ghost btn-sm text-error" id="btn-workflow-delete-proc" title="Eliminar este proceso">
+        ${Icons.trash} <span class="hide-mobile">Eliminar proceso</span>
+      </button>
       <a href="#/paso-a-paso" class="btn btn-secondary btn-sm" title="Volver a la lista de procesos">
         ${Icons['chevron-left']} <span>Guardar y salir</span>
       </a>
@@ -737,6 +781,63 @@ export function renderPasoAPasoWorkflow(container, actionsEl, processId) {
       </a>
     </div>
   `;
+
+  actionsEl.querySelector('#btn-workflow-delete-proc')?.addEventListener('click', async () => {
+    const updatedAll = getAllProcesses();
+    const currentProc = updatedAll.find(p => p.processId === processId) || proc;
+    if (!currentProc) return;
+
+    if (currentProc.type === 'draft') {
+      const ok = await confirmDialog({
+        title: 'Descartar borrador',
+        message: '¿Querés eliminar este borrador de proceso no guardado?',
+        confirmText: 'Descartar',
+        type: 'danger'
+      });
+      if (ok) {
+        removeDraft(currentProc.id);
+        Toast.success('Borrador descartado');
+        window.location.hash = '#/paso-a-paso';
+      }
+      return;
+    }
+
+    const detalles = [];
+    if (currentProc.presupuesto?.numero) detalles.push(`Presupuesto ${currentProc.presupuesto.numero}`);
+    if (currentProc.obra?.id) detalles.push(`Obra #${currentProc.obra.id}`);
+    const infoExtra = detalles.length > 0 ? `Se eliminarán los registros vinculados (${detalles.join(', ')}). ` : '';
+
+    const ok = await confirmDialog({
+      title: '¿Eliminar este proceso?',
+      message: `¿Estás seguro de eliminar el proceso de "${currentProc.clienteNombre}"? ${infoExtra}Esta acción no se puede deshacer.`,
+      confirmText: 'Sí, eliminar',
+      type: 'danger'
+    });
+
+    if (ok) {
+      try {
+        if (currentProc.obra?.id) {
+          const eventos = DataService.getAll('eventos').filter(ev => String(ev.obraId) === String(currentProc.obra.id));
+          eventos.forEach(ev => DataService.remove('eventos', ev.id));
+          const cobros = DataService.getAll('cobros').filter(c => String(c.obraId) === String(proc.obra.id));
+          cobros.forEach(c => DataService.remove('cobros', c.id));
+          DataService.remove('obras', currentProc.obra.id);
+        }
+
+        if (currentProc.presupuesto?.id) {
+          const evPres = DataService.getAll('eventos').filter(ev => String(ev.presupuestoId) === String(currentProc.presupuesto.id));
+          evPres.forEach(ev => DataService.remove('eventos', ev.id));
+          DataService.remove('presupuestos', currentProc.presupuesto.id);
+        }
+
+        Toast.success('Proceso eliminado correctamente');
+        window.location.hash = '#/paso-a-paso';
+      } catch (err) {
+        console.error('Error al eliminar proceso:', err);
+        Toast.error('Error al eliminar el proceso: ' + err.message);
+      }
+    }
+  });
 
   function renderWorkflow() {
     // Recargar proceso vivo desde DataService para reflejar cualquier cambio en vivo
