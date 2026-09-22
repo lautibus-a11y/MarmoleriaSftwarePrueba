@@ -116,6 +116,9 @@ export function renderConfiguracion(container, actionsEl) {
             ${Icons.upload} Restaurar desde archivo JSON
           </label>
           <input type="file" id="input-restore-backup" accept=".json" style="display:none">
+          <button type="button" class="btn btn-secondary" id="btn-clear-all-data" style="color:#DC2626;border-color:#FCA5A5">
+            ${Icons.trash} Vaciar todos los datos
+          </button>
         </div>
 
         <p class="form-hint">
@@ -320,5 +323,47 @@ export function renderConfiguracion(container, actionsEl) {
       Toast.error('Error al leer archivo JSON: ' + err.message);
       e.target.value = '';
     }
+  });
+
+  // Vaciar todos los datos
+  document.getElementById('btn-clear-all-data')?.addEventListener('click', () => {
+    Modal.open({
+      title: '⚠️ ¿Vaciar todos los datos del sistema?',
+      size: 'sm',
+      content: `
+        <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+          <p style="color:var(--color-stone-700);font-size:var(--text-sm)">
+            Esta acción eliminará de forma permanente todos los clientes, presupuestos, obras, materiales, stock, proveedores, facturas, pagos, cobros y eventos del sistema.
+          </p>
+          <div style="padding:10px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:var(--radius-md);color:#991B1B;font-size:var(--text-xs)">
+            <strong>Precaución:</strong> Esta acción no se puede deshacer. Se recomienda descargar un backup previo si desea resguardar información.
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-2)">
+            <button type="button" class="btn btn-secondary" id="btn-cancel-clear">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="btn-confirm-clear" style="background:#DC2626;border-color:#DC2626">
+              Sí, vaciar todo
+            </button>
+          </div>
+        </div>
+      `
+    });
+
+    document.getElementById('btn-cancel-clear')?.addEventListener('click', () => {
+      Modal.close();
+    });
+
+    document.getElementById('btn-confirm-clear')?.addEventListener('click', async () => {
+      Modal.close();
+      Toast.info('Vaciando datos', 'Borrando todos los registros...');
+      try {
+        await DataService.clearAll();
+        Toast.success('Sistema reiniciado con éxito. Todos los datos han sido borrados.');
+        setTimeout(() => {
+          window.location.reload();
+        }, 600);
+      } catch (err) {
+        Toast.error('Error al vaciar datos: ' + err.message);
+      }
+    });
   });
 }

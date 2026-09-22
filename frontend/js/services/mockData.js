@@ -43,39 +43,22 @@ const COLLECTION_ROUTES = {
   eventos: '/eventos'
 };
 
+// ── One-time migration to clear mock data from localStorage if upgrading ──
+const MOCK_CLEAN_VERSION = 'mb_clean_production_v1';
+if (typeof localStorage !== 'undefined') {
+  try {
+    if (localStorage.getItem('mb_version_status') !== MOCK_CLEAN_VERSION) {
+      const collectionsToClean = ['clientes', 'presupuestos', 'obras', 'materiales', 'stockMovimientos', 'proveedores', 'facturas', 'pagos', 'cobros', 'eventos', 'paso_drafts'];
+      collectionsToClean.forEach(col => {
+        localStorage.removeItem(`mb_${col}`);
+      });
+      localStorage.setItem('mb_version_status', MOCK_CLEAN_VERSION);
+    }
+  } catch (e) {}
+}
+
 // ── Initialize local cache ──
 function initLocalCache() {
-  const initialMateriales = [
-    { id: 'mat-000', nombre: 'Negro Brasil', categoria: 'granito', tipo: 'Importado', largo: 300, ancho: 180, espesor: '20 mm', unidad: 'm2', precioM2: 50000, precioVenta: 50000, stockMinimo: 10, proveedor: 'prov-001', observaciones: 'Granito Negro Brasil clásico. Origen: Brasil.', createdAt: '2026-01-01T08:00:00Z' },
-    { id: 'mat-001', nombre: 'Granito Negro Absoluto', categoria: 'granito', tipo: 'Importado', largo: 290, ancho: 175, espesor: '20 mm', unidad: 'm2', precioM2: 185000, precioVenta: 185000, stockMinimo: 15, proveedor: 'prov-001', observaciones: 'Origen: India. Pulido espejo.', createdAt: '2026-01-01T08:01:00Z' },
-    { id: 'mat-002', nombre: 'Granito Gris Mara', categoria: 'granito', tipo: 'Nacional', largo: 260, ancho: 160, espesor: '20 mm', unidad: 'm2', precioM2: 85000, precioVenta: 85000, stockMinimo: 20, proveedor: 'prov-001', observaciones: 'Nacional tradicional, alto tránsito.', createdAt: '2026-01-01T08:02:00Z' },
-    { id: 'mat-003', nombre: 'Mármol Carrara', categoria: 'marmol', tipo: 'Importado', largo: 280, ancho: 150, espesor: '20 mm', unidad: 'm2', precioM2: 260000, precioVenta: 260000, stockMinimo: 12, proveedor: 'prov-002', observaciones: 'Origen: Italia. Veteado clásico blanco.', createdAt: '2026-01-01T08:03:00Z' },
-    { id: 'mat-004', nombre: 'Mármol Travertino Romano', categoria: 'travertino', tipo: 'Importado', largo: 250, ancho: 140, espesor: '20 mm', unidad: 'm2', precioM2: 175000, precioVenta: 175000, stockMinimo: 10, proveedor: 'prov-002', observaciones: 'Tono beige cálido resinado.', createdAt: '2026-01-01T08:04:00Z' },
-    { id: 'mat-005', nombre: 'Silestone Blanco Zeus', categoria: 'silestone', tipo: 'Importado', largo: 305, ancho: 140, espesor: '20 mm', unidad: 'm2', precioM2: 320000, precioVenta: 320000, stockMinimo: 10, proveedor: 'prov-003', observaciones: 'Superficie de cuarzo compacta premium antibacteriana.', createdAt: '2026-01-01T08:05:00Z' },
-    { id: 'mat-006', nombre: 'Silestone Gris Expo', categoria: 'silestone', tipo: 'Importado', largo: 305, ancho: 140, espesor: '20 mm', unidad: 'm2', precioM2: 280000, precioVenta: 280000, stockMinimo: 8, proveedor: 'prov-003', observaciones: 'Cuarzo de alta resistencia uniforme.', createdAt: '2026-01-01T08:06:00Z' },
-    { id: 'mat-007', nombre: 'Cuarzo Blanco Stellar', categoria: 'cuarzo', tipo: 'Importado', largo: 300, ancho: 140, espesor: '20 mm', unidad: 'm2', precioM2: 220000, precioVenta: 220000, stockMinimo: 10, proveedor: 'prov-003', observaciones: 'Superficie con micro-destellos espejados.', createdAt: '2026-01-01T08:07:00Z' },
-    { id: 'mat-008', nombre: 'Granito Marrón Báltico', categoria: 'granito', tipo: 'Importado', largo: 270, ancho: 160, espesor: '20 mm', unidad: 'm2', precioM2: 145000, precioVenta: 145000, stockMinimo: 10, proveedor: 'prov-001', observaciones: 'Estructura circular granítica clásica.', createdAt: '2026-01-01T08:08:00Z' },
-    { id: 'mat-009', nombre: 'Mármol Botticino', categoria: 'marmol', tipo: 'Importado', largo: 260, ancho: 150, espesor: '20 mm', unidad: 'm2', precioM2: 210000, precioVenta: 210000, stockMinimo: 8, proveedor: 'prov-002', observaciones: 'Mármol italiano compacto beige.', createdAt: '2026-01-01T08:09:00Z' },
-    { id: 'mat-010', nombre: 'Porcelanato Gran Formato', categoria: 'porcelanato', tipo: 'Nacional', largo: 120, ancho: 60, espesor: '10 mm', unidad: 'm2', precioM2: 65000, precioVenta: 65000, stockMinimo: 25, proveedor: 'prov-004', observaciones: 'Placas 120x60cm.', createdAt: '2026-01-01T08:10:00Z' },
-    { id: 'mat-011', nombre: 'Ónix Miel (Placa Entera)', categoria: 'onix', tipo: 'Importado', largo: 240, ancho: 150, espesor: '20 mm', unidad: 'placas', precioM2: 1200000, precioVenta: 1200000, stockMinimo: 2, proveedor: 'prov-002', observaciones: 'Placa entera translúcida para retroiluminar.', createdAt: '2026-01-01T08:11:00Z' },
-    { id: 'mat-012', nombre: 'Granito Exótico Patagonia (Placa)', categoria: 'granito', tipo: 'Importado', largo: 290, ancho: 180, espesor: '20 mm', unidad: 'placas', precioM2: 950000, precioVenta: 950000, stockMinimo: 2, proveedor: 'prov-001', observaciones: 'Placa entera seleccionada con cuarzo cristalino.', createdAt: '2026-01-01T08:12:00Z' },
-    { id: 'mat-013', nombre: 'Zócalo Granito Negro', categoria: 'granito', tipo: 'Nacional', largo: 100, ancho: 10, espesor: '20 mm', unidad: 'metros', precioM2: 25000, precioVenta: 25000, stockMinimo: 20, proveedor: 'prov-001', observaciones: 'h=10cm. Cotizado por metro lineal.', createdAt: '2026-01-01T08:13:00Z' },
-    { id: 'mat-014', nombre: 'Bacha Simple Acero Johnson', categoria: 'otro', tipo: 'Nacional', largo: 52, ancho: 32, espesor: '-', unidad: 'unidades', precioM2: 72000, precioVenta: 72000, stockMinimo: 5, proveedor: 'prov-004', observaciones: 'Para embutir bajo mesada. Precio por unidad.', createdAt: '2026-01-01T08:14:00Z' },
-    { id: 'mat-015', nombre: 'Bacha Doble Acero Johnson', categoria: 'otro', tipo: 'Nacional', largo: 74, ancho: 40, espesor: '-', unidad: 'unidades', precioM2: 105000, precioVenta: 105000, stockMinimo: 3, proveedor: 'prov-004', observaciones: 'Doble cuba cocina. Precio por unidad.', createdAt: '2026-01-01T08:15:00Z' },
-    { id: 'mat-016', nombre: 'Pegamento Especial Mármol', categoria: 'otro', tipo: 'Nacional', largo: 0, ancho: 0, espesor: '-', unidad: 'unidades', precioM2: 18000, precioVenta: 18000, stockMinimo: 10, proveedor: 'prov-005', observaciones: 'Balde 25kg bi-componente.', createdAt: '2026-01-01T08:16:00Z' }
-  ];
-
-  const initialClientes = [
-    { id: 'cli-001', nombre: 'Carlos', apellido: 'Rodríguez', telefono: '11-4567-8901', whatsapp: '5491145678901', email: 'carlos.rodriguez@email.com', direccion: 'Av. Libertador 1250, CABA', cuit: '20-34567890-1', observaciones: 'Cliente frecuente, prefiere granito negro', condicionComercial: 'especial', descuentoHabitual: 10, motivoCondicion: 'Cliente habitual', createdAt: '2026-01-15T10:00:00' },
-    { id: 'cli-002', nombre: 'María Elena', apellido: 'Gutiérrez', telefono: '11-2345-6789', whatsapp: '5491123456789', email: 'maria.gutierrez@email.com', direccion: 'San Martín 450, Vicente López', cuit: '27-23456789-0', observaciones: '', condicionComercial: 'estandar', descuentoHabitual: 0, motivoCondicion: '', createdAt: '2026-02-20T14:30:00' },
-    { id: 'cli-003', nombre: 'Constructora Del Sur', apellido: 'S.A.', telefono: '11-5678-1234', whatsapp: '5491156781234', email: 'compras@delsur.com.ar', direccion: 'Av. Corrientes 3200, CABA', cuit: '30-71234567-8', observaciones: 'Empresa constructora, volumen alto', condicionComercial: 'especial', descuentoHabitual: 15, motivoCondicion: 'Precio mayorista', createdAt: '2026-03-10T09:00:00' },
-    { id: 'cli-004', nombre: 'Roberto', apellido: 'Fernández', telefono: '11-8901-2345', whatsapp: '5491189012345', email: 'roberto.f@email.com', direccion: 'Colón 890, San Isidro', cuit: '', observaciones: 'Referido por Carlos Rodríguez', condicionComercial: 'estandar', descuentoHabitual: 0, motivoCondicion: '', createdAt: '2026-04-05T11:00:00' },
-    { id: 'cli-005', nombre: 'Laura', apellido: 'Martínez', telefono: '11-3456-7890', whatsapp: '5491134567890', email: 'laura.m@email.com', direccion: 'Mitre 1500, Olivos', cuit: '27-30987654-3', observaciones: '', condicionComercial: 'estandar', descuentoHabitual: 0, motivoCondicion: '', createdAt: '2026-05-12T16:00:00' },
-    { id: 'cli-006', nombre: 'Estudio Arq. Bianchi', apellido: '', telefono: '11-6789-0123', whatsapp: '5491167890123', email: 'info@estudiobianchi.com', direccion: 'Av. Callao 1100, CABA', cuit: '30-70123456-9', observaciones: 'Estudio de arquitectura, pide presupuestos por obras grandes', condicionComercial: 'estandar', descuentoHabitual: 0, motivoCondicion: '', createdAt: '2026-06-01T10:00:00' },
-    { id: 'cli-007', nombre: 'Ana', apellido: 'Morales', telefono: '11-7890-1234', whatsapp: '5491178901234', email: 'ana.morales@email.com', direccion: 'Rivadavia 2300, Morón', cuit: '', observaciones: 'Reforma cocina y baño', condicionComercial: 'estandar', descuentoHabitual: 0, motivoCondicion: '', createdAt: '2026-07-20T09:30:00' },
-    { id: 'cli-008', nombre: 'Diego', apellido: 'Sánchez', telefono: '11-0123-4567', whatsapp: '5491101234567', email: 'diego.s@email.com', direccion: 'Belgrano 780, Avellaneda', cuit: '20-29876543-1', observaciones: '', condicionComercial: 'estandar', descuentoHabitual: 0, motivoCondicion: '', createdAt: '2026-08-10T13:00:00' }
-  ];
-
   const collections = ['clientes', 'presupuestos', 'obras', 'materiales', 'stockMovimientos', 'proveedores', 'facturas', 'pagos', 'cobros', 'eventos'];
   
   collections.forEach(col => {
@@ -86,12 +69,13 @@ function initLocalCache() {
         store[col] = (Array.isArray(parsed) && col !== 'eventos' && col !== 'config')
           ? parsed.sort(compareNewestFirst)
           : parsed;
+      } else {
+        store[col] = [];
       }
-    } catch (e) {}
+    } catch (e) {
+      store[col] = [];
+    }
   });
-
-  if (!store.materiales || store.materiales.length === 0) store.materiales = initialMateriales;
-  if (!store.clientes || store.clientes.length === 0) store.clientes = initialClientes;
 
   // Ensure store collections are ordered newest first initially
   collections.forEach(col => {
@@ -99,24 +83,6 @@ function initLocalCache() {
       store[col].sort(compareNewestFirst);
     }
   });
-
-  // Migración y saneamiento: sincronizar WhatsApp con Teléfono en clientes existentes
-  if (Array.isArray(store.clientes)) {
-    let clientsChanged = false;
-    store.clientes.forEach(c => {
-      if (!c) return;
-      const cleanTel = (c.telefono || '').replace(/\D/g, '');
-      const cleanWa = (c.whatsapp || '').replace(/\D/g, '');
-      // Si el teléfono fue editado pero el whatsapp quedó con un teléfono de prueba viejo
-      if (cleanTel && cleanWa && cleanTel !== cleanWa && (cleanWa.startsWith('5491145678901') || cleanWa === '5491145678901' || cleanWa === '5491123456789' || cleanWa === '5491156781234')) {
-        c.whatsapp = c.telefono;
-        clientsChanged = true;
-      }
-    });
-    if (clientsChanged) {
-      try { localStorage.setItem('mb_clientes', JSON.stringify(store.clientes)); } catch (e) {}
-    }
-  }
 }
 
 initLocalCache();
@@ -148,6 +114,25 @@ export const DataService = {
       console.info('Using local offline cache for data store');
       return { success: false, error: err.message };
     }
+  },
+
+  // ── Limpieza completa de datos (Local y Backend) ──
+  async clearAll() {
+    const collections = ['clientes', 'presupuestos', 'obras', 'materiales', 'stockMovimientos', 'proveedores', 'facturas', 'pagos', 'cobros', 'eventos'];
+    collections.forEach(col => {
+      store[col] = [];
+      try { localStorage.setItem(`mb_${col}`, '[]'); } catch (e) {}
+    });
+    try { localStorage.removeItem('mb_paso_drafts'); } catch (e) {}
+
+    try {
+      await Api.post('/backups/clear', {});
+    } catch (err) {
+      console.warn('API clear failed (offline mode):', err.message);
+    }
+
+    notifyDataChanged('all', null, 'clear');
+    return { success: true };
   },
 
   // ── Generic CRUD ──

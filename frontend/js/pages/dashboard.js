@@ -200,7 +200,7 @@ export function renderDashboard(container, actionsEl) {
           <a href="#/presupuestos" class="btn btn-ghost btn-sm">Ver todos</a>
         </div>
         <div class="card-body" style="padding: var(--space-3) var(--space-5)">
-          <div class="activity-list">${presupuestosHtml}</div>
+          <div class="activity-list">${presupuestosHtml || '<p class="text-muted" style="padding: var(--space-4); font-size: var(--text-sm)">No hay presupuestos recientes</p>'}</div>
         </div>
       </div>
 
@@ -210,7 +210,7 @@ export function renderDashboard(container, actionsEl) {
           <a href="#/cobros" class="btn btn-ghost btn-sm">Ver todos</a>
         </div>
         <div class="card-body" style="padding: var(--space-3) var(--space-5)">
-          <div class="activity-list">${cobrosHtml}</div>
+          <div class="activity-list">${cobrosHtml || '<p class="text-muted" style="padding: var(--space-4); font-size: var(--text-sm)">No hay cobros recientes</p>'}</div>
         </div>
       </div>
 
@@ -220,7 +220,7 @@ export function renderDashboard(container, actionsEl) {
           <a href="#/pagos" class="btn btn-ghost btn-sm">Ver todos</a>
         </div>
         <div class="card-body" style="padding: var(--space-3) var(--space-5)">
-          <div class="activity-list">${pagosHtml}</div>
+          <div class="activity-list">${pagosHtml || '<p class="text-muted" style="padding: var(--space-4); font-size: var(--text-sm)">No hay pagos recientes</p>'}</div>
         </div>
       </div>
 

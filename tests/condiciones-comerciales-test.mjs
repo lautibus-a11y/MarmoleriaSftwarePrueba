@@ -62,6 +62,32 @@ console.log('\n===============================================================')
 console.log('💎 SUITE DE PRUEBAS: CONDICIONES COMERCIALES Y PRECIOS ESPECIALES');
 console.log('===============================================================\n');
 
+// Fixtures requeridos para esta suite de pruebas
+if (!DataService.getById('clientes', 'cli-001')) {
+  DataService.create('clientes', {
+    id: 'cli-001',
+    nombre: 'Carlos',
+    apellido: 'Rodríguez',
+    condicionComercial: 'especial',
+    descuentoHabitual: 10,
+    motivoCondicion: 'Cliente habitual',
+    telefono: '11-4567-8901',
+    whatsapp: '5491145678901'
+  });
+}
+if (!DataService.getById('materiales', 'mat-001')) {
+  DataService.create('materiales', {
+    id: 'mat-001',
+    nombre: 'Granito Negro Absoluto',
+    categoria: 'granito',
+    tipo: 'Importado',
+    precioM2: 185000,
+    precioVenta: 185000,
+    stockMinimo: 15,
+    unidad: 'm2'
+  });
+}
+
 // ── TEST 1: CLIENTE ESTÁNDAR + PRECIO ESTÁNDAR ──
 console.log('--- TEST 1: CLIENTE ESTÁNDAR + PRECIO ESTÁNDAR ---');
 {

@@ -62,5 +62,32 @@ export async function handleBackups(request, env, pathParts, origin) {
     }
   }
 
+  if (method === 'POST' && (subAction === 'clear' || subAction === 'reset')) {
+    try {
+      const collections = [
+        'clientes',
+        'presupuestos',
+        'obras',
+        'materiales',
+        'stockMovimientos',
+        'proveedores',
+        'facturas',
+        'pagos',
+        'cobros',
+        'eventos'
+      ];
+      for (const col of collections) {
+        await StorageService.writeJSON(env, col, []);
+      }
+      return jsonResponse({
+        success: true,
+        message: 'Todos los datos del sistema han sido eliminados correctamente'
+      }, 200, origin);
+    } catch (err) {
+      console.error('Error al vaciar datos en R2:', err);
+      return errorResponse('Error al vaciar datos: ' + err.message, 500, origin);
+    }
+  }
+
   return errorResponse('Método no permitido', 405, origin);
 }
