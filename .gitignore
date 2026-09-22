@@ -2,4 +2,6 @@
 Thumbs.db
 node_modules/
 .vercel/
+.wrangler/
+dist/
 *.log

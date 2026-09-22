@@ -64,6 +64,7 @@ export default {
         case 'obras':
           return await handleObras(request, env, pathParts, origin);
         case 'materiales':
+        case 'stock':
           return await handleMateriales(request, env, pathParts, origin);
         case 'stock-movimientos':
           return await handleStockMovimientos(request, env, pathParts, origin);
@@ -78,6 +79,7 @@ export default {
         case 'eventos':
           return await handleEventos(request, env, pathParts, origin);
         case 'config':
+        case 'configuracion':
           return await handleConfig(request, env, pathParts, origin);
         case 'uploads':
           return await handleUploads(request, env, pathParts, origin);
