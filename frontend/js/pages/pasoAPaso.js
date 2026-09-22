@@ -114,13 +114,12 @@ export function getAllProcesses() {
 
     const presEventos = eventos.filter(e =>
       (obra && String(e.obraId) === String(obra.id)) ||
-      String(e.presupuestoId) === String(pres.id) ||
-      (cliente && String(e.clienteId) === String(cliente.id))
+      (pres && String(e.presupuestoId) === String(pres.id))
     );
 
     const presCobros = cobros.filter(c =>
       (obra && String(c.obraId) === String(obra.id)) ||
-      (cliente && String(c.clienteId) === String(cliente.id))
+      (pres && String(c.presupuestoId) === String(pres.id))
     );
 
     const stateInfo = calculateProcessState({
@@ -359,9 +358,11 @@ export function calculateProcessState({ draft, presupuesto, obra, cliente, event
   }
 
   // Paso 5: Planificación y Agenda
-  const hasEvent = eventos.some(e => String(e.obraId) === String(obra.id) || (presupuesto && String(e.presupuestoId) === String(presupuesto.id)));
-  const hasEstimada = !!obra.fechaEstimada;
-  const isAgendada = hasEvent || hasEstimada;
+  const hasEvent = eventos.some(e =>
+    (obra && String(e.obraId) === String(obra.id)) ||
+    (presupuesto && String(e.presupuestoId) === String(presupuesto.id))
+  );
+  const isAgendada = hasEvent || !!obra.agendaConfirmada;
 
   if (!isAgendada) {
     return {
@@ -374,7 +375,7 @@ export function calculateProcessState({ draft, presupuesto, obra, cliente, event
       canAdvance: true,
       isCompleted: false,
       isWaiting: false,
-      summary: 'La obra está creada. Falta definir fecha estimada o agendar evento en Calendario.'
+      summary: 'La obra está creada. Falta agendar el turno en el Calendario Operativo.'
     };
   }
 
@@ -1280,7 +1281,7 @@ function renderStepContent({ step, proc, cliente, presupuesto, obra, draft, tota
         (obra && String(e.obraId) === String(obra.id)) ||
         (presupuesto && String(e.presupuestoId) === String(presupuesto.id))
       );
-      const isScheduled = eventosObra.length > 0 || (obra && !!obra.fechaEstimada);
+      const isScheduled = eventosObra.length > 0 || !!obra?.agendaConfirmada;
 
       bodyHtml = `
         <div class="step-content-section">
@@ -1318,9 +1319,14 @@ function renderStepContent({ step, proc, cliente, presupuesto, obra, draft, tota
                 <p class="text-muted" style="font-size:13px;max-width:440px;margin:0 auto 14px auto">
                   Fijá la fecha y hora para la medición de plantilla en obra o la cuadrilla de colocación.
                 </p>
-                <button type="button" class="btn btn-primary" id="btn-action-schedule-event-alt">
-                  ${Icons.calendar} Agendar cita ahora
-                </button>
+                <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap">
+                  <button type="button" class="btn btn-primary" id="btn-action-schedule-event-alt">
+                    ${Icons.calendar} Agendar cita ahora
+                  </button>
+                  <button type="button" class="btn btn-secondary" id="btn-action-skip-schedule">
+                    Omitir agendado y continuar a Seña
+                  </button>
+                </div>
               </div>
             `}
           </div>
@@ -1564,6 +1570,14 @@ function attachStepActions({ activeStep, proc, processId, total = null, cobrado 
   });
 
   document.getElementById('btn-step-next')?.addEventListener('click', () => {
+    if (activeStep === 5 && obra?.id) {
+      const hasEvt = DataService.getAll('eventos').some(e =>
+        String(e.obraId) === String(obra.id) || (presupuesto && String(e.presupuestoId) === String(presupuesto.id))
+      );
+      if (!hasEvt && !obra.agendaConfirmada) {
+        DataService.update('obras', obra.id, { agendaConfirmada: true });
+      }
+    }
     if (activeStep < 8) onAdvanceTo(activeStep + 1);
   });
 
@@ -1736,7 +1750,7 @@ function attachStepActions({ activeStep, proc, processId, total = null, cobrado 
             DataService.update('presupuestos', presupuesto.id, { obraId: savedObra.id });
           }
           Toast.success('Orden de obra creada con éxito');
-          onRefresh();
+          onAdvanceTo(5);
         }, prefill);
       });
 
@@ -1748,7 +1762,7 @@ function attachStepActions({ activeStep, proc, processId, total = null, cobrado 
           DataService.update('presupuestos', presupuesto.id, { obraId: savedObra.id });
         }
         Toast.success('Orden de obra rápida generada con éxito');
-        onRefresh();
+        onAdvanceTo(5);
       });
       break;
     }
@@ -1773,6 +1787,13 @@ function attachStepActions({ activeStep, proc, processId, total = null, cobrado 
 
       document.getElementById('btn-action-schedule-event')?.addEventListener('click', handleSchedule);
       document.getElementById('btn-action-schedule-event-alt')?.addEventListener('click', handleSchedule);
+      document.getElementById('btn-action-skip-schedule')?.addEventListener('click', () => {
+        if (obra?.id) {
+          DataService.update('obras', obra.id, { agendaConfirmada: true });
+        }
+        Toast.info('Planificación confirmada', 'Podés registrar turnos en el Calendario cuando lo desees.');
+        onAdvanceTo(6);
+      });
       break;
     }
 

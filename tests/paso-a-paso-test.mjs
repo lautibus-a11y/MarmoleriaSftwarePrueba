@@ -385,13 +385,31 @@ console.log('\n--- TEST 5.5: NO GENERACIÓN AUTOMÁTICA DE OBRA EN PASO A PASO -
     clienteId: cliManual.id,
     clienteNombre: 'Gonzalo Manual',
     descripcion: 'Mesada cocina',
+    importe: 250000,
     estado: 'pendiente'
   });
   DataService.update('presupuestos', presManual.id, { obraId: obraCreada.id });
 
   procManual = getAllProcesses().find(p => p.presupuestoId === presManual.id);
-  assert(!!procManual.obra, 'Obra vinculada tras creación explícita en Paso 4');
   assert(procManual.stateInfo.currentStep === 5, 'Con la obra creada avanza a Paso 5 (Agenda)');
+
+  // Caso reportado: Si la obra tiene fechaEstimada de entrega cargada, NO debe saltar a Paso 6 al salir y volver
+  DataService.update('obras', obraCreada.id, { fechaEstimada: '2026-10-25' });
+  let procRetomado = getAllProcesses().find(p => p.presupuestoId === presManual.id);
+  assert(procRetomado.stateInfo.currentStep === 5, 'Con fechaEstimada asignada sigue en Paso 5 (Falta agendar turno)');
+  assert(procRetomado.stateInfo.statusKey === 'falta_agendar', 'Estado sigue siendo "falta_agendar"');
+
+  // Solo al agendar un evento real o confirmar agenda avanza al Paso 6 (Seña)
+  DataService.create('eventos', {
+    obraId: obraCreada.id,
+    presupuestoId: presManual.id,
+    tipo: 'instalacion',
+    fecha: '2026-10-20',
+    hora: '10:00'
+  });
+  let procAgendado = getAllProcesses().find(p => p.presupuestoId === presManual.id);
+  assert(procAgendado.stateInfo.currentStep === 6, 'Tras agendar el evento en Calendario avanza a Paso 6 (Seña / Anticipo)');
+  assert(procAgendado.stateInfo.statusKey === 'pendiente_sena', 'Estado en Paso 6: "pendiente_sena"');
 }
 
 // ── TEST 6: RENDERIZADO VISUAL EN EL DOM ──
