@@ -83,6 +83,9 @@ export function renderFacturas(container, actionsEl) {
         }
       },
       { label: '', align: 'right', className: 'cell-actions', render: (f) => `
+        ${f.tipo === 'factura' && f.estado !== 'pagada' ? `
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="pay" data-id="${f.id}" title="Registrar pago" style="color:#10b981">${Icons['credit-card'] || Icons.plus}</button>
+        ` : ''}
         <button class="btn btn-ghost btn-icon btn-sm" data-action="share" data-id="${f.id}" title="Compartir Comprobante por WhatsApp + PDF" style="color:#25D366">${Icons.whatsapp}</button>
         <button class="btn btn-ghost btn-icon btn-sm" data-action="export" data-id="${f.id}" title="Comprobante PDF / Word">${Icons.download}</button>
         <button class="btn btn-ghost btn-icon btn-sm" data-action="edit" data-id="${f.id}" title="Editar">${Icons.edit}</button>
@@ -163,6 +166,10 @@ export function renderFacturas(container, actionsEl) {
         htmlContent: generateFacturaHtml(f, prov),
         filename: `Comprobante_${f.numero || f.id}`
       });
+      return;
+    }
+    if (action === 'pay') {
+      window.location.hash = `#/pagos?facturaId=${id}`;
       return;
     }
     if (action === 'edit') { openForm(id); return; }
@@ -287,6 +294,8 @@ export function renderFacturas(container, actionsEl) {
       saveBtn.textContent = 'Guardando...';
 
       data.importe = parseFloat(data.importe);
+      const prov = proveedores.find(p => p.id === data.proveedorId);
+      data.proveedorNombre = prov ? prov.nombre : '';
 
       // Handle file attachment upload to Cloudflare R2
       if (selectedFile) {

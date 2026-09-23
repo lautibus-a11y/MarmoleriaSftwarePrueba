@@ -152,6 +152,13 @@ export const DataService = {
     if ((collection === 'clientes' || collection === 'proveedores') && data.telefono && !data.whatsapp) {
       data.whatsapp = data.telefono;
     }
+    if (collection === 'proveedores') {
+      if (data.deudaInicial !== undefined && data.deudaInicial !== null && String(data.deudaInicial).trim() !== '') {
+        data.deudaInicial = Math.max(0, parseFloat(data.deudaInicial) || 0);
+      } else {
+        data.deudaInicial = 0;
+      }
+    }
     const record = {
       ...data,
       id,
@@ -205,6 +212,9 @@ export const DataService = {
       const prevProv = store.proveedores[idx] || {};
       if (data.telefono && (!data.whatsapp || data.whatsapp === prevProv.whatsapp || data.whatsapp === prevProv.telefono)) {
         data.whatsapp = data.telefono;
+      }
+      if (data.deudaInicial !== undefined && data.deudaInicial !== null) {
+        data.deudaInicial = String(data.deudaInicial).trim() === '' ? 0 : Math.max(0, parseFloat(data.deudaInicial) || 0);
       }
     }
 
@@ -377,7 +387,7 @@ export const DataService = {
   recalcularEstadoFactura(facturaId, triggerSync = true) {
     if (!facturaId) return false;
     const fac = this.getById('facturas', facturaId);
-    if (!fac || fac.tipo !== 'factura') return false;
+    if (!fac || (fac.tipo !== 'factura' && fac.tipo !== 'nota_debito' && fac.tipo !== 'nota_credito')) return false;
 
     const totalPagado = this.getFacturaTotalPagado(facturaId);
     const importeFac = parseFloat(fac.importe) || 0;
@@ -416,7 +426,7 @@ export const DataService = {
     const facturas = store.facturas || [];
     let cambios = 0;
     facturas.forEach(f => {
-      if (f && f.tipo === 'factura') {
+      if (f && (f.tipo === 'factura' || f.tipo === 'nota_debito' || f.tipo === 'nota_credito')) {
         const huboCambio = this.recalcularEstadoFactura(f.id, true);
         if (huboCambio) cambios++;
       }
@@ -446,6 +456,8 @@ export const DataService = {
   getProveedorSaldo(proveedorId) {
     const facturas = store.facturas.filter(f => f.proveedorId === proveedorId);
     const pagos = store.pagos.filter(p => p.proveedorId === proveedorId);
+    const prov = store.proveedores.find(p => p.id === proveedorId);
+    const deudaInicial = parseFloat(prov?.deudaInicial) || 0;
 
     const totalFacturas = facturas.filter(f => f.tipo === 'factura').reduce((s, f) => s + f.importe, 0);
     const totalND = facturas.filter(f => f.tipo === 'nota_debito').reduce((s, f) => s + f.importe, 0);
@@ -453,11 +465,12 @@ export const DataService = {
     const totalPagos = pagos.filter(p => p.estado === 'pagado').reduce((s, p) => s + p.importe, 0);
 
     return {
+      deudaInicial,
       totalFacturas,
       totalND,
       totalNC,
       totalPagos,
-      saldo: totalFacturas + totalND - totalNC - totalPagos
+      saldo: deudaInicial + totalFacturas + totalND - totalNC - totalPagos
     };
   },
 

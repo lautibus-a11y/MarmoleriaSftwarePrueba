@@ -10,10 +10,13 @@ import { Drawer } from '../components/drawer.js';
 import { Modal, previewAttachment } from '../components/modal.js';
 import { Toast } from '../components/toast.js';
 import { confirmDialog } from '../components/confirmDialog.js';
-import { METODOS_PAGO, PAGO_ESTADO_LABELS, PAGO_ESTADO_COLORS } from '../utils/constants.js';
+import { METODOS_PAGO, PAGO_ESTADO_LABELS, PAGO_ESTADO_COLORS, FACTURA_TIPO_LABELS } from '../utils/constants.js';
 
-export function renderPagos(container, actionsEl) {
+export function renderPagos(container, actionsEl, path = '/pagos') {
   actionsEl.innerHTML = `<button class="btn btn-primary" id="btn-new-pago">${Icons.plus} Nuevo pago</button>`;
+
+  // Sincronizar estados de facturas con sus pagos correspondientes
+  DataService.recalcularTodasLasFacturas();
 
   let pagos = DataService.getAll('pagos');
   let searchTerm = '', filterEstado = '', filterMetodo = '';
@@ -46,7 +49,12 @@ export function renderPagos(container, actionsEl) {
           }
           const contact = resolveEntityContact(pr, { proveedorNombre: p.destinatarioConcepto || p.concepto });
           const text = contact.name || p.destinatarioConcepto || p.concepto || '-';
-          return `<span class="cell-primary">${escapeHtml(text)}</span>`;
+          const fac = p.facturaId ? facturas.find(f => f.id === p.facturaId) : null;
+          const tipoLabel = fac ? (FACTURA_TIPO_LABELS[fac.tipo] || 'Comprobante') : '';
+          return `
+            <span class="cell-primary">${escapeHtml(text)}</span>
+            ${fac ? `<br><span class="cell-secondary" style="font-size:11px;color:var(--color-primary);font-weight:var(--font-medium);display:inline-flex;align-items:center;gap:3px;margin-top:2px">${Icons['file-text'] || '📄'} ${escapeHtml(tipoLabel)}: <strong>${escapeHtml(fac.numero)}</strong></span>` : ''}
+          `;
         }
       },
       { label: 'Fecha', render: (p) => formatDate(p.fecha), className: 'cell-secondary' },
@@ -123,13 +131,42 @@ export function renderPagos(container, actionsEl) {
     if (action === 'delete') { handleDelete(id); return; }
   };
 
-  function openForm(editId = null) {
+  function openForm(editId = null, preselectedFacturaId = null) {
     const pago = (editId ? DataService.getById('pagos', editId) : null) || {};
     const isEdit = !!editId && !!pago.id;
     const proveedores = DataService.getAll('proveedores');
-    const facturasDisp = DataService.getAll('facturas').filter(f => f.tipo === 'factura' && (f.estado === 'pendiente' || f.estado === 'parcial' || (pago && f.id === pago.facturaId)));
+    const clientes = DataService.getAll('clientes') || [];
+    const facturas = DataService.getAll('facturas');
 
-    const existingDest = (pago && (pago.destinatarioConcepto || pago.concepto)) || (pago.proveedorId ? proveedores.find(p => p.id === pago.proveedorId)?.nombre : '') || '';
+    const effectiveFacturaId = (pago && pago.facturaId) || preselectedFacturaId || null;
+
+    // Todas las facturas, notas de crédito y débito disponibles para pago o imputación
+    const facturasDisp = facturas.filter(f =>
+      (f.tipo === 'factura' || f.tipo === 'nota_credito' || f.tipo === 'nota_debito' || !f.tipo) &&
+      (f.estado === 'pendiente' || f.estado === 'parcial' || f.estado === 'vencida' || !f.estado || f.id === effectiveFacturaId)
+    );
+
+    let initialDest = (pago && (pago.destinatarioConcepto || pago.concepto)) || '';
+    let initialProvId = pago.proveedorId || '';
+    let initialClientId = pago.clienteId || '';
+
+    if (!initialProvId && !initialClientId && initialDest) {
+      const p = proveedores.find(x => x.nombre.toLowerCase() === initialDest.toLowerCase() || (x.razonSocial && x.razonSocial.toLowerCase() === initialDest.toLowerCase()));
+      if (p) {
+        initialProvId = p.id;
+      } else {
+        const c = clientes.find(x => `${x.nombre||''} ${x.apellido||''}`.trim().toLowerCase() === initialDest.toLowerCase() || (x.empresa && x.empresa.toLowerCase() === initialDest.toLowerCase()));
+        if (c) initialClientId = c.id;
+      }
+    }
+    if (!initialProvId && effectiveFacturaId) {
+      const preFac = facturas.find(f => f.id === effectiveFacturaId);
+      if (preFac?.proveedorId) {
+        initialProvId = preFac.proveedorId;
+        const p = proveedores.find(x => x.id === preFac.proveedorId);
+        initialDest = p ? p.nombre : (preFac.proveedorNombre || '');
+      }
+    }
 
     let selectedFile = null;
     let removeExistingFile = false;
@@ -138,24 +175,33 @@ export function renderPagos(container, actionsEl) {
       title: isEdit ? 'Editar pago' : 'Nuevo pago',
       content: `<form id="pago-form">
         <div class="form-group">
-          <label class="form-label">Destinatario / Concepto <span class="required">*</span></label>
-          <input type="text" class="form-input" name="destinatarioConcepto" id="pago-destinatario-concepto" list="destinatarios-sugeridos" value="${escapeHtml(existingDest)}" placeholder="Ej: Cantera San Luis, Flete, Servicios, Sueldos..." required>
-          <datalist id="destinatarios-sugeridos">
-            ${proveedores.map(p => `<option value="${escapeHtml(p.nombre)}">${escapeHtml(p.razonSocial || p.nombre)}</option>`).join('')}
-          </datalist>
-          <span class="text-muted" style="font-size:11px;display:block;margin-top:4px">Podés escribir cualquier destinatario/concepto o seleccionar un proveedor habitual.</span>
+          <label class="form-label">Destinatario / Proveedor / Cliente <span class="required">*</span></label>
+          <select class="form-select" id="pago-proveedor-select" required>
+            <option value="">Seleccionar destinatario...</option>
+            <optgroup label="Proveedores">
+              ${proveedores.map(p => `<option value="${p.id}" ${initialProvId === p.id ? 'selected' : ''}>${escapeHtml(p.nombre)}${p.razonSocial ? ' — ' + escapeHtml(p.razonSocial) : ''}</option>`).join('')}
+            </optgroup>
+            ${clientes.length > 0 ? `
+            <optgroup label="Clientes">
+              ${clientes.map(c => {
+                const cName = `${c.nombre || ''} ${c.apellido || ''}`.trim() || c.empresa || 'Cliente';
+                return `<option value="${c.id}" ${initialClientId === c.id ? 'selected' : ''}>${escapeHtml(cName)}</option>`;
+              }).join('')}
+            </optgroup>` : ''}
+            <option value="__otro__" ${(!initialProvId && !initialClientId && initialDest) ? 'selected' : ''}>+ Otro destinatario / concepto manual (fletes, sueldos, etc.)</option>
+          </select>
         </div>
+        <div class="form-group" id="pago-otro-group" style="display:${(!initialProvId && !initialClientId && initialDest) ? 'block' : 'none'}">
+          <label class="form-label">Nombre del destinatario o concepto <span class="required">*</span></label>
+          <input type="text" class="form-input" id="pago-destinatario-manual" value="${escapeHtml(initialDest)}" placeholder="Ej: Fletes Martínez, Sueldos, Edenor...">
+        </div>
+        <input type="hidden" name="destinatarioConcepto" id="pago-destinatario-concepto" value="${escapeHtml(initialDest)}">
         <div class="form-group">
-          <label class="form-label">Factura asociada (opcional)</label>
+          <label class="form-label">Comprobante asociado (Factura, Nota de Crédito o Débito)</label>
           <select class="form-select" name="facturaId" id="pago-factura-select">
             <option value="">Sin asociar</option>
-            ${facturasDisp.map(f => {
-              const prov = proveedores.find(p => p.id === f.proveedorId);
-              const saldo = DataService.getFacturaSaldoPendiente(f.id, isEdit ? editId : null);
-              const saldoInfo = (saldo < f.importe && saldo > 0) ? ` (Saldo: ${formatCurrency(saldo)})` : ` (${formatCurrency(f.importe)})`;
-              return `<option value="${f.id}" ${pago.facturaId === f.id ? 'selected' : ''}>${f.numero} - ${prov?.nombre || ''}${saldoInfo}</option>`;
-            }).join('')}
           </select>
+          <span class="text-muted" style="font-size:11px;display:block;margin-top:4px" id="pago-factura-hint">Seleccioná un comprobante para imputar el pago y actualizar su saldo automáticamente.</span>
         </div>
         <div class="form-row-2">
           <div class="form-group"><label class="form-label">Importe <span class="required">*</span></label><input type="number" class="form-input" name="importe" id="pago-importe-input" value="${pago.importe||''}" min="0" step="0.01" required></div>
@@ -173,6 +219,160 @@ export function renderPagos(container, actionsEl) {
       </form>`,
       footer: `<button class="btn btn-secondary" id="drawer-cancel">Cancelar</button><button class="btn btn-primary" id="drawer-save">${isEdit ? 'Guardar' : 'Registrar pago'}</button>`
     });
+
+    const provSelect = document.getElementById('pago-proveedor-select');
+    const otroGroup = document.getElementById('pago-otro-group');
+    const manualInput = document.getElementById('pago-destinatario-manual');
+    const destHidden = document.getElementById('pago-destinatario-concepto');
+    const facSelect = document.getElementById('pago-factura-select');
+    const impInput = document.getElementById('pago-importe-input');
+
+    // Función para poblar el dropdown de facturas dinámicamente según el proveedor
+    function populateFacturasSelect(filterProvId = null, selectId = null) {
+      if (!facSelect) return;
+      let list = facturasDisp;
+      if (filterProvId) {
+        list = facturasDisp.filter(f => String(f.proveedorId) === String(filterProvId));
+      }
+
+      let optionsHtml = '<option value="">Sin asociar</option>';
+      if (list.length === 0 && filterProvId) {
+        optionsHtml += '<option value="" disabled>— Este proveedor no tiene comprobantes pendientes —</option>';
+      } else {
+        optionsHtml += list.map(f => {
+          const prov = proveedores.find(p => p.id === f.proveedorId);
+          const saldo = DataService.getFacturaSaldoPendiente(f.id, isEdit ? editId : null);
+          const saldoInfo = (saldo < f.importe && saldo > 0) ? ` (Saldo: ${formatCurrency(saldo)})` : ` (${formatCurrency(f.importe)})`;
+          const vencidaTag = f.estado === 'vencida' ? ' [Vencida]' : '';
+          const provLabel = filterProvId ? '' : ` - ${prov?.nombre || f.proveedorNombre || ''}`;
+          const tipoLabel = FACTURA_TIPO_LABELS[f.tipo] || (f.tipo === 'nota_credito' ? 'Nota de Crédito' : f.tipo === 'nota_debito' ? 'Nota de Débito' : 'Factura');
+          const isSel = String(selectId) === String(f.id);
+          return `<option value="${f.id}" ${isSel ? 'selected' : ''}>[${tipoLabel}] ${escapeHtml(f.numero)}${escapeHtml(provLabel)}${saldoInfo}${vencidaTag}</option>`;
+        }).join('');
+      }
+
+      facSelect.innerHTML = optionsHtml;
+      if (selectId && list.some(f => String(f.id) === String(selectId))) {
+        facSelect.value = selectId;
+      }
+    }
+
+    // 1. Al cambiar el desplegable de proveedor / cliente
+    provSelect?.addEventListener('change', () => {
+      const selectedId = provSelect.value;
+      if (selectedId === '__otro__') {
+        if (otroGroup) otroGroup.style.display = 'block';
+        if (destHidden && manualInput) destHidden.value = manualInput.value.trim();
+        populateFacturasSelect(null, facSelect.value);
+      } else if (selectedId) {
+        if (otroGroup) otroGroup.style.display = 'none';
+        const prov = proveedores.find(p => p.id === selectedId);
+        const cli = !prov ? clientes.find(c => c.id === selectedId) : null;
+
+        if (prov) {
+          if (destHidden) destHidden.value = prov.nombre;
+          // Auto-seleccionar comprobante pendiente del proveedor si existe
+          const provInvoices = facturasDisp.filter(f => String(f.proveedorId) === String(prov.id));
+          let toSelect = facSelect.value;
+          if (provInvoices.length > 0 && (!toSelect || !provInvoices.some(f => f.id === toSelect))) {
+            toSelect = provInvoices[0].id;
+          }
+          populateFacturasSelect(prov.id, toSelect);
+
+          if (toSelect && (!impInput.value || parseFloat(impInput.value) === 0 || !isEdit)) {
+            const saldo = DataService.getFacturaSaldoPendiente(toSelect, isEdit ? editId : null);
+            impInput.value = saldo > 0 ? saldo : (provInvoices.find(f => f.id === toSelect)?.importe || '');
+          }
+        } else if (cli) {
+          const cliName = `${cli.nombre || ''} ${cli.apellido || ''}`.trim() || cli.empresa || 'Cliente';
+          if (destHidden) destHidden.value = cliName;
+          populateFacturasSelect(null, null);
+        }
+      } else {
+        if (otroGroup) otroGroup.style.display = 'none';
+        if (destHidden) destHidden.value = '';
+        populateFacturasSelect(null, facSelect.value);
+      }
+    });
+
+    function handleDestNameChanged() {
+      const val = (destHidden ? destHidden.value : manualInput?.value || '').trim();
+      if (!val) return;
+      const prov = proveedores.find(p => p.nombre.toLowerCase() === val.toLowerCase() || (p.razonSocial && p.razonSocial.toLowerCase() === val.toLowerCase()));
+      if (prov) {
+        if (provSelect) provSelect.value = prov.id;
+        if (otroGroup) otroGroup.style.display = 'none';
+        const provInvoices = facturasDisp.filter(f => String(f.proveedorId) === String(prov.id));
+        let toSelect = facSelect.value;
+        if (provInvoices.length > 0 && (!toSelect || !provInvoices.some(f => f.id === toSelect))) {
+          toSelect = provInvoices[0].id;
+        }
+        populateFacturasSelect(prov.id, toSelect);
+        if (toSelect && (!impInput.value || parseFloat(impInput.value) === 0 || !isEdit)) {
+          const saldo = DataService.getFacturaSaldoPendiente(toSelect, isEdit ? editId : null);
+          impInput.value = saldo > 0 ? saldo : (provInvoices.find(f => f.id === toSelect)?.importe || '');
+        }
+      }
+    }
+
+    destHidden?.addEventListener('input', handleDestNameChanged);
+    destHidden?.addEventListener('change', handleDestNameChanged);
+
+    manualInput?.addEventListener('input', () => {
+      if (destHidden) destHidden.value = manualInput.value.trim();
+      handleDestNameChanged();
+    });
+
+    // 2. Sincronización cuando el usuario selecciona una factura en el dropdown
+    facSelect?.addEventListener('change', (e) => {
+      const selectedFacId = e.target.value;
+      if (!selectedFacId) return;
+      const fac = DataService.getById('facturas', selectedFacId);
+      if (!fac) return;
+
+      if (fac.proveedorId && provSelect) {
+        provSelect.value = fac.proveedorId;
+        if (otroGroup) otroGroup.style.display = 'none';
+        const prov = proveedores.find(p => p.id === fac.proveedorId);
+        if (destHidden) destHidden.value = prov ? prov.nombre : (fac.proveedorNombre || '');
+      }
+
+      const saldo = DataService.getFacturaSaldoPendiente(fac.id, isEdit ? editId : null);
+      if (impInput && (!impInput.value || parseFloat(impInput.value) === 0 || !isEdit)) {
+        impInput.value = saldo > 0 ? saldo : fac.importe;
+      }
+    });
+
+    // Inicialización del select
+    if (effectiveFacturaId) {
+      const targetFac = facturas.find(f => f.id === effectiveFacturaId);
+      if (targetFac) {
+        if (targetFac.proveedorId && provSelect) {
+          provSelect.value = targetFac.proveedorId;
+          const targetProv = proveedores.find(p => p.id === targetFac.proveedorId);
+          if (destHidden) destHidden.value = targetProv ? targetProv.nombre : (targetFac.proveedorNombre || '');
+        }
+        populateFacturasSelect(targetFac.proveedorId, targetFac.id);
+        const saldo = DataService.getFacturaSaldoPendiente(targetFac.id, isEdit ? editId : null);
+        if (impInput && (!impInput.value || parseFloat(impInput.value) === 0)) {
+          impInput.value = saldo > 0 ? saldo : targetFac.importe;
+        }
+      } else {
+        populateFacturasSelect(null, null);
+      }
+    } else if (initialProvId) {
+      populateFacturasSelect(initialProvId, null);
+      const provInvoices = facturasDisp.filter(f => String(f.proveedorId) === String(initialProvId));
+      if (provInvoices.length > 0) {
+        populateFacturasSelect(initialProvId, provInvoices[0].id);
+        const saldo = DataService.getFacturaSaldoPendiente(provInvoices[0].id, isEdit ? editId : null);
+        if (!impInput.value || parseFloat(impInput.value) === 0 || !isEdit) {
+          impInput.value = saldo > 0 ? saldo : provInvoices[0].importe;
+        }
+      }
+    } else {
+      populateFacturasSelect(null, null);
+    }
 
     const zone = document.getElementById('pago-file-zone');
     const fileInput = document.getElementById('pago-file');
@@ -230,30 +430,6 @@ export function renderPagos(container, actionsEl) {
       });
     }
 
-    // Auto-completar proveedor e importe al seleccionar una factura
-    const facSelect = document.getElementById('pago-factura-select');
-    if (facSelect) {
-      facSelect.addEventListener('change', (e) => {
-        const selectedFacId = e.target.value;
-        if (!selectedFacId) return;
-        const fac = DataService.getById('facturas', selectedFacId);
-        if (!fac) return;
-
-        const destInput = document.getElementById('pago-destinatario-concepto');
-        const impInput = document.getElementById('pago-importe-input');
-        const prov = proveedores.find(p => p.id === fac.proveedorId);
-
-        if (destInput && (!destInput.value.trim() || destInput.value.trim() === '')) {
-          destInput.value = prov ? prov.nombre : `Factura ${fac.numero}`;
-        }
-
-        if (impInput && (!impInput.value || parseFloat(impInput.value) === 0 || !isEdit)) {
-          const saldo = DataService.getFacturaSaldoPendiente(fac.id, isEdit ? editId : null);
-          impInput.value = saldo > 0 ? saldo : fac.importe;
-        }
-      });
-    }
-
     function handleFileChosen(file) {
       selectedFile = file;
       removeExistingFile = false;
@@ -268,8 +444,29 @@ export function renderPagos(container, actionsEl) {
     document.getElementById('drawer-cancel').addEventListener('click', () => Drawer.close());
     document.getElementById('drawer-save').addEventListener('click', async () => {
       const data = Object.fromEntries(new FormData(document.getElementById('pago-form')));
-      const dest = (data.destinatarioConcepto || '').trim();
-      if (!dest || !data.importe) { Toast.warning('Completá el destinatario/concepto y el importe'); return; }
+      
+      let dest = '';
+      let selectedProvId = null;
+      let selectedCliId = null;
+
+      if (provSelect && provSelect.value === '__otro__') {
+        dest = (manualInput?.value || '').trim();
+      } else if (provSelect && provSelect.value) {
+        const val = provSelect.value;
+        const prov = proveedores.find(p => p.id === val);
+        const cli = !prov ? clientes.find(c => c.id === val) : null;
+        if (prov) {
+          dest = prov.nombre;
+          selectedProvId = prov.id;
+        } else if (cli) {
+          dest = `${cli.nombre || ''} ${cli.apellido || ''}`.trim() || cli.empresa || 'Cliente';
+          selectedCliId = cli.id;
+        }
+      } else {
+        dest = (destHidden?.value || data.destinatarioConcepto || '').trim();
+      }
+
+      if (!dest || !data.importe) { Toast.warning('Completá el destinatario/proveedor y el importe'); return; }
 
       const saveBtn = document.getElementById('drawer-save');
       saveBtn.disabled = true;
@@ -277,9 +474,14 @@ export function renderPagos(container, actionsEl) {
 
       data.destinatarioConcepto = dest;
       data.concepto = dest;
+      data.proveedorId = selectedProvId;
+      if (selectedCliId) data.clienteId = selectedCliId;
       data.facturaId = (data.facturaId && data.facturaId.trim()) ? data.facturaId.trim() : null;
-      const matched = proveedores.find(p => p.nombre.toLowerCase() === dest.toLowerCase() || (p.razonSocial && p.razonSocial.toLowerCase() === dest.toLowerCase()));
-      data.proveedorId = matched ? matched.id : (pago.proveedorId || null);
+
+      if (!data.proveedorId && !data.clienteId) {
+        const matched = proveedores.find(p => p.nombre.toLowerCase() === dest.toLowerCase() || (p.razonSocial && p.razonSocial.toLowerCase() === dest.toLowerCase()));
+        data.proveedorId = matched ? matched.id : (pago.proveedorId || null);
+      }
 
       if (data.facturaId && !data.proveedorId) {
         const linkedFac = DataService.getById('facturas', data.facturaId);
@@ -342,4 +544,12 @@ export function renderPagos(container, actionsEl) {
 
   actionsEl.querySelector('#btn-new-pago')?.addEventListener('click', () => openForm());
   render();
+
+  // Si se ingresó con parámetro de factura para pago directo (ej: #/pagos?facturaId=fac-123)
+  const hashQuery = window.location.hash.includes('?') ? window.location.hash.split('?')[1] : '';
+  const urlParams = new URLSearchParams(hashQuery);
+  const preselectFacId = urlParams.get('facturaId');
+  if (preselectFacId) {
+    openForm(null, preselectFacId);
+  }
 }

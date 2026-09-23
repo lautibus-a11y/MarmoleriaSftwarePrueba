@@ -22,6 +22,11 @@ export async function handleProveedores(request, env, pathParts, origin) {
   if (method === 'POST') {
     const data = await request.json().catch(() => null);
     if (!data || !data.nombre) return errorResponse('El nombre del proveedor es requerido', 400, origin);
+    if (data.deudaInicial !== undefined && data.deudaInicial !== null && String(data.deudaInicial).trim() !== '') {
+      data.deudaInicial = Math.max(0, parseFloat(data.deudaInicial) || 0);
+    } else {
+      data.deudaInicial = 0;
+    }
     const created = await StorageService.create(env, 'proveedores', data);
     return jsonResponse(created, 201, origin);
   }
@@ -30,6 +35,9 @@ export async function handleProveedores(request, env, pathParts, origin) {
     if (!id) return errorResponse('ID de proveedor requerido', 400, origin);
     const data = await request.json().catch(() => null);
     if (!data) return errorResponse('Datos inválidos', 400, origin);
+    if (data.deudaInicial !== undefined && data.deudaInicial !== null) {
+      data.deudaInicial = String(data.deudaInicial).trim() === '' ? 0 : Math.max(0, parseFloat(data.deudaInicial) || 0);
+    }
     const updated = await StorageService.update(env, 'proveedores', id, data);
     if (!updated) return errorResponse('Proveedor no encontrado', 404, origin);
     return jsonResponse(updated, 200, origin);

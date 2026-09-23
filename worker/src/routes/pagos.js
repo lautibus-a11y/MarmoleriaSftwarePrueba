@@ -9,7 +9,7 @@ async function updateFacturaEstadoOnServer(env, facturaId) {
   if (!facturaId) return;
   try {
     const fac = await StorageService.getById(env, 'facturas', facturaId);
-    if (!fac || fac.tipo !== 'factura') return;
+    if (!fac || (fac.tipo !== 'factura' && fac.tipo !== 'nota_debito' && fac.tipo !== 'nota_credito')) return;
 
     const pagos = await StorageService.getAll(env, 'pagos');
     const facPagos = pagos.filter(p => p && String(p.facturaId) === String(facturaId) && p.estado === 'pagado');

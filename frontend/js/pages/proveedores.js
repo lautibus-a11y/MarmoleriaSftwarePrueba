@@ -126,6 +126,11 @@ export function openProveedorForm(editId=null, onDone=null){
         <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" name="email" value="${escapeHtml(prov.email||'')}"></div>
         <div class="form-group"><label class="form-label">Contacto</label><input type="text" class="form-input" name="contacto" value="${escapeHtml(prov.contacto||'')}"></div>
       </div>
+      <div class="form-group" style="display:none" id="group-prov-deuda-inicial">
+        <label class="form-label">Deuda inicial ($)</label>
+        <input type="number" step="any" min="0" class="form-input" name="deudaInicial" id="prov-deuda-inicial" value="${prov.deudaInicial !== undefined && prov.deudaInicial !== null ? prov.deudaInicial : ''}" placeholder="0">
+        <span class="text-muted" style="font-size:11px;display:block;margin-top:4px">Saldo de deuda previo al inicio en el sistema.</span>
+      </div>
       <div class="form-group"><label class="form-label">Dirección</label><input type="text" class="form-input" name="direccion" value="${escapeHtml(prov.direccion||'')}"></div>
       <div class="form-group"><label class="form-label">Observaciones</label><textarea class="form-textarea" name="observaciones" rows="3">${escapeHtml(prov.observaciones||'')}</textarea></div>
     </form>`,
@@ -146,6 +151,16 @@ export function openProveedorForm(editId=null, onDone=null){
   document.getElementById('drawer-save').addEventListener('click',()=>{
     const data=Object.fromEntries(new FormData(document.getElementById('prov-form')));
     if(!data.nombre?.trim()){Toast.warning('El nombre es obligatorio');return;}
+    if (data.deudaInicial !== undefined && data.deudaInicial !== null && String(data.deudaInicial).trim() !== '') {
+      const parsed = parseFloat(data.deudaInicial);
+      if (isNaN(parsed) || parsed < 0) {
+        Toast.warning('La deuda inicial debe ser un número válido mayor o igual a 0');
+        return;
+      }
+      data.deudaInicial = parsed;
+    } else {
+      data.deudaInicial = 0;
+    }
     if(isEdit){DataService.update('proveedores',editId,data);Toast.success('Proveedor actualizado');}
     else{DataService.create('proveedores',data);Toast.success('Proveedor creado');}
     Drawer.close();
@@ -193,9 +208,11 @@ function renderProveedorDetail(container, actionsEl, provId) {
     </div>
 
     <div class="cuenta-corriente-summary">
+      <div class="cc-summary-item"><div class="cc-summary-label">Deuda inicial</div><div class="cc-summary-value" style="color:var(--color-stone-700)">${formatCurrency(saldo.deudaInicial || 0)}</div></div>
       <div class="cc-summary-item"><div class="cc-summary-label">Total facturado</div><div class="cc-summary-value">${formatCurrency(saldo.totalFacturas)}</div></div>
       <div class="cc-summary-item"><div class="cc-summary-label">Notas débito</div><div class="cc-summary-value">${formatCurrency(saldo.totalND)}</div></div>
       <div class="cc-summary-item"><div class="cc-summary-label">Notas crédito</div><div class="cc-summary-value positive">${formatCurrency(saldo.totalNC)}</div></div>
+      <div class="cc-summary-item"><div class="cc-summary-label">Total pagos</div><div class="cc-summary-value positive">${formatCurrency(saldo.totalPagos || 0)}</div></div>
       <div class="cc-summary-item">
         <div class="cc-summary-label">${saldo.saldo > 0 ? 'Saldo pendiente' : (saldo.saldo < 0 ? 'Saldo a favor' : 'Estado de cuenta')}</div>
         <div class="cc-summary-value ${saldo.saldo > 0 ? 'negative' : 'positive'}">
@@ -234,6 +251,7 @@ function renderProveedorDetail(container, actionsEl, provId) {
           <span class="detail-label">Nombre</span><span class="detail-value">${escapeHtml(prov.nombre)}</span>
           <span class="detail-label">Razón Social</span><span class="detail-value">${escapeHtml(prov.razonSocial||'-')}</span>
           <span class="detail-label">CUIT</span><span class="detail-value">${escapeHtml(prov.cuit||'-')}</span>
+          <span class="detail-label">Deuda inicial</span><span class="detail-value" style="font-weight:var(--font-semibold)">${formatCurrency(prov.deudaInicial || 0)}</span>
           <span class="detail-label">Teléfono</span><span class="detail-value">${escapeHtml(prov.telefono||'-')}</span>
           <span class="detail-label">WhatsApp</span>
           <span class="detail-value">

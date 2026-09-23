@@ -53,8 +53,8 @@ class DrawerManager {
 
     // Animate in
     requestAnimationFrame(() => {
-      this.overlay.classList.add('visible');
-      this.drawer.classList.add('visible');
+      if (this.overlay) this.overlay.classList.add('visible');
+      if (this.drawer) this.drawer.classList.add('visible');
     });
 
     // Close handlers
