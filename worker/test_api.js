@@ -63,6 +63,38 @@ async function runTests() {
   console.assert(dataBackup.version && dataBackup.data, 'Backup failed');
   console.log('✅ Backup endpoint OK, versión:', dataBackup.version);
 
+  // 6. Presupuesto con Adicionales y normalización Entrega y Colocación
+  const reqPostPres = new Request('http://localhost:3000/api/presupuestos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      clienteId: createdCli.id,
+      items: [{ descripcion: 'Mesada Purastone', subtotal: 100000 }],
+      adicionales: {
+        entregaColocacion: 30000,
+        mensulas: 10000,
+        acarreo: 5000,
+        porEscalera: 4000,
+        traforoBachaAnafe: 8000,
+        traforoCajasLuzGas: 2000,
+        traforoDesague: 1500
+      }
+    })
+  });
+  const resPostPres = await worker.fetch(reqPostPres, mockEnv, {});
+  const createdPres = await resPostPres.json();
+  console.assert(createdPres.id && createdPres.adicionales.entregaColocacion === 30000, 'Create presupuesto failed');
+  console.assert(createdPres.adicionales.mensulas === 10000, 'Mensulas missing in worker');
+  console.assert(createdPres.adicionales.colocacion === undefined, 'Legacy colocacion should not exist');
+  console.log('✅ Worker Presupuesto con nuevos adicionales y entrega y colocación OK:', createdPres.id);
+
+  // 7. Configuración Purastone
+  const reqConfig = new Request('http://localhost:3000/api/config');
+  const resConfig = await worker.fetch(reqConfig, mockEnv, {});
+  const dataConfig = await resConfig.json();
+  console.assert(!dataConfig.empresa_subtitulo || dataConfig.empresa_subtitulo.includes('Purastone'), 'Config subtitulo should include Purastone');
+  console.log('✅ Worker Configuración normalizada con Purastone OK');
+
   console.log('🎉 ¡Todas las pruebas unitarias del Worker pasaron exitosamente!');
 }
 

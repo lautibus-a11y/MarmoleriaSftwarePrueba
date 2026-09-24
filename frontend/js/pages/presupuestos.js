@@ -19,6 +19,21 @@ import { openObraForm } from './obras.js';
 
 let isApprovingPresupuesto = false;
 
+export const PRESUPUESTO_ADICIONALES_KEYS = [
+  'entregaColocacion',
+  'manoDeObra',
+  'inglete',
+  'bacha',
+  'zocalos',
+  'mensulas',
+  'acarreo',
+  'porEscalera',
+  'traforoBachaAnafe',
+  'traforoCajasLuzGas',
+  'traforoDesague',
+  'extras'
+];
+
 /**
  * Aprueba un presupuesto de forma idempotente:
  * - Evita doble ejecución / doble clic con flag mutex.
@@ -325,7 +340,20 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
     condicionPorcentaje: prefill?.condicionPorcentaje !== undefined ? prefill.condicionPorcentaje : (found?.condicionPorcentaje !== undefined ? found.condicionPorcentaje : (found?.condicionComercial?.porcentaje || 0)),
     condicionNota: prefill?.condicionNota || found?.condicionNota || found?.condicionComercial?.nota || '',
     items: prefill?.items || [{ id: '1', descripcion: 'Pieza #1', material: '', unidadMedida: 'cm', largo: '', ancho: '', cantidad: 1, m2: 0, precioBase: 0, precioUnitario: 0, subtotal: 0 }],
-    adicionales: prefill?.adicionales || { colocacion: 0, manoDeObra: 0, inglete: 0, transporte: 0, bacha: 0, zocalos: 0, extras: 0 },
+    adicionales: prefill?.adicionales || {
+      entregaColocacion: 0,
+      manoDeObra: 0,
+      inglete: 0,
+      bacha: 0,
+      zocalos: 0,
+      mensulas: 0,
+      acarreo: 0,
+      porEscalera: 0,
+      traforoBachaAnafe: 0,
+      traforoCajasLuzGas: 0,
+      traforoDesague: 0,
+      extras: 0
+    },
     descuento: prefill?.descuento || 0,
     impuestos: prefill?.impuestos !== undefined ? prefill.impuestos : 21,
     condiciones: prefill?.condiciones || CONDICIONES_COMERCIALES_DEFAULT.join('\n'),
@@ -522,8 +550,8 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
             <h4 class="presupuesto-form-section-title">${Icons['dollar-sign']} Campos adicionales</h4>
             <div class="presupuesto-adicionales">
               <div class="form-group">
-                <label class="form-label">Colocación</label>
-                <input type="number" class="form-input calc-field" name="adic_colocacion" value="${pres.adicionales?.colocacion || 0}" min="0">
+                <label class="form-label">Entrega y colocación</label>
+                <input type="number" class="form-input calc-field" name="adic_entregaColocacion" value="${(pres.adicionales?.entregaColocacion !== undefined && pres.adicionales?.entregaColocacion !== null) ? (pres.adicionales.entregaColocacion || 0) : ((Number(pres.adicionales?.colocacion) || 0) + (Number(pres.adicionales?.transporte || pres.adicionales?.entrega) || 0))}" min="0">
               </div>
               <div class="form-group">
                 <label class="form-label">Mano de obra</label>
@@ -534,16 +562,36 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
                 <input type="number" class="form-input calc-field" name="adic_inglete" value="${pres.adicionales?.inglete || 0}" min="0">
               </div>
               <div class="form-group">
-                <label class="form-label">Transporte</label>
-                <input type="number" class="form-input calc-field" name="adic_transporte" value="${pres.adicionales?.transporte || 0}" min="0">
-              </div>
-              <div class="form-group">
                 <label class="form-label">Bacha</label>
                 <input type="number" class="form-input calc-field" name="adic_bacha" value="${pres.adicionales?.bacha || 0}" min="0">
               </div>
               <div class="form-group">
                 <label class="form-label">Zócalos</label>
                 <input type="number" class="form-input calc-field" name="adic_zocalos" value="${pres.adicionales?.zocalos || 0}" min="0">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Ménsulas</label>
+                <input type="number" class="form-input calc-field" name="adic_mensulas" value="${pres.adicionales?.mensulas || 0}" min="0">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Acarreo</label>
+                <input type="number" class="form-input calc-field" name="adic_acarreo" value="${pres.adicionales?.acarreo || 0}" min="0">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Por escalera</label>
+                <input type="number" class="form-input calc-field" name="adic_porEscalera" value="${pres.adicionales?.porEscalera || 0}" min="0">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Trafóro bacha y/o anafe</label>
+                <input type="number" class="form-input calc-field" name="adic_traforoBachaAnafe" value="${pres.adicionales?.traforoBachaAnafe || 0}" min="0">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Trafóro cajas de luz y/o gas</label>
+                <input type="number" class="form-input calc-field" name="adic_traforoCajasLuzGas" value="${pres.adicionales?.traforoCajasLuzGas || 0}" min="0">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Trafóro de desagüe</label>
+                <input type="number" class="form-input calc-field" name="adic_traforoDesague" value="${pres.adicionales?.traforoDesague || 0}" min="0">
               </div>
               <div class="form-group">
                 <label class="form-label">Extras</label>
@@ -1179,8 +1227,7 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
       const curTC = parseFloat(form.querySelector('[name="cotizacionDolar"]')?.value) || pres.cotizacionDolar || defaultCotizacion;
 
       const itemsTotal = items.reduce((s, i) => s + (i.subtotal || 0), 0);
-      const adics = ['colocacion', 'manoDeObra', 'inglete', 'transporte', 'bacha', 'zocalos', 'extras'];
-      const adicsTotal = adics.reduce((s, k) => s + (parseFloat(form.querySelector(`[name="adic_${k}"]`)?.value) || 0), 0);
+      const adicsTotal = PRESUPUESTO_ADICIONALES_KEYS.reduce((s, k) => s + (parseFloat(form.querySelector(`[name="adic_${k}"]`)?.value) || 0), 0);
       const subtotal = itemsTotal + adicsTotal;
       const desc = parseFloat(form.querySelector('[name="descuento"]')?.value) || 0;
       const imp = parseFloat(form.querySelector('[name="impuestos"]')?.value) || 0;
@@ -1337,9 +1384,8 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
           cuit: data.clienteCuit || ''
         };
       }
-      const adics = ['colocacion', 'manoDeObra', 'inglete', 'transporte', 'bacha', 'zocalos', 'extras'];
       const adicionales = {};
-      adics.forEach(k => { adicionales[k] = parseFloat(data[`adic_${k}`]) || 0; });
+      PRESUPUESTO_ADICIONALES_KEYS.forEach(k => { adicionales[k] = parseFloat(data[`adic_${k}`]) || 0; });
 
       const matList = [...new Set(items.map(i => i.material).filter(Boolean))].join(', ');
       const curCondTipo = getCurCondTipo();
@@ -1479,9 +1525,14 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
         return;
       }
 
-      const adics = ['colocacion', 'manoDeObra', 'inglete', 'transporte', 'bacha', 'zocalos', 'extras'];
       const adicionales = {};
-      adics.forEach(k => { adicionales[k] = parseFloat(data[`adic_${k}`]) || 0; delete data[`adic_${k}`]; });
+      PRESUPUESTO_ADICIONALES_KEYS.forEach(k => {
+        adicionales[k] = parseFloat(data[`adic_${k}`]) || 0;
+        delete data[`adic_${k}`];
+      });
+      delete data.adic_colocacion;
+      delete data.adic_transporte;
+      delete data.adic_entrega;
 
       const matList = [...new Set(items.map(i => i.material).filter(Boolean))].join(', ');
       const estadoFinal = forceEstado || data.estado || pres.estado || 'borrador';
@@ -1763,15 +1814,24 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
     ` : ''}
   `;
 
-  const adic = pres.adicionales || {};
+  const adic = (pres.adicionales && typeof pres.adicionales === 'object') ? pres.adicionales : {};
+  const valEntregaColocacion = (adic.entregaColocacion !== undefined && adic.entregaColocacion !== null)
+    ? Number(adic.entregaColocacion)
+    : ((Number(adic.colocacion) || 0) + (Number(adic.transporte) || 0) + (Number(adic.entrega) || 0));
+
   const adicEntries = Object.entries({
-    Colocación: adic.colocacion,
-    'Mano de obra': adic.manoDeObra,
-    'Inglete – Mano de obra': adic.inglete,
-    Transporte: adic.transporte,
-    Bacha: adic.bacha,
-    Zócalos: adic.zocalos,
-    Extras: adic.extras
+    'Entrega y colocación': valEntregaColocacion,
+    'Mano de obra': Number(adic.manoDeObra) || 0,
+    'Inglete – Mano de obra': Number(adic.inglete) || 0,
+    Bacha: Number(adic.bacha) || 0,
+    Zócalos: Number(adic.zocalos) || 0,
+    Ménsulas: Number(adic.mensulas) || 0,
+    Acarreo: Number(adic.acarreo) || 0,
+    'Por escalera': Number(adic.porEscalera) || 0,
+    'Trafóro bacha y/o anafe': Number(adic.traforoBachaAnafe) || 0,
+    'Trafóro cajas de luz y/o gas': Number(adic.traforoCajasLuzGas) || 0,
+    'Trafóro de desagüe': Number(adic.traforoDesague) || 0,
+    Extras: Number(adic.extras) || 0
   }).filter(([, v]) => v > 0);
 
   container.innerHTML = `

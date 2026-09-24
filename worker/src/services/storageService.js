@@ -145,6 +145,9 @@ export class StorageService {
     for (const col of collections) {
       results[col] = await this.readJSON(env, col);
     }
+    if (results.config && results.config.empresa_subtitulo) {
+      results.config.empresa_subtitulo = results.config.empresa_subtitulo.replace(/Quarzo|Cuarzo/gi, 'Purastone');
+    }
     return results;
   }
 }

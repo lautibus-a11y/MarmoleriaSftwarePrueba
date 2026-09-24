@@ -14,11 +14,14 @@ import { Toast } from '../components/toast.js';
 
 // Retrieve company information from configuration
 export function getCompanyInfo() {
+  const defaultSub = 'Mármoles • Granitos • Silestone • Neolith • Purastone';
   try {
     const cfg = JSON.parse(localStorage.getItem('mb_config')) || {};
+    const rawSub = cfg.empresa_subtitulo || defaultSub;
+    const subtitulo = rawSub.replace(/Quarzo|Cuarzo/gi, 'Purastone');
     return {
       nombre: cfg.empresa_nombre || 'Marmolería Benjamin',
-      subtitulo: 'Mármoles • Granitos • Silestone • Neolith • Cuarzo',
+      subtitulo: subtitulo,
       cuit: cfg.empresa_cuit || '30-71548923-4',
       direccion: cfg.empresa_direccion || 'Av. Los Canteros 1420, Córdoba',
       telefono: cfg.empresa_telefono || '+54 9 351 555-0192',
@@ -29,7 +32,7 @@ export function getCompanyInfo() {
   } catch (e) {
     return {
       nombre: 'Marmolería Benjamin',
-      subtitulo: 'Mármoles • Granitos • Silestone • Neolith • Cuarzo',
+      subtitulo: defaultSub,
       cuit: '30-71548923-4',
       direccion: 'Av. Los Canteros 1420, Córdoba',
       telefono: '+54 9 351 555-0192',
@@ -45,15 +48,25 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
   const company = getCompanyInfo();
   const total = totalCalc || (pres.items || []).reduce((s, i) => s + (i.subtotal || 0), 0);
   const items = pres.items || [];
-  const adic = pres.adicionales || {};
+  const adic = (pres.adicionales && typeof pres.adicionales === 'object') ? pres.adicionales : {};
+
+  // Entrega y colocación unificado (compatible con entregaColocacion o legacy colocacion / transporte / entrega)
+  const valEntregaColocacion = (adic.entregaColocacion !== undefined && adic.entregaColocacion !== null)
+    ? Number(adic.entregaColocacion)
+    : ((Number(adic.colocacion) || 0) + (Number(adic.transporte) || 0) + (Number(adic.entrega) || 0));
 
   const adicRows = [
-    { label: 'Colocación en obra', val: adic.colocacion },
+    { label: 'Entrega y colocación', val: valEntregaColocacion },
     { label: 'Mano de obra especializada', val: adic.manoDeObra },
     { label: 'Inglete – Mano de obra', val: adic.inglete },
-    { label: 'Flete / Transporte', val: adic.transporte },
     { label: 'Provisión e instalación de bacha', val: adic.bacha },
     { label: 'Zócalos perimetrales', val: adic.zocalos },
+    { label: 'Ménsulas', val: adic.mensulas },
+    { label: 'Acarreo', val: adic.acarreo },
+    { label: 'Por escalera', val: adic.porEscalera },
+    { label: 'Trafóro bacha y/o anafe', val: adic.traforoBachaAnafe },
+    { label: 'Trafóro cajas de luz y/o gas', val: adic.traforoCajasLuzGas },
+    { label: 'Trafóro de desagüe', val: adic.traforoDesague },
     { label: 'Trabajos extras / Cortes especiales', val: adic.extras }
   ].filter(r => Number(r.val) > 0);
 

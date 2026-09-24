@@ -434,10 +434,18 @@ export const DataService = {
     return cambios;
   },
 
-  // ── Computed Values ──
   getPresupuestoTotal(pres) {
     const itemsTotal = (pres.items || []).reduce((sum, item) => sum + (item.subtotal || 0), 0);
-    const adicionalesTotal = Object.values(pres.adicionales || {}).reduce((sum, v) => sum + (v || 0), 0);
+    const adic = (pres.adicionales && typeof pres.adicionales === 'object') ? pres.adicionales : {};
+    let adicionalesTotal = 0;
+    if (adic.entregaColocacion !== undefined && adic.entregaColocacion !== null) {
+      for (const [k, v] of Object.entries(adic)) {
+        if (['colocacion', 'transporte', 'entrega'].includes(k)) continue;
+        adicionalesTotal += (Number(v) || 0);
+      }
+    } else {
+      adicionalesTotal = Object.values(adic).reduce((sum, v) => sum + (Number(v) || 0), 0);
+    }
     const subtotal = itemsTotal + adicionalesTotal;
     const descuentoMonto = pres.descuento ? subtotal * pres.descuento / 100 : 0;
     const impuestoMonto = pres.impuestos ? (subtotal - descuentoMonto) * pres.impuestos / 100 : 0;

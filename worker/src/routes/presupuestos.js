@@ -5,6 +5,20 @@
 import { StorageService } from '../services/storageService.js';
 import { jsonResponse, errorResponse } from '../utils/helpers.js';
 
+function normalizePresupuestoAdicionales(data) {
+  if (!data || !data.adicionales || typeof data.adicionales !== 'object') return data;
+  const adic = { ...data.adicionales };
+  if (adic.entregaColocacion === undefined || adic.entregaColocacion === null) {
+    if (adic.colocacion !== undefined || adic.transporte !== undefined || adic.entrega !== undefined) {
+      adic.entregaColocacion = (Number(adic.colocacion) || 0) + (Number(adic.transporte) || 0) + (Number(adic.entrega) || 0);
+    }
+  }
+  delete adic.colocacion;
+  delete adic.transporte;
+  delete adic.entrega;
+  return { ...data, adicionales: adic };
+}
+
 export async function handlePresupuestos(request, env, pathParts, origin) {
   const method = request.method;
   const id = pathParts[2]; // /api/presupuestos/:id
@@ -20,8 +34,10 @@ export async function handlePresupuestos(request, env, pathParts, origin) {
   }
 
   if (method === 'POST') {
-    const data = await request.json().catch(() => null);
+    let data = await request.json().catch(() => null);
     if (!data || !data.clienteId) return errorResponse('El cliente es requerido', 400, origin);
+
+    data = normalizePresupuestoAdicionales(data);
 
     // Auto-generate consecutive number if not provided
     if (!data.numero) {
@@ -37,8 +53,10 @@ export async function handlePresupuestos(request, env, pathParts, origin) {
 
   if (method === 'PUT') {
     if (!id) return errorResponse('ID de presupuesto requerido', 400, origin);
-    const data = await request.json().catch(() => null);
+    let data = await request.json().catch(() => null);
     if (!data) return errorResponse('Datos inválidos', 400, origin);
+
+    data = normalizePresupuestoAdicionales(data);
     const updated = await StorageService.update(env, 'presupuestos', id, data);
     if (!updated) return errorResponse('Presupuesto no encontrado', 404, origin);
     return jsonResponse(updated, 200, origin);

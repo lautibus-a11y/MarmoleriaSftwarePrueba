@@ -10,6 +10,9 @@ export async function handleConfig(request, env, pathParts, origin) {
 
   if (method === 'GET') {
     const config = await StorageService.readJSON(env, 'config');
+    if (config && config.empresa_subtitulo) {
+      config.empresa_subtitulo = config.empresa_subtitulo.replace(/Quarzo|Cuarzo/gi, 'Purastone');
+    }
     return jsonResponse(config || {}, 200, origin);
   }
 
