@@ -5,6 +5,23 @@
 import { StorageService } from '../services/storageService.js';
 import { jsonResponse, errorResponse } from '../utils/helpers.js';
 
+async function cascadeUpdateProveedor(env, proveedorId, updatedProv) {
+  const provName = updatedProv.nombre || 'Proveedor';
+  try {
+    const facturas = await StorageService.readJSON(env, 'facturas');
+    let modified = false;
+    (facturas || []).forEach(f => {
+      if (f && String(f.proveedorId) === String(proveedorId)) {
+        f.proveedorNombre = provName;
+        modified = true;
+      }
+    });
+    if (modified) await StorageService.writeJSON(env, 'facturas', facturas);
+  } catch (e) {
+    console.warn('Error in cascade facturas:', e.message);
+  }
+}
+
 export async function handleProveedores(request, env, pathParts, origin) {
   const method = request.method;
   const id = pathParts[2]; // /api/proveedores/:id
@@ -40,6 +57,10 @@ export async function handleProveedores(request, env, pathParts, origin) {
     }
     const updated = await StorageService.update(env, 'proveedores', id, data);
     if (!updated) return errorResponse('Proveedor no encontrado', 404, origin);
+
+    // Cascada de sincronización en R2
+    await cascadeUpdateProveedor(env, id, updated);
+
     return jsonResponse(updated, 200, origin);
   }
 
