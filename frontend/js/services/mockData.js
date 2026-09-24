@@ -159,6 +159,12 @@ export const DataService = {
         data.deudaInicial = 0;
       }
     }
+    if (collection === 'materiales') {
+      if (!data.moneda) data.moneda = 'ARS';
+      if (data.precioM2 !== undefined && data.precioVenta === undefined) {
+        data.precioVenta = data.precioM2;
+      }
+    }
     const record = {
       ...data,
       id,
@@ -215,6 +221,13 @@ export const DataService = {
       }
       if (data.deudaInicial !== undefined && data.deudaInicial !== null) {
         data.deudaInicial = String(data.deudaInicial).trim() === '' ? 0 : Math.max(0, parseFloat(data.deudaInicial) || 0);
+      }
+    } else if (collection === 'materiales') {
+      if (data.precioM2 !== undefined && data.precioVenta === undefined) {
+        data.precioVenta = data.precioM2;
+      }
+      if (data.moneda) {
+        data.moneda = data.moneda.toUpperCase();
       }
     }
 
@@ -450,6 +463,53 @@ export const DataService = {
     const descuentoMonto = pres.descuento ? subtotal * pres.descuento / 100 : 0;
     const impuestoMonto = pres.impuestos ? (subtotal - descuentoMonto) * pres.impuestos / 100 : 0;
     return subtotal - descuentoMonto + impuestoMonto;
+  },
+
+  // ── Configuración & Cotización Central del Dólar (Fuente Única de Verdad) ──
+  getConfig() {
+    try {
+      return JSON.parse(localStorage.getItem('mb_config')) || {};
+    } catch {
+      return {};
+    }
+  },
+
+  getCotizacionDolar() {
+    const cfg = this.getConfig();
+    const rate = parseFloat(cfg.cotizacionDolar);
+    return (rate && !isNaN(rate) && rate > 0) ? rate : 1500;
+  },
+
+  convertCurrency(amount, fromCurrency = 'ARS', toCurrency = 'ARS', rate = null) {
+    const val = Number(amount) || 0;
+    const from = (fromCurrency || 'ARS').toUpperCase();
+    const to = (toCurrency || 'ARS').toUpperCase();
+    if (from === to || val === 0) return val;
+
+    const tc = (rate && Number(rate) > 0) ? Number(rate) : this.getCotizacionDolar();
+    if (from === 'USD' && to === 'ARS') {
+      return Math.round((val * tc) * 100) / 100;
+    }
+    if (from === 'ARS' && to === 'USD') {
+      return tc > 0 ? Math.round((val / tc) * 100) / 100 : val;
+    }
+    return val;
+  },
+
+  getMaterialPrice(materialOrName, targetCurrency = 'ARS', rate = null) {
+    let mat = null;
+    if (materialOrName && typeof materialOrName === 'object') {
+      mat = materialOrName;
+    } else if (typeof materialOrName === 'string') {
+      mat = (store.materiales || []).find(m => m && m.nombre === materialOrName);
+    }
+    if (!mat) return 0;
+
+    const basePrice = Number(mat.precioM2 ?? mat.precioVenta ?? 0);
+    const matCurrency = (mat.moneda || 'ARS').toUpperCase();
+    const targetCurr = (targetCurrency || 'ARS').toUpperCase();
+
+    return this.convertCurrency(basePrice, matCurrency, targetCurr, rate);
   },
 
   getStockActual(materialId) {

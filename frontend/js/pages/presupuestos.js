@@ -324,13 +324,14 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
   const found = editId ? DataService.getById('presupuestos', editId) : null;
   const isEdit = !!editId && !!found;
   const configData = JSON.parse(localStorage.getItem('mb_config') || '{}');
-  const defaultCotizacion = parseFloat(configData.cotizacionDolar) || 1350;
+  const defaultCotizacion = parseFloat(configData.cotizacionDolar) || DataService.getCotizacionDolar();
 
   const pres = found ? { ...found } : {
     numero: generateAutoNumber('PRES', DataService.getAll('presupuestos')),
     fecha: new Date().toISOString().split('T')[0],
     moneda: 'ARS',
     cotizacionDolar: defaultCotizacion,
+    usdRateUsed: defaultCotizacion,
     estado: 'borrador',
     clienteId: prefill?.clienteId || '',
     clienteNombre: prefill?.clienteNombre || '',
@@ -359,7 +360,9 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
     condiciones: prefill?.condiciones || CONDICIONES_COMERCIALES_DEFAULT.join('\n'),
     ...(prefill || {})
   };
-  if (!pres.cotizacionDolar) pres.cotizacionDolar = defaultCotizacion;
+  if (!pres.cotizacionDolar) pres.cotizacionDolar = parseFloat(found?.usdRateUsed) || defaultCotizacion;
+  if (!pres.usdRateUsed) pres.usdRateUsed = pres.cotizacionDolar;
+  if (!pres.moneda) pres.moneda = 'ARS';
   if (!pres.condicionTipo) pres.condicionTipo = pres.condicionComercial?.tipo || 'estandar';
   if (pres.condicionPorcentaje === undefined) pres.condicionPorcentaje = pres.condicionComercial?.porcentaje !== undefined ? pres.condicionComercial.porcentaje : 0;
   if (!pres.condicionNota) pres.condicionNota = pres.condicionComercial?.nota || '';
@@ -413,18 +416,18 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
               </div>
             </div>
 
-            <!-- Cotización del Dólar si la moneda es USD -->
-            <div class="form-group" id="pres-cotizacion-wrap" style="${pres.moneda === 'USD' ? 'display:block' : 'display:none'};background:var(--color-stone-100);border:1px solid var(--color-stone-200);border-radius:var(--radius-md);padding:10px 14px;margin-bottom:var(--space-4)">
+            <!-- Cotización del Dólar (fuente de verdad de Configuración) -->
+            <div class="form-group" id="pres-cotizacion-wrap" style="background:var(--color-stone-100);border:1px solid var(--color-stone-200);border-radius:var(--radius-md);padding:10px 14px;margin-bottom:var(--space-4)">
               <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
                 <div>
                   <label class="form-label mb-0" style="font-weight:var(--font-bold);color:var(--color-stone-900)">
                     ${Icons['dollar-sign']} Cotización del Dólar (ARS por USD) <span class="required">*</span>
                   </label>
-                  <span class="text-muted" style="font-size:11.5px;display:block">Los precios de los materiales se convierten automáticamente a dólares según este valor.</span>
+                  <span class="text-muted" style="font-size:11.5px;display:block">Cotización de referencia para conversión entre dólares y pesos según Configuración.</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:6px">
                   <span style="font-weight:var(--font-bold);color:var(--color-stone-700)">1 USD = $</span>
-                  <input type="number" class="form-input calc-field" name="cotizacionDolar" id="pres-cotizacion-input" value="${pres.cotizacionDolar || defaultCotizacion}" min="1" step="0.01" style="width:130px;font-weight:var(--font-bold)" placeholder="1507">
+                  <input type="number" class="form-input calc-field" name="cotizacionDolar" id="pres-cotizacion-input" value="${pres.cotizacionDolar || defaultCotizacion}" min="1" step="0.01" style="width:130px;font-weight:var(--font-bold)" placeholder="1500">
                 </div>
               </div>
             </div>
@@ -719,6 +722,8 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
     function recalculateAllItemPrices() {
       const condTipo = getCurCondTipo();
       const condPorcentaje = getCurCondPorcentaje();
+      const curMoneda = (qEl('#pres-moneda-select')?.value || pres.moneda || 'ARS').toUpperCase();
+      const curTC = parseFloat(qEl('#pres-cotizacion-input')?.value) || pres.cotizacionDolar || defaultCotizacion;
 
       items.forEach(it => {
         if (condTipo === 'estandar') {
@@ -727,8 +732,11 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
           it.precioUnitario = applyCondicionToPrice(it.precioBase, 'descuento', condPorcentaje);
         } else if (condTipo === 'recargo') {
           it.precioUnitario = applyCondicionToPrice(it.precioBase, 'recargo', condPorcentaje);
+        } else if (condTipo === 'personalizado') {
+          const manualVal = parseFloat(it.precioManual !== undefined ? it.precioManual : (it.precioUnitario || 0)) || 0;
+          const manualMon = (it.precioManualMoneda || curMoneda).toUpperCase();
+          it.precioUnitario = DataService.convertCurrency(manualVal, manualMon, curMoneda, curTC);
         }
-        // If 'personalizado', each item retains its own it.precioUnitario
         calculateItem(it);
       });
     }
@@ -805,19 +813,13 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
     const matSummaryEl = qEl('#material-summary-banner');
 
     function getMaterialPrice(matName, currency = 'ARS', tc = defaultCotizacion) {
-      const mat = materiales.find(m => m.nombre === matName);
-      if (!mat) return 0;
-      const baseARS = mat.precioM2 ?? mat.precioVenta ?? 0;
-      if (currency === 'USD') {
-        const rate = (tc && tc > 0) ? tc : defaultCotizacion;
-        return rate > 0 ? Math.round((baseARS / rate) * 100) / 100 : baseARS;
-      }
-      return baseARS;
+      return DataService.getMaterialPrice(matName, currency, tc);
     }
 
     const defaultFirstMat = materiales[0]?.nombre || '';
-    const initialMoneda = pres.moneda || 'ARS';
-    const initialTC = pres.cotizacionDolar || defaultCotizacion;
+    const initialMoneda = (pres.moneda || 'ARS').toUpperCase();
+    const initialTC = parseFloat(pres.cotizacionDolar || pres.usdRateUsed) || defaultCotizacion;
+    let currentBudgetMoneda = initialMoneda;
     const defaultFirstMatPrice = getMaterialPrice(defaultFirstMat, initialMoneda, initialTC);
 
     let items = (pres.items && pres.items.length > 0)
@@ -829,6 +831,8 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
           const pM2 = (it.precioUnitario !== undefined && it.precioUnitario !== null && it.precioUnitario > 0)
             ? it.precioUnitario
             : baseP;
+          const manualP = it.precioManual !== undefined ? parseFloat(it.precioManual) : pM2;
+          const manualMon = (it.precioManualMoneda || initialMoneda).toUpperCase();
 
           let u = it.unidadMedida;
           let lVal = it.largo !== undefined && it.largo !== null ? it.largo : '';
@@ -855,6 +859,8 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
             m2: parseFloat(it.m2) || 0,
             precioBase: baseP,
             precioUnitario: pM2,
+            precioManual: manualP,
+            precioManualMoneda: manualMon,
             subtotal: parseFloat(it.subtotal) || 0
           };
         })
@@ -870,6 +876,8 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
             m2: 0,
             precioBase: defaultFirstMatPrice,
             precioUnitario: defaultFirstMatPrice,
+            precioManual: defaultFirstMatPrice,
+            precioManualMoneda: initialMoneda,
             subtotal: 0
           }
         ];
@@ -906,19 +914,26 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
       // Redondeo limpio a 4 decimales
       it.m2 = Math.round((it.m2 + Number.EPSILON) * 10000) / 10000;
 
-      const curMoneda = qEl('#pres-moneda-select')?.value || pres.moneda || 'ARS';
+      const curMoneda = (qEl('#pres-moneda-select')?.value || pres.moneda || 'ARS').toUpperCase();
       const curTC = parseFloat(qEl('#pres-cotizacion-input')?.value) || pres.cotizacionDolar || defaultCotizacion;
 
       if (it.material && (!it.precioBase || it.precioBase === 0)) {
         it.precioBase = getMaterialPrice(it.material, curMoneda, curTC);
       }
 
-      if (it.precioUnitario === undefined || it.precioUnitario === null) {
+      const condTipo = getCurCondTipo();
+      if (condTipo === 'personalizado') {
+        const manualVal = parseFloat(it.precioManual !== undefined ? it.precioManual : (it.precioUnitario || 0)) || 0;
+        it.precioManual = manualVal;
+        const manualMon = (it.precioManualMoneda || curMoneda).toUpperCase();
+        it.precioManualMoneda = manualMon;
+        it.precioUnitario = DataService.convertCurrency(manualVal, manualMon, curMoneda, curTC);
+      } else if (it.precioUnitario === undefined || it.precioUnitario === null) {
         it.precioUnitario = it.precioBase || 0;
       }
 
       // Multiplicación automática: m² * precio por m²
-      it.subtotal = it.m2 * (it.precioUnitario || 0);
+      it.subtotal = Math.round((it.m2 * (it.precioUnitario || 0)) * 100) / 100;
     }
 
 
@@ -1010,7 +1025,8 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
               ${materiales.map(m => {
                 const isSel = (item.material === m.nombre);
                 const pM2 = getMaterialPrice(m.nombre, curMoneda, curTC);
-                return `<option value="${escapeHtml(m.nombre)}" ${isSel ? 'selected' : ''}>${escapeHtml(m.nombre)} — ${formatCurrency(pM2, curMoneda)} / m²</option>`;
+                const stockLabel = `${(m.moneda || 'ARS').toUpperCase()} ${m.precioM2 ?? m.precioVenta ?? 0}`;
+                return `<option value="${escapeHtml(m.nombre)}" ${isSel ? 'selected' : ''}>${escapeHtml(m.nombre)} — ${formatCurrency(pM2, curMoneda)} / m² (Stock: ${stockLabel})</option>`;
               }).join('')}
             </select>
           </div>
@@ -1054,13 +1070,20 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
               const condTipo = getCurCondTipo();
               const condPct = getCurCondPorcentaje();
               if (condTipo === 'personalizado') {
+                const manualVal = item.precioManual !== undefined ? item.precioManual : (item.precioUnitario || 0);
+                const manualMon = (item.precioManualMoneda || curMoneda).toUpperCase();
+                const isDiff = manualMon !== curMoneda;
                 return `
-                  <div class="pres-item-stat-pill" style="min-width:150px">
-                    <span class="pres-item-stat-label">Precio manual / m²</span>
+                  <div class="pres-item-stat-pill" style="min-width:210px">
+                    <span class="pres-item-stat-label">Precio m² manual con moneda</span>
                     <div style="display:flex;align-items:center;gap:4px;margin-top:2px">
-                      <span style="font-size:11px;font-weight:var(--font-bold);color:var(--color-stone-600)">$</span>
-                      <input type="number" step="1" min="0" class="form-input item-field item-custom-price-input" data-field="precioUnitario" value="${item.precioUnitario || item.precioBase || 0}" style="padding:2px 6px;font-size:12px;font-weight:var(--font-bold);height:26px;width:115px">
+                      <input type="number" step="any" min="0" class="form-input item-field item-manual-price-input" data-field="precioManual" value="${manualVal}" style="padding:2px 6px;font-size:12px;font-weight:var(--font-bold);height:28px;width:95px" placeholder="Precio">
+                      <select class="form-select item-field item-manual-curr-select" data-field="precioManualMoneda" style="padding:2px 4px;font-size:11px;font-weight:var(--font-bold);height:28px;width:75px">
+                        <option value="ARS" ${manualMon === 'ARS' ? 'selected' : ''}>ARS</option>
+                        <option value="USD" ${manualMon === 'USD' ? 'selected' : ''}>USD</option>
+                      </select>
                     </div>
+                    ${isDiff ? `<span style="font-size:10px;color:var(--color-stone-600);display:block;margin-top:2px">≈ ${formatCurrency(item.precioUnitario, curMoneda)} en pres.</span>` : ''}
                   </div>
                 `;
               }
@@ -1143,18 +1166,41 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
             items[idx].precioBase = getMaterialPrice(val, curMoneda, curTC);
             const condTipo = getCurCondTipo();
             const condPorcentaje = getCurCondPorcentaje();
-            items[idx].precioUnitario = applyCondicionToPrice(items[idx].precioBase, condTipo, condPorcentaje, condTipo === 'personalizado' ? items[idx].precioUnitario : null);
+            if (condTipo === 'personalizado') {
+              items[idx].precioManual = items[idx].precioBase;
+              items[idx].precioManualMoneda = curMoneda;
+              items[idx].precioUnitario = items[idx].precioBase;
+            } else {
+              items[idx].precioUnitario = applyCondicionToPrice(items[idx].precioBase, condTipo, condPorcentaje);
+            }
+            calculateItem(items[idx]);
+            renderItems();
+            renderMaterialSummary();
+            updateSummary();
+          } else if (field === 'precioManual') {
+            const manualPrice = Math.max(0, parseFloat(val) || 0);
+            items[idx].precioManual = manualPrice;
+            const manualMon = (items[idx].precioManualMoneda || curMoneda).toUpperCase();
+            items[idx].precioUnitario = DataService.convertCurrency(manualPrice, manualMon, curMoneda, curTC);
+            calculateItem(items[idx]);
+            renderItems();
+            renderMaterialSummary();
+            updateSummary();
+          } else if (field === 'precioManualMoneda') {
+            items[idx].precioManualMoneda = val.toUpperCase();
+            const manualPrice = Math.max(0, parseFloat(items[idx].precioManual !== undefined ? items[idx].precioManual : items[idx].precioUnitario) || 0);
+            items[idx].precioUnitario = DataService.convertCurrency(manualPrice, items[idx].precioManualMoneda, curMoneda, curTC);
             calculateItem(items[idx]);
             renderItems();
             renderMaterialSummary();
             updateSummary();
           } else if (field === 'precioUnitario') {
             const manualPrice = Math.max(0, parseFloat(val) || 0);
+            items[idx].precioManual = manualPrice;
+            items[idx].precioManualMoneda = curMoneda;
             items[idx].precioUnitario = manualPrice;
             calculateItem(items[idx]);
-
-            const subEl = card.querySelector('.item-subtotal-val');
-            if (subEl) subEl.textContent = formatCurrency(items[idx].subtotal || 0, curMoneda);
+            renderItems();
             renderMaterialSummary();
             updateSummary();
           } else {
@@ -1243,9 +1289,12 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
           ${desc > 0 ? `<div class="summary-row"><span class="summary-row-label">Descuento (${desc}%)</span><span class="summary-row-value" style="color:var(--color-error)">-${formatCurrency(descMonto, curMoneda)}</span></div>` : ''}
           ${imp > 0 ? `<div class="summary-row"><span class="summary-row-label">IVA (${imp}%)</span><span class="summary-row-value">${formatCurrency(impMonto, curMoneda)}</span></div>` : ''}
           <div class="summary-row total"><span class="summary-row-label">Total Presupuesto</span><span class="summary-row-value">${formatCurrency(total, curMoneda)}</span></div>
-          ${(curMoneda === 'USD' && curTC > 0) ? `
+          ${(curTC > 0) ? `
             <div style="padding:8px 12px;margin-top:8px;background:var(--color-stone-100);border:1px solid var(--color-stone-200);border-radius:var(--radius-sm);font-size:12px;color:var(--color-stone-700);text-align:right">
-              Tipo de cambio de referencia: <strong>$${curTC} ARS</strong> · Equivalente aprox: <strong style="color:var(--color-stone-900)">${formatCurrency(total * curTC, 'ARS')}</strong>
+              ${curMoneda === 'USD'
+                ? `Tipo de cambio: <strong>1 USD = $${curTC} ARS</strong> · Equivalente en pesos: <strong style="color:var(--color-stone-900)">${formatCurrency(total * curTC, 'ARS')}</strong>`
+                : `Cotización de referencia: <strong>1 USD = $${curTC} ARS</strong> · Equivalente en dólares: <strong style="color:var(--color-stone-900)">${formatCurrency(curTC > 0 ? total / curTC : 0, 'USD')}</strong>`
+              }
             </div>
           ` : ''}
         `;
@@ -1263,20 +1312,37 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
 
     if (monedaSelect) {
       monedaSelect.addEventListener('change', (e) => {
-        const newMoneda = e.target.value;
-        if (tcWrap) {
-          tcWrap.style.display = newMoneda === 'USD' ? 'block' : 'none';
-        }
+        const newMoneda = e.target.value.toUpperCase();
+        const oldMoneda = currentBudgetMoneda || 'ARS';
+        currentBudgetMoneda = newMoneda;
         const curTC = parseFloat(tcInput?.value) || defaultCotizacion;
 
-        // Recalcular precios unitarios según la moneda seleccionada
+        // Recalcular precios unitarios según la nueva moneda seleccionada sin doble conversión
         items.forEach(it => {
           if (it.material) {
             it.precioBase = getMaterialPrice(it.material, newMoneda, curTC);
             const condTipo = getCurCondTipo();
             const condPorcentaje = getCurCondPorcentaje();
-            it.precioUnitario = applyCondicionToPrice(it.precioBase, condTipo, condPorcentaje, condTipo === 'personalizado' ? it.precioUnitario : null);
+            if (condTipo === 'personalizado') {
+              const manualVal = parseFloat(it.precioManual !== undefined ? it.precioManual : it.precioUnitario) || 0;
+              const manualMon = (it.precioManualMoneda || oldMoneda).toUpperCase();
+              it.precioUnitario = DataService.convertCurrency(manualVal, manualMon, newMoneda, curTC);
+            } else {
+              it.precioUnitario = applyCondicionToPrice(it.precioBase, condTipo, condPorcentaje);
+            }
             calculateItem(it);
+          }
+        });
+
+        // Convertir adicionales existentes al cambiar de moneda para preservar su valor económico
+        PRESUPUESTO_ADICIONALES_KEYS.forEach(k => {
+          const inp = qEl(`[name="adic_${k}"]`);
+          if (inp && inp.value) {
+            const currentAdicVal = parseFloat(inp.value) || 0;
+            if (currentAdicVal > 0) {
+              const convertedAdic = DataService.convertCurrency(currentAdicVal, oldMoneda, newMoneda, curTC);
+              inp.value = convertedAdic;
+            }
           }
         });
 
@@ -1289,21 +1355,25 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
     if (tcInput) {
       tcInput.addEventListener('input', () => {
         const curTC = parseFloat(tcInput.value) || defaultCotizacion;
-        const curMoneda = monedaSelect?.value || 'ARS';
-        if (curMoneda === 'USD') {
-          items.forEach(it => {
-            if (it.material) {
-              it.precioBase = getMaterialPrice(it.material, 'USD', curTC);
-              const condTipo = getCurCondTipo();
-              const condPorcentaje = getCurCondPorcentaje();
-              it.precioUnitario = applyCondicionToPrice(it.precioBase, condTipo, condPorcentaje, condTipo === 'personalizado' ? it.precioUnitario : null);
-              calculateItem(it);
+        const curMoneda = (monedaSelect?.value || 'ARS').toUpperCase();
+        items.forEach(it => {
+          if (it.material) {
+            it.precioBase = getMaterialPrice(it.material, curMoneda, curTC);
+            const condTipo = getCurCondTipo();
+            const condPorcentaje = getCurCondPorcentaje();
+            if (condTipo === 'personalizado') {
+              const manualVal = parseFloat(it.precioManual !== undefined ? it.precioManual : it.precioUnitario) || 0;
+              const manualMon = (it.precioManualMoneda || curMoneda).toUpperCase();
+              it.precioUnitario = DataService.convertCurrency(manualVal, manualMon, curMoneda, curTC);
+            } else {
+              it.precioUnitario = applyCondicionToPrice(it.precioBase, condTipo, condPorcentaje);
             }
-          });
-          renderItems();
-          renderMaterialSummary();
-          updateSummary();
-        }
+            calculateItem(it);
+          }
+        });
+        renderItems();
+        renderMaterialSummary();
+        updateSummary();
       });
     }
 
@@ -1536,8 +1606,8 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
 
       const matList = [...new Set(items.map(i => i.material).filter(Boolean))].join(', ');
       const estadoFinal = forceEstado || data.estado || pres.estado || 'borrador';
-      const curMoneda = data.moneda || pres.moneda || 'ARS';
-      const curTC = curMoneda === 'USD' ? (parseFloat(data.cotizacionDolar) || defaultCotizacion) : null;
+      const curMoneda = (data.moneda || pres.moneda || 'ARS').toUpperCase();
+      const curTC = parseFloat(data.cotizacionDolar) || parseFloat(pres.cotizacionDolar) || defaultCotizacion;
 
       const curCondTipo = getCurCondTipo();
       const curCondPct = (curCondTipo === 'descuento' || curCondTipo === 'recargo') ? getCurCondPorcentaje() : 0;
@@ -1556,6 +1626,7 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
         },
         moneda: curMoneda,
         cotizacionDolar: curTC,
+        usdRateUsed: curTC,
         estado: estadoFinal,
         material: matList || items[0]?.material || '',
         precioM2: items[0]?.precioUnitario || 0,
@@ -1563,6 +1634,8 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
           ...it,
           precioBase: it.precioBase || it.precioUnitario || 0,
           precioUnitario: it.precioUnitario || 0,
+          precioManual: it.precioManual !== undefined ? it.precioManual : (it.precioUnitario || 0),
+          precioManualMoneda: it.precioManualMoneda || curMoneda,
           subtotal: it.subtotal || 0
         })),
         adicionales,
@@ -1973,9 +2046,12 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
           ${pres.descuento > 0 ? `<div class="summary-row"><span class="summary-row-label">Descuento (${pres.descuento}%)</span><span class="summary-row-value" style="color:var(--color-error)">-${formatCurrency(descMonto, pres.moneda)}</span></div>` : ''}
           ${pres.impuestos > 0 ? `<div class="summary-row"><span class="summary-row-label">IVA (${pres.impuestos}%)</span><span class="summary-row-value">${formatCurrency(ivaMonto, pres.moneda)}</span></div>` : ''}
           <div class="summary-row total"><span class="summary-row-label">Total</span><span class="summary-row-value">${formatCurrency(total, pres.moneda)}</span></div>
-          ${(pres.moneda === 'USD' && pres.cotizacionDolar) ? `
+          ${pres.cotizacionDolar ? `
             <div style="font-size:12px;color:var(--color-stone-600);text-align:right;padding:6px 12px;background:var(--color-stone-100);border-radius:var(--radius-sm);margin-top:6px">
-              Tipo de cambio: <strong>$${pres.cotizacionDolar} ARS</strong> · Equivalente en pesos: <strong style="color:var(--color-stone-900)">${formatCurrency(total * pres.cotizacionDolar, 'ARS')}</strong>
+              ${pres.moneda === 'USD'
+                ? `Tipo de cambio: <strong>$${pres.cotizacionDolar} ARS</strong> · Equivalente en pesos: <strong style="color:var(--color-stone-900)">${formatCurrency(total * pres.cotizacionDolar, 'ARS')}</strong>`
+                : `Cotización de referencia: <strong>1 USD = $${pres.cotizacionDolar} ARS</strong> · Equivalente en dólares: <strong style="color:var(--color-stone-900)">${formatCurrency(pres.cotizacionDolar > 0 ? total / pres.cotizacionDolar : 0, 'USD')}</strong>`
+              }
             </div>
           ` : ''}
         </div>

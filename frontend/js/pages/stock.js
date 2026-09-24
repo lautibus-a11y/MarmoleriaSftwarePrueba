@@ -53,12 +53,20 @@ export function renderStock(container, actionsEl) {
         label: 'Precio por m²',
         render: (m) => {
           const precio = m.precioM2 ?? m.precioVenta ?? 0;
+          const mon = (m.moneda || 'ARS').toUpperCase();
+          const tc = DataService.getCotizacionDolar();
+          const equiv = mon === 'USD'
+            ? `≈ ${formatCurrency(precio * tc, 'ARS')}`
+            : `≈ ${formatCurrency(tc > 0 ? precio / tc : 0, 'USD')}`;
           return `
-            <div style="display:flex;align-items:baseline;gap:4px">
-              <span class="cell-mono" style="font-weight:var(--font-bold);color:var(--color-primary-700);font-size:var(--text-sm)">
-                ${formatCurrency(precio)}
-              </span>
-              <span class="cell-secondary" style="font-size:var(--text-xs)">/ m²</span>
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <div style="display:flex;align-items:baseline;gap:4px">
+                <span class="cell-mono" style="font-weight:var(--font-bold);color:var(--color-primary-700);font-size:var(--text-sm)">
+                  ${formatCurrency(precio, mon)}
+                </span>
+                <span class="cell-secondary" style="font-size:var(--text-xs)">/ m²</span>
+              </div>
+              <span style="font-size:10.5px;color:var(--color-stone-500)">${equiv}</span>
             </div>
           `;
         }
@@ -164,17 +172,29 @@ export function renderStock(container, actionsEl) {
           </div>
         </div>
 
-        <!-- CAMPO EXCLUSIVO DE PRECIO POR M² PARA PRESUPUESTOS -->
-        <div class="form-group" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:var(--radius-lg);padding:var(--space-3);margin-bottom:var(--space-4)">
-          <label class="form-label" style="font-weight:var(--font-bold);color:#166534;display:flex;align-items:center;justify-content:space-between">
-            <span>Precio por m² ($) <span class="required">*</span></span>
+        <!-- CAMPO EXCLUSIVO DE PRECIO POR M² Y MONEDA PARA PRESUPUESTOS -->
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:var(--radius-lg);padding:var(--space-3);margin-bottom:var(--space-4)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-2)">
+            <label class="form-label mb-0" style="font-weight:var(--font-bold);color:#166534">
+              Precio y Moneda de Cotización <span class="required">*</span>
+            </label>
             <span style="font-size:11px;font-weight:var(--font-semibold);background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:12px">Referencia Presupuestos</span>
-          </label>
-          <div style="position:relative">
-            <input type="number" step="any" class="form-input" name="precioM2" id="mat-precio-m2" value="${valorPrecio}" min="0" placeholder="Ej: 50000" required style="font-size:var(--text-base);font-weight:var(--font-bold);color:#14532d;background:#fff">
+          </div>
+          <div class="form-row-2">
+            <div class="form-group mb-0">
+              <label class="form-label" style="font-size:var(--text-xs);color:#166534">Precio unitario / m²</label>
+              <input type="number" step="any" class="form-input" name="precioM2" id="mat-precio-m2" value="${valorPrecio}" min="0" placeholder="Ej: 120 o 50000" required style="font-size:var(--text-base);font-weight:var(--font-bold);color:#14532d;background:#fff">
+            </div>
+            <div class="form-group mb-0">
+              <label class="form-label" style="font-size:var(--text-xs);color:#166534">Moneda de cotización</label>
+              <select class="form-select" name="moneda" id="mat-form-moneda" style="font-weight:var(--font-semibold);background:#fff">
+                <option value="ARS" ${(mat.moneda || 'ARS') === 'ARS' ? 'selected' : ''}>ARS — Pesos argentinos ($)</option>
+                <option value="USD" ${mat.moneda === 'USD' ? 'selected' : ''}>USD — Dólares (US$)</option>
+              </select>
+            </div>
           </div>
           <span style="font-size:var(--text-xs);color:#15803d;margin-top:6px;display:block">
-            Este precio se cargará automáticamente al seleccionar este material en cualquier nuevo presupuesto.
+            Este precio y su moneda se utilizarán como base al seleccionar este material en presupuestos.
           </span>
         </div>
 
@@ -216,7 +236,8 @@ export function renderStock(container, actionsEl) {
       data.stockMinimo = parseInt(data.stockMinimo) || 0;
       data.unidad = data.unidad || 'm2';
       
-      // Guardar precio por m² y sincronizar precioVenta
+      // Guardar moneda, precio por m² y sincronizar precioVenta
+      data.moneda = (data.moneda || 'ARS').toUpperCase();
       const precioM2Val = parseFloat(data.precioM2) || 0;
       data.precioM2 = precioM2Val;
       data.precioVenta = precioM2Val;
@@ -305,22 +326,32 @@ export function renderStock(container, actionsEl) {
 
     const allMats = DataService.getAll('materiales');
 
-    function calculateNewPrice(currentPrice) {
+    function calculateNewPrice(currentPrice, m = null) {
       const p = Number(currentPrice) || 0;
       if (p <= 0) return 0;
       let nuevo = p;
       if (tipoAumento === 'porcentaje') {
         nuevo = p * (1 + (Number(valorAumento) || 0) / 100);
       } else {
-        nuevo = p + (Number(valorAumento) || 0);
+        const matMoneda = (m?.moneda || 'ARS').toUpperCase();
+        const tc = DataService.getCotizacionDolar();
+        const aumento = (matMoneda === 'USD' && tc > 0)
+          ? (Number(valorAumento) || 0) / tc
+          : (Number(valorAumento) || 0);
+        nuevo = p + aumento;
       }
 
-      if (redondeo === '100') {
-        nuevo = Math.round(nuevo / 100) * 100;
-      } else if (redondeo === '1000') {
-        nuevo = Math.round(nuevo / 1000) * 1000;
-      } else {
+      const matMoneda = (m?.moneda || 'ARS').toUpperCase();
+      if (matMoneda === 'USD') {
         nuevo = Math.round(nuevo * 100) / 100;
+      } else {
+        if (redondeo === '100') {
+          nuevo = Math.round(nuevo / 100) * 100;
+        } else if (redondeo === '1000') {
+          nuevo = Math.round(nuevo / 1000) * 1000;
+        } else {
+          nuevo = Math.round(nuevo * 100) / 100;
+        }
       }
       return Math.max(0, nuevo);
     }
@@ -393,14 +424,15 @@ export function renderStock(container, actionsEl) {
                 <tbody id="bulk-preview-rows">
                   ${affected.map(m => {
                     const current = Number(m.precioM2 ?? m.precioVenta) || 0;
-                    const nuevo = calculateNewPrice(current);
+                    const mon = (m.moneda || 'ARS').toUpperCase();
+                    const nuevo = calculateNewPrice(current, m);
                     const diff = nuevo - current;
                     return `
                       <tr>
                         <td><strong>${escapeHtml(m.nombre)}</strong></td>
-                        <td style="text-align:right">${formatCurrency(current)}</td>
-                        <td style="text-align:right;font-weight:var(--font-bold);color:var(--color-stone-900)">${formatCurrency(nuevo)}</td>
-                        <td style="text-align:right;color:${diff >= 0 ? '#15803D' : '#DC2626'};font-weight:var(--font-semibold)">+${formatCurrency(diff)}</td>
+                        <td style="text-align:right">${formatCurrency(current, mon)}</td>
+                        <td style="text-align:right;font-weight:var(--font-bold);color:var(--color-stone-900)">${formatCurrency(nuevo, mon)}</td>
+                        <td style="text-align:right;color:${diff >= 0 ? '#15803D' : '#DC2626'};font-weight:var(--font-semibold)">+${formatCurrency(diff, mon)}</td>
                       </tr>
                     `;
                   }).join('')}
@@ -441,14 +473,15 @@ export function renderStock(container, actionsEl) {
       if (tbody) {
         tbody.innerHTML = affected.map(m => {
           const current = Number(m.precioM2 ?? m.precioVenta) || 0;
-          const nuevo = calculateNewPrice(current);
+          const mon = (m.moneda || 'ARS').toUpperCase();
+          const nuevo = calculateNewPrice(current, m);
           const diff = nuevo - current;
           return `
             <tr>
               <td><strong>${escapeHtml(m.nombre)}</strong></td>
-              <td style="text-align:right">${formatCurrency(current)}</td>
-              <td style="text-align:right;font-weight:var(--font-bold);color:var(--color-stone-900)">${formatCurrency(nuevo)}</td>
-              <td style="text-align:right;color:${diff >= 0 ? '#15803D' : '#DC2626'};font-weight:var(--font-semibold)">+${formatCurrency(diff)}</td>
+              <td style="text-align:right">${formatCurrency(current, mon)}</td>
+              <td style="text-align:right;font-weight:var(--font-bold);color:var(--color-stone-900)">${formatCurrency(nuevo, mon)}</td>
+              <td style="text-align:right;color:${diff >= 0 ? '#15803D' : '#DC2626'};font-weight:var(--font-semibold)">+${formatCurrency(diff, mon)}</td>
             </tr>
           `;
         }).join('');
@@ -477,7 +510,7 @@ export function renderStock(container, actionsEl) {
       let updatedCount = 0;
       affected.forEach(m => {
         const current = Number(m.precioM2 ?? m.precioVenta) || 0;
-        const nuevo = calculateNewPrice(current);
+        const nuevo = calculateNewPrice(current, m);
         DataService.update('materiales', m.id, {
           precioM2: nuevo,
           precioVenta: nuevo

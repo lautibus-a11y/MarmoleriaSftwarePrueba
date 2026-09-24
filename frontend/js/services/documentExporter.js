@@ -46,7 +46,6 @@ export function getCompanyInfo() {
 // ── 1. Presupuesto HTML Generator ──
 export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
   const company = getCompanyInfo();
-  const total = totalCalc || (pres.items || []).reduce((s, i) => s + (i.subtotal || 0), 0);
   const items = pres.items || [];
   const adic = (pres.adicionales && typeof pres.adicionales === 'object') ? pres.adicionales : {};
 
@@ -76,6 +75,7 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
   const descuentoMonto = pres.descuento > 0 ? (baseImponible * (pres.descuento / 100)) : 0;
   const subtotalConDesc = baseImponible - descuentoMonto;
   const impuestosMonto = pres.impuestos > 0 ? (subtotalConDesc * (pres.impuestos / 100)) : 0;
+  const total = totalCalc || (Number(pres.total) || 0) || (subtotalConDesc + impuestosMonto);
 
   // Helper to format measure with unit
   const formatDocMeasure = (val, unidad) => {
@@ -227,9 +227,12 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
             <span class="doc-grand-total-label">TOTAL PRESUPUESTO</span>
             <span class="doc-grand-total-amount">${formatCurrency(total, pres.moneda)}</span>
           </div>
-          ${(pres.moneda === 'USD' && pres.cotizacionDolar) ? `
+          ${pres.cotizacionDolar ? `
             <div style="font-size:8.5pt;color:#78716C;text-align:right;margin-top:5px;font-weight:600">
-              Tipo de cambio de referencia: 1 USD = $${formatCurrency(pres.cotizacionDolar, 'ARS')} · Equivalente en pesos: ${formatCurrency(total * pres.cotizacionDolar, 'ARS')}
+              ${pres.moneda === 'USD'
+                ? `Tipo de cambio de referencia: 1 USD = $${formatCurrency(pres.cotizacionDolar, 'ARS')} · Equivalente en pesos: ${formatCurrency(total * pres.cotizacionDolar, 'ARS')}`
+                : `Cotización de referencia: 1 USD = $${formatCurrency(pres.cotizacionDolar, 'ARS')} · Equivalente en dólares: ${formatCurrency(pres.cotizacionDolar > 0 ? total / pres.cotizacionDolar : 0, 'USD')}`
+              }
             </div>
           ` : ''}
         </div>

@@ -39,6 +39,12 @@ export async function handlePresupuestos(request, env, pathParts, origin) {
 
     data = normalizePresupuestoAdicionales(data);
 
+    if (!data.moneda) data.moneda = 'ARS';
+    else data.moneda = data.moneda.toUpperCase();
+    if (data.cotizacionDolar !== undefined && data.usdRateUsed === undefined) {
+      data.usdRateUsed = data.cotizacionDolar;
+    }
+
     // Auto-generate consecutive number if not provided
     if (!data.numero) {
       const all = await StorageService.getAll(env, 'presupuestos');
@@ -57,6 +63,10 @@ export async function handlePresupuestos(request, env, pathParts, origin) {
     if (!data) return errorResponse('Datos inválidos', 400, origin);
 
     data = normalizePresupuestoAdicionales(data);
+    if (data.moneda) data.moneda = data.moneda.toUpperCase();
+    if (data.cotizacionDolar !== undefined && data.usdRateUsed === undefined) {
+      data.usdRateUsed = data.cotizacionDolar;
+    }
     const updated = await StorageService.update(env, 'presupuestos', id, data);
     if (!updated) return errorResponse('Presupuesto no encontrado', 404, origin);
     return jsonResponse(updated, 200, origin);

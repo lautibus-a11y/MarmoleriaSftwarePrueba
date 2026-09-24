@@ -28,6 +28,8 @@ export async function handleMateriales(request, env, pathParts, origin) {
       data.precioVenta = data.precioM2;
     }
     if (!data.unidad) data.unidad = 'm2';
+    if (!data.moneda) data.moneda = 'ARS';
+    else data.moneda = data.moneda.toUpperCase();
 
     const created = await StorageService.create(env, 'materiales', data);
     return jsonResponse(created, 201, origin);
@@ -40,6 +42,9 @@ export async function handleMateriales(request, env, pathParts, origin) {
 
     if (data.precioM2 !== undefined && data.precioVenta === undefined) {
       data.precioVenta = data.precioM2;
+    }
+    if (data.moneda) {
+      data.moneda = data.moneda.toUpperCase();
     }
 
     const updated = await StorageService.update(env, 'materiales', id, data);

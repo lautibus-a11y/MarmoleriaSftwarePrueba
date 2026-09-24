@@ -75,10 +75,10 @@ export function renderConfiguracion(container, actionsEl) {
       <div class="config-section-header"><h3 class="config-section-title">${Icons['dollar-sign']} Cotización del dólar</h3></div>
       <div class="config-section-body">
         <form id="config-dolar">
-          <div class="form-group" style="max-width:300px">
+          <div class="form-group" style="max-width:320px">
             <label class="form-label">Cotización actual (ARS por USD)</label>
-            <input type="number" class="form-input" name="cotizacionDolar" value="${config.cotizacionDolar||''}" placeholder="1350" min="0" step="0.01">
-            <p class="form-hint">Se usará como referencia en presupuestos en dólares.</p>
+            <input type="number" class="form-input" name="cotizacionDolar" value="${config.cotizacionDolar||''}" placeholder="1500" min="0" step="0.01">
+            <p class="form-hint">Cotización central del sistema (fuente única de verdad). Se utiliza para conversiones entre USD y ARS en Stock y Presupuestos.</p>
           </div>
           <button type="submit" class="btn btn-primary">Guardar cotización</button>
         </form>
