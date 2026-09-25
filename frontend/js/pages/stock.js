@@ -23,7 +23,7 @@ export function renderStock(container, actionsEl) {
 
   function render() {
     let filtered = materiales;
-    if (filterCat) filtered = filtered.filter(m => m.categoria === filterCat);
+    if (filterCat) filtered = filtered.filter(m => m.categoria === filterCat || (filterCat === 'purastone' && m.categoria === 'cuarzo'));
     if (searchTerm) filtered = searchFilter(filtered, searchTerm, ['nombre', 'categoria', 'tipo']);
 
     const columns = [
@@ -143,7 +143,7 @@ export function renderStock(container, actionsEl) {
           <div class="form-group">
             <label class="form-label">Categoría</label>
             <select class="form-select" name="categoria">
-              ${MATERIAL_CATEGORIAS.map(c=>`<option value="${c.value}" ${mat.categoria===c.value?'selected':''}>${c.label}</option>`).join('')}
+              ${MATERIAL_CATEGORIAS.map(c=>`<option value="${c.value}" ${mat.categoria===c.value || (c.value==='purastone' && mat.categoria==='cuarzo') ?'selected':''}>${c.label}</option>`).join('')}
             </select>
           </div>
           <div class="form-group">
@@ -358,7 +358,7 @@ export function renderStock(container, actionsEl) {
 
     function getAffectedMats() {
       if (!catFilter) return allMats;
-      return allMats.filter(m => m.categoria === catFilter);
+      return allMats.filter(m => m.categoria === catFilter || (catFilter === 'purastone' && m.categoria === 'cuarzo'));
     }
 
     function renderModalBody() {
@@ -377,7 +377,7 @@ export function renderStock(container, actionsEl) {
                 <option value="">Todas las categorías (${allMats.length} materiales)</option>
                 ${MATERIAL_CATEGORIAS.map(c => `
                   <option value="${c.value}" ${catFilter === c.value ? 'selected' : ''}>
-                    ${c.label} (${allMats.filter(m => m.categoria === c.value).length})
+                    ${c.label} (${allMats.filter(m => m.categoria === c.value || (c.value === 'purastone' && m.categoria === 'cuarzo')).length})
                   </option>
                 `).join('')}
               </select>

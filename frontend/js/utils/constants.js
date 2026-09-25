@@ -190,7 +190,8 @@ export const MOVIMIENTO_TIPO_COLORS = {
 export const MATERIAL_CATEGORIAS = [
   { value: 'marmol', label: 'Mármol' },
   { value: 'granito', label: 'Granito' },
-  { value: 'cuarzo', label: 'Cuarzo' },
+  { value: 'purastone', label: 'Purastone' },
+  { value: 'suprastone', label: 'Suprastone' },
   { value: 'silestone', label: 'Silestone' },
   { value: 'porcelanato', label: 'Porcelanato' },
   { value: 'travertino', label: 'Travertino' },
