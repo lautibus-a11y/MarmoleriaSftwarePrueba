@@ -13,9 +13,13 @@ export async function handleMateriales(request, env, pathParts, origin) {
     if (id) {
       const mat = await StorageService.getById(env, 'materiales', id);
       if (!mat) return errorResponse('Material no encontrado', 404, origin);
+      if (mat.categoria === 'cuarzo') mat.categoria = 'purastone';
       return jsonResponse(mat, 200, origin);
     }
     const list = await StorageService.getAll(env, 'materiales');
+    (list || []).forEach(m => {
+      if (m && m.categoria === 'cuarzo') m.categoria = 'purastone';
+    });
     return jsonResponse(list, 200, origin);
   }
 
@@ -31,6 +35,10 @@ export async function handleMateriales(request, env, pathParts, origin) {
     if (!data.moneda) data.moneda = 'ARS';
     else data.moneda = data.moneda.toUpperCase();
 
+    if (data.categoria === 'cuarzo') {
+      data.categoria = 'purastone';
+    }
+
     const created = await StorageService.create(env, 'materiales', data);
     return jsonResponse(created, 201, origin);
   }
@@ -45,6 +53,9 @@ export async function handleMateriales(request, env, pathParts, origin) {
     }
     if (data.moneda) {
       data.moneda = data.moneda.toUpperCase();
+    }
+    if (data.categoria === 'cuarzo') {
+      data.categoria = 'purastone';
     }
 
     const updated = await StorageService.update(env, 'materiales', id, data);

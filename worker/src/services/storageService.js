@@ -148,6 +148,11 @@ export class StorageService {
     if (results.config && results.config.empresa_subtitulo) {
       results.config.empresa_subtitulo = results.config.empresa_subtitulo.replace(/Quarzo|Cuarzo/gi, 'Purastone');
     }
+    if (results.materiales && Array.isArray(results.materiales)) {
+      results.materiales.forEach(m => {
+        if (m && m.categoria === 'cuarzo') m.categoria = 'purastone';
+      });
+    }
     return results;
   }
 }
