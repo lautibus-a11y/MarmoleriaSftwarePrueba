@@ -226,6 +226,10 @@ body.doc-modal-open .mobile-fab {
     --header-height: 56px;
   }
 
+  .desktop-only {
+    display: none !important;
+  }
+
   /* Prevent iOS zoom on inputs */
   .form-input,
   .form-select,

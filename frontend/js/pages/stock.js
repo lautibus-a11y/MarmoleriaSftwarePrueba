@@ -13,8 +13,8 @@ import { MATERIAL_CATEGORIAS, UNIDADES, MOVIMIENTO_TIPO_LABELS, MOVIMIENTO_TIPO_
 
 export function renderStock(container, actionsEl) {
   actionsEl.innerHTML = `
-    <button class="btn btn-secondary" id="btn-actualizar-precios" style="color:var(--color-primary);font-weight:var(--font-semibold)">${Icons.settings} Actualizar precios</button>
-    <button class="btn btn-secondary" id="btn-new-mov">${Icons.plus} Movimiento</button>
+    <button class="btn btn-secondary" id="btn-actualizar-precios" style="color:var(--color-primary);font-weight:var(--font-semibold)" title="Actualizar precios">${Icons.settings} <span class="desktop-only">Actualizar precios</span></button>
+    <button class="btn btn-secondary" id="btn-new-mov" title="Nuevo Movimiento">${Icons.plus} <span class="desktop-only">Movimiento</span></button>
     <button class="btn btn-primary" id="btn-new-mat">${Icons.plus} Nuevo material</button>
   `;
 
