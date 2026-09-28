@@ -302,7 +302,7 @@ body.doc-modal-open .mobile-fab {
   }
 
   /* Hide redundant header create buttons on mobile (FAB replaces them) */
-  .page-header-actions .btn-primary:not(#btn-header-pdf):not(#btn-header-word) {
+  .page-header-actions .btn-primary:not(#btn-header-pdf):not(#btn-header-word):not(#btn-new-mat) {
     display: none;
   }
 
