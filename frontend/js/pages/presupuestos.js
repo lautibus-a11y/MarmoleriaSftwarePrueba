@@ -26,9 +26,9 @@ export const PRESUPUESTO_ADICIONALES_KEYS = [
   'bacha',
   'zocalos',
   'mensulas',
-  'acarreo',
-  'porEscalera',
+  'acarreoPorEscalera',
   'traforoBachaAnafe',
+  'traforoGriferia',
   'traforoCajasLuzGas',
   'traforoDesague',
   'extras'
@@ -348,9 +348,9 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
       bacha: 0,
       zocalos: 0,
       mensulas: 0,
-      acarreo: 0,
-      porEscalera: 0,
+      acarreoPorEscalera: 0,
       traforoBachaAnafe: 0,
+      traforoGriferia: 0,
       traforoCajasLuzGas: 0,
       traforoDesague: 0,
       extras: 0
@@ -577,12 +577,12 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
                 <input type="number" class="form-input calc-field" name="adic_mensulas" value="${pres.adicionales?.mensulas || 0}" min="0">
               </div>
               <div class="form-group">
-                <label class="form-label">Acarreo</label>
-                <input type="number" class="form-input calc-field" name="adic_acarreo" value="${pres.adicionales?.acarreo || 0}" min="0">
+                <label class="form-label">Acarreo por escalera</label>
+                <input type="number" class="form-input calc-field" name="adic_acarreoPorEscalera" value="${pres.adicionales?.acarreoPorEscalera ?? (pres.adicionales?.acarreo || pres.adicionales?.porEscalera || 0)}" min="0">
               </div>
               <div class="form-group">
-                <label class="form-label">Por escalera</label>
-                <input type="number" class="form-input calc-field" name="adic_porEscalera" value="${pres.adicionales?.porEscalera || 0}" min="0">
+                <label class="form-label">Trafóro de grifería</label>
+                <input type="number" class="form-input calc-field" name="adic_traforoGriferia" value="${pres.adicionales?.traforoGriferia || 0}" min="0">
               </div>
               <div class="form-group">
                 <label class="form-label">Trafóro bacha y/o anafe</label>
@@ -1899,8 +1899,8 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
     Bacha: Number(adic.bacha) || 0,
     Zócalos: Number(adic.zocalos) || 0,
     Ménsulas: Number(adic.mensulas) || 0,
-    Acarreo: Number(adic.acarreo) || 0,
-    'Por escalera': Number(adic.porEscalera) || 0,
+    'Acarreo por escalera': Number(adic.acarreoPorEscalera) || Number(adic.acarreo) || Number(adic.porEscalera) || 0,
+    'Trafóro de grifería': Number(adic.traforoGriferia) || 0,
     'Trafóro bacha y/o anafe': Number(adic.traforoBachaAnafe) || 0,
     'Trafóro cajas de luz y/o gas': Number(adic.traforoCajasLuzGas) || 0,
     'Trafóro de desagüe': Number(adic.traforoDesague) || 0,
