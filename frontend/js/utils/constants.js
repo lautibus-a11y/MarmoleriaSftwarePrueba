@@ -192,11 +192,17 @@ export const MATERIAL_CATEGORIAS = [
   { value: 'marmol', label: 'Mármol' },
   { value: 'granito', label: 'Granito' },
   { value: 'purastone', label: 'Purastone' },
+  { value: 'purastone-prima', label: 'Purastone Prima' },
   { value: 'suprastone', label: 'Suprastone' },
   { value: 'silestone', label: 'Silestone' },
   { value: 'porcelanato', label: 'Porcelanato' },
   { value: 'travertino', label: 'Travertino' },
   { value: 'onix', label: 'Ónix' },
+  { value: 'cuarcita', label: 'Cuarcita' },
+  { value: 'dekton', label: 'Dekton' },
+  { value: 'neolith', label: 'Neolith' },
+  { value: 'costra', label: 'Costra' },
+  { value: 'terrazo', label: 'Terrazo' },
   { value: 'otro', label: 'Otro' }
 ];
 
