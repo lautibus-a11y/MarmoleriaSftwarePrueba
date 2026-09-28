@@ -144,6 +144,7 @@ export const METODOS_PAGO = [
   { value: 'tarjeta', label: 'Tarjeta' },
   { value: 'cheque', label: 'Cheque' },
   { value: 'mercadopago', label: 'Mercado Pago' },
+  { value: 'deposito', label: 'Depósito' },
   { value: 'otro', label: 'Otro' }
 ];
 

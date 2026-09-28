@@ -381,7 +381,8 @@ export const DataService = {
     const pagos = (store.pagos || []).filter(p =>
       p && String(p.facturaId) === String(facturaId) && p.estado === 'pagado'
     );
-    return pagos.reduce((sum, p) => sum + (parseFloat(p.importe) || 0), 0);
+    // Usar importeARS si existe (pagos en USD convertidos), sino importe directo (ARS o registros viejos)
+    return pagos.reduce((sum, p) => sum + (parseFloat(p.importeARS ?? p.importe) || 0), 0);
   },
 
   getFacturaSaldoPendiente(facturaId, excludePagoId = null) {
@@ -392,8 +393,11 @@ export const DataService = {
       p.estado === 'pagado' &&
       (!excludePagoId || String(p.id) !== String(excludePagoId))
     );
-    const totalPagado = pagos.reduce((sum, p) => sum + (parseFloat(p.importe) || 0), 0);
-    const saldo = (parseFloat(fac.importe) || 0) - totalPagado;
+    // Usar importeARS si existe (pagos en USD convertidos), sino importe directo
+    const totalPagado = pagos.reduce((sum, p) => sum + (parseFloat(p.importeARS ?? p.importe) || 0), 0);
+    // Comparar contra importeARS de la factura (si es USD) o importe directo (si es ARS)
+    const baseImporte = parseFloat(fac.importeARS ?? fac.importe) || 0;
+    const saldo = baseImporte - totalPagado;
     return Math.max(0, saldo);
   },
 
@@ -403,7 +407,8 @@ export const DataService = {
     if (!fac || (fac.tipo !== 'factura' && fac.tipo !== 'nota_debito' && fac.tipo !== 'nota_credito')) return false;
 
     const totalPagado = this.getFacturaTotalPagado(facturaId);
-    const importeFac = parseFloat(fac.importe) || 0;
+    // Usar importeARS si existe (factura en USD), sino importe directo (ARS o registros viejos)
+    const importeFac = parseFloat(fac.importeARS ?? fac.importe) || 0;
 
     let nuevoEstado = fac.estado;
     if (importeFac > 0 && totalPagado >= (importeFac - 0.01)) {
@@ -526,21 +531,60 @@ export const DataService = {
     const pagos = store.pagos.filter(p => p.proveedorId === proveedorId);
     const prov = store.proveedores.find(p => p.id === proveedorId);
     const deudaInicial = parseFloat(prov?.deudaInicial) || 0;
+    const monedaProv = (prov?.monedaDefault || 'ARS').toUpperCase();
 
-    const totalFacturas = facturas.filter(f => f.tipo === 'factura').reduce((s, f) => s + f.importe, 0);
-    const totalND = facturas.filter(f => f.tipo === 'nota_debito').reduce((s, f) => s + f.importe, 0);
-    const totalNC = facturas.filter(f => f.tipo === 'nota_credito').reduce((s, f) => s + f.importe, 0);
-    const totalPagos = pagos.filter(p => p.estado === 'pagado').reduce((s, p) => s + p.importe, 0);
+    // Totales internos siempre en ARS (importeARS ?? importe para compatibilidad)
+    const totalFacturas = facturas.filter(f => f.tipo === 'factura')
+      .reduce((s, f) => s + (parseFloat(f.importeARS ?? f.importe) || 0), 0);
+    const totalND = facturas.filter(f => f.tipo === 'nota_debito')
+      .reduce((s, f) => s + (parseFloat(f.importeARS ?? f.importe) || 0), 0);
+    const totalNC = facturas.filter(f => f.tipo === 'nota_credito')
+      .reduce((s, f) => s + (parseFloat(f.importeARS ?? f.importe) || 0), 0);
+    const totalPagos = pagos.filter(p => p.estado === 'pagado')
+      .reduce((s, p) => s + (parseFloat(p.importeARS ?? p.importe) || 0), 0);
+
+    const saldo = deudaInicial + totalFacturas + totalND - totalNC - totalPagos;
+
+    // Para proveedores USD: convertir saldos a USD usando la cotización actual del config
+    let monedaDisplay = 'ARS';
+    let saldoDisplay = saldo;
+    let totalFacturasDisplay = totalFacturas;
+    let totalNDDisplay = totalND;
+    let totalNCDisplay = totalNC;
+    let totalPagosDisplay = totalPagos;
+    let deudaInicialDisplay = deudaInicial;
+
+    if (monedaProv === 'USD') {
+      const rate = this.getCotizacionDolar();
+      const toUSD = (v) => rate > 0 ? Math.round((v / rate) * 100) / 100 : v;
+      monedaDisplay = 'USD';
+      saldoDisplay = toUSD(saldo);
+      totalFacturasDisplay = toUSD(totalFacturas);
+      totalNDDisplay = toUSD(totalND);
+      totalNCDisplay = toUSD(totalNC);
+      totalPagosDisplay = toUSD(totalPagos);
+      deudaInicialDisplay = toUSD(deudaInicial);
+    }
 
     return {
+      // Valores en ARS (para cálculos internos: dashboard, alertas, etc.)
       deudaInicial,
       totalFacturas,
       totalND,
       totalNC,
       totalPagos,
-      saldo: deudaInicial + totalFacturas + totalND - totalNC - totalPagos
+      saldo,
+      // Valores en la moneda del proveedor (para mostrar en pantalla)
+      monedaDisplay,
+      saldoDisplay,
+      totalFacturasDisplay,
+      totalNDDisplay,
+      totalNCDisplay,
+      totalPagosDisplay,
+      deudaInicialDisplay,
     };
   },
+
 
   getObraTotal(obraId) {
     const obra = store.obras?.find(o => String(o.id) === String(obraId));

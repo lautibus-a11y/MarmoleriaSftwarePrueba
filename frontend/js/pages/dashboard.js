@@ -48,7 +48,7 @@ export function renderDashboard(container, actionsEl) {
         <div class="activity-text">
           <strong>${v.proveedorNombre}</strong> — ${v.numero}
           <div style="font-size: var(--text-xs); color: var(--color-stone-400); margin-top: 2px">
-            ${formatCurrency(v.importe)}
+            ${formatCurrency(v.importe, v.moneda || 'ARS')}
           </div>
         </div>
         <span class="activity-date">${formatDate(v.vencimiento)}</span>
@@ -77,7 +77,7 @@ export function renderDashboard(container, actionsEl) {
       <div class="activity-text">
         <strong>${p.proveedorNombre}</strong>
         <div style="font-size: var(--text-xs); color: var(--color-stone-400); margin-top: 2px">
-          ${formatCurrency(p.importe)} · ${p.metodoPago}
+          ${formatCurrency(p.importe, p.moneda || 'ARS')} · ${p.metodoPago}
         </div>
       </div>
       <span class="activity-date">${formatDate(p.fecha)}</span>
@@ -91,7 +91,7 @@ export function renderDashboard(container, actionsEl) {
       <div class="activity-text">
         <strong>${c.clienteNombre}</strong>
         <div style="font-size: var(--text-xs); color: var(--color-stone-400); margin-top: 2px">
-          ${formatCurrency(c.importe)} · ${c.metodoPago}
+          ${formatCurrency(c.importe, c.moneda || 'ARS')} · ${c.metodoPago}
         </div>
       </div>
       <span class="activity-date">${formatDate(c.fecha)}</span>

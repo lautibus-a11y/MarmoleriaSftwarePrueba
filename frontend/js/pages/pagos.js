@@ -10,7 +10,7 @@ import { Drawer } from '../components/drawer.js';
 import { Modal, previewAttachment } from '../components/modal.js';
 import { Toast } from '../components/toast.js';
 import { confirmDialog } from '../components/confirmDialog.js';
-import { METODOS_PAGO, PAGO_ESTADO_LABELS, PAGO_ESTADO_COLORS, FACTURA_TIPO_LABELS } from '../utils/constants.js';
+import { METODOS_PAGO, PAGO_ESTADO_LABELS, PAGO_ESTADO_COLORS, FACTURA_TIPO_LABELS, MONEDAS } from '../utils/constants.js';
 
 export function renderPagos(container, actionsEl, path = '/pagos') {
   actionsEl.innerHTML = `<button class="btn btn-primary" id="btn-new-pago">${Icons.plus} Nuevo pago</button>`;
@@ -59,7 +59,13 @@ export function renderPagos(container, actionsEl, path = '/pagos') {
       },
       { label: 'Fecha', render: (p) => formatDate(p.fecha), className: 'cell-secondary' },
       { label: 'Método', render: (p) => { const m = METODOS_PAGO.find(x => x.value === p.metodoPago); return escapeHtml(m?.label || p.metodoPago); }},
-      { label: 'Importe', align: 'right', render: (p) => `<span class="cell-currency">${formatCurrency(p.importe)}</span>` },
+      { label: 'Importe', align: 'right', render: (p) => {
+        const moneda = p.moneda || 'ARS';
+        return `<div style="text-align:right">
+          <span class="cell-currency">${formatCurrency(p.importe, moneda)}</span>
+          ${moneda === 'USD' && p.importeARS ? `<div style="font-size:11px;color:var(--color-stone-500)">≈ ${formatCurrency(p.importeARS)}</div>` : ''}
+        </div>`;
+      }},
       { label: 'Estado', render: (p) => renderBadge(PAGO_ESTADO_LABELS[p.estado] || p.estado, PAGO_ESTADO_COLORS[p.estado] || 'neutral') },
       {
         label: 'Comprobante',
@@ -77,9 +83,11 @@ export function renderPagos(container, actionsEl, path = '/pagos') {
       `}
     ];
 
-    // Summary
-    const totalPagado = pagos.filter(p => p.estado === 'pagado').reduce((s, p) => s + p.importe, 0);
-    const totalPendiente = pagos.filter(p => p.estado === 'pendiente').reduce((s, p) => s + p.importe, 0);
+    // Summary — usar importeARS si existe (pagos en USD), sino importe directo
+    const totalPagado = pagos.filter(p => p.estado === 'pagado')
+      .reduce((s, p) => s + (parseFloat(p.importeARS ?? p.importe) || 0), 0);
+    const totalPendiente = pagos.filter(p => p.estado === 'pendiente')
+      .reduce((s, p) => s + (parseFloat(p.importeARS ?? p.importe) || 0), 0);
 
     container.innerHTML = `
       <div class="stats-grid" style="margin-bottom:var(--space-4)">
@@ -208,9 +216,18 @@ export function renderPagos(container, actionsEl, path = '/pagos') {
           <div class="form-group"><label class="form-label">Fecha</label><input type="date" class="form-input" name="fecha" value="${pago.fecha||new Date().toISOString().split('T')[0]}"></div>
         </div>
         <div class="form-row-2">
+          <div class="form-group"><label class="form-label">Moneda</label><select class="form-select" name="moneda" id="pago-moneda-select">${MONEDAS.map(m=>`<option value="${m.value}" ${(pago.moneda||'ARS')===m.value?'selected':''}>${m.label}</option>`).join('')}</select></div>
           <div class="form-group"><label class="form-label">Método de pago</label><select class="form-select" name="metodoPago">${METODOS_PAGO.map(m=>`<option value="${m.value}" ${(pago.metodoPago||'transferencia')===m.value?'selected':''}>${m.label}</option>`).join('')}</select></div>
-          <div class="form-group"><label class="form-label">Estado</label><select class="form-select" name="estado">${Object.entries(PAGO_ESTADO_LABELS).map(([k,v])=>`<option value="${k}" ${(pago.estado||'pagado')===k?'selected':''}>${v}</option>`).join('')}</select></div>
         </div>
+        <div class="form-group" id="grupo-tc-pago" style="display:${pago.moneda==='USD'?'block':'none'}">
+          <label class="form-label">Tipo de cambio <span class="required">*</span> <span style="font-size:11px;font-weight:400;color:var(--color-stone-500)">(1 USD = $ ...)</span></label>
+          <input type="number" class="form-input" name="tipoCambio" id="pago-tipo-cambio" value="${pago.tipoCambio||''}" min="0.01" step="0.01" placeholder="Ej: 1500">
+          <div style="margin-top:6px;padding:8px 12px;background:var(--color-stone-100);border-radius:var(--radius-md);font-size:13px;display:flex;align-items:center;gap:6px">
+            <span style="color:var(--color-stone-500)">Equivalente en ARS:</span>
+            <strong id="pago-ars-value" style="color:var(--color-stone-800)">${pago.tipoCambio && pago.importe ? formatCurrency((parseFloat(pago.importe)||0)*(parseFloat(pago.tipoCambio)||0)) : '-'}</strong>
+          </div>
+        </div>
+        <div class="form-group"><label class="form-label">Estado</label><select class="form-select" name="estado">${Object.entries(PAGO_ESTADO_LABELS).map(([k,v])=>`<option value="${k}" ${(pago.estado||'pagado')===k?'selected':''}>${v}</option>`).join('')}</select></div>
         <div class="form-group"><label class="form-label">Observaciones</label><textarea class="form-textarea" name="observaciones" rows="2">${escapeHtml(pago.observaciones||'')}</textarea></div>
         <div class="form-group">
           <label class="form-label">Comprobante adjunto (Foto o PDF)</label>
@@ -441,6 +458,33 @@ export function renderPagos(container, actionsEl, path = '/pagos') {
       reader.readAsDataURL(file);
     }
 
+    // ── Lógica moneda/TC en pagos ──
+    const pagoMonedaSelect = document.getElementById('pago-moneda-select');
+    const pagoImporteInput = document.getElementById('pago-importe-input');
+    const pagoTCInput = document.getElementById('pago-tipo-cambio');
+    const grupoTCPago = document.getElementById('grupo-tc-pago');
+    const pagoArsValue = document.getElementById('pago-ars-value');
+
+    function actualizarPreviewARSPago() {
+      if (!pagoArsValue) return;
+      const imp = parseFloat(pagoImporteInput?.value) || 0;
+      const tc = parseFloat(pagoTCInput?.value) || 0;
+      pagoArsValue.textContent = (imp > 0 && tc > 0) ? formatCurrency(imp * tc) : '-';
+    }
+
+    function onPagoMonedaChange() {
+      const isUSD = pagoMonedaSelect?.value === 'USD';
+      if (grupoTCPago) grupoTCPago.style.display = isUSD ? 'block' : 'none';
+      if (isUSD && pagoTCInput && !pagoTCInput.value) {
+        pagoTCInput.value = DataService.getCotizacionDolar();
+      }
+      actualizarPreviewARSPago();
+    }
+
+    pagoMonedaSelect?.addEventListener('change', onPagoMonedaChange);
+    pagoImporteInput?.addEventListener('input', actualizarPreviewARSPago);
+    pagoTCInput?.addEventListener('input', actualizarPreviewARSPago);
+
     document.getElementById('drawer-cancel').addEventListener('click', () => Drawer.close());
     document.getElementById('drawer-save').addEventListener('click', async () => {
       const data = Object.fromEntries(new FormData(document.getElementById('pago-form')));
@@ -468,6 +512,12 @@ export function renderPagos(container, actionsEl, path = '/pagos') {
 
       if (!dest || !data.importe) { Toast.warning('Completá el destinatario/proveedor y el importe'); return; }
 
+      // Validar tipo de cambio si es USD
+      if (data.moneda === 'USD' && (!data.tipoCambio || parseFloat(data.tipoCambio) <= 0)) {
+        Toast.warning('Ingresá el tipo de cambio para pagos en dólares');
+        return;
+      }
+
       const saveBtn = document.getElementById('drawer-save');
       saveBtn.disabled = true;
       saveBtn.textContent = 'Guardando...';
@@ -489,6 +539,16 @@ export function renderPagos(container, actionsEl, path = '/pagos') {
       }
 
       data.importe = parseFloat(data.importe);
+
+      // ── Calcular y persistir importeARS y tipoCambio del pago ──
+      if (data.moneda === 'USD') {
+        data.tipoCambio = parseFloat(data.tipoCambio) || DataService.getCotizacionDolar();
+        data.importeARS = Math.round((data.importe * data.tipoCambio) * 100) / 100;
+      } else {
+        data.tipoCambio = 1;
+        data.importeARS = data.importe;
+        data.moneda = 'ARS';
+      }
 
       // Handle file attachment
       if (selectedFile) {

@@ -14,6 +14,8 @@ import { DocumentModal } from '../components/documentModal.js';
 import { generateFacturaHtml, exportToPdf, exportToWord, shareViaWhatsAppAndPdf } from '../services/documentExporter.js';
 import { FACTURA_TIPO_LABELS, FACTURA_ESTADOS, FACTURA_ESTADO_LABELS, FACTURA_ESTADO_COLORS, FACTURA_CATEGORIAS, MONEDAS } from '../utils/constants.js';
 
+
+
 export function renderFacturas(container, actionsEl) {
   actionsEl.innerHTML = `
     <button class="btn btn-secondary" id="btn-new-nc">${Icons.plus} Nota Crédito</button>
@@ -59,16 +61,26 @@ export function renderFacturas(container, actionsEl) {
         label: 'Importe',
         align: 'right',
         render: (f) => {
+          const moneda = f.moneda || 'ARS';
           const pagado = DataService.getFacturaTotalPagado(f.id);
+          const baseImporte = parseFloat(f.importeARS ?? f.importe) || 0;
+          const importeDisplay = formatCurrency(f.importe, moneda);
+          const tcLabel = moneda === 'USD' && f.tipoCambio
+            ? `<div style="font-size:10px;color:var(--color-primary);margin-top:1px">TC $${parseFloat(f.tipoCambio).toLocaleString('es-AR')}</div>`
+            : '';
+          const arsLabel = moneda === 'USD' && f.importeARS
+            ? `<div style="font-size:11px;color:var(--color-stone-500)">≈ ${formatCurrency(f.importeARS)}</div>`
+            : '';
           if (pagado > 0 && f.estado !== 'pagada') {
-            const saldo = Math.max(0, (parseFloat(f.importe) || 0) - pagado);
+            const saldo = Math.max(0, baseImporte - pagado);
             return `<div>
-              <span class="cell-currency">${formatCurrency(f.importe)}</span>
+              <span class="cell-currency">${importeDisplay}</span>
+              ${tcLabel}${arsLabel}
               <div style="font-size:11px;color:var(--color-stone-500)">Pagado: ${formatCurrency(pagado)}</div>
               <div style="font-size:11px;color:var(--color-warning);font-weight:600">Resta: ${formatCurrency(saldo)}</div>
             </div>`;
           }
-          return `<span class="cell-currency">${formatCurrency(f.importe)}</span>`;
+          return `<div><span class="cell-currency">${importeDisplay}</span>${tcLabel}${arsLabel}</div>`;
         }
       },
       { label: 'Estado', render: (f) => renderBadge(FACTURA_ESTADO_LABELS[f.estado]||f.estado, FACTURA_ESTADO_COLORS[f.estado]||'neutral') },
@@ -198,8 +210,16 @@ export function renderFacturas(container, actionsEl) {
           <div class="form-group"><label class="form-label">Vencimiento</label><input type="date" class="form-input" name="vencimiento" value="${fac.vencimiento||''}"></div>
         </div>
         <div class="form-row-2">
-          <div class="form-group"><label class="form-label">Importe <span class="required">*</span></label><input type="number" class="form-input" name="importe" value="${fac.importe||''}" min="0" step="0.01"></div>
-          <div class="form-group"><label class="form-label">Moneda</label><select class="form-select" name="moneda">${MONEDAS.map(m=>`<option value="${m.value}" ${fac.moneda===m.value?'selected':''}>${m.label}</option>`).join('')}</select></div>
+          <div class="form-group"><label class="form-label">Importe <span class="required">*</span></label><input type="number" class="form-input" name="importe" id="fac-importe" value="${fac.importe||''}" min="0" step="0.01"></div>
+          <div class="form-group"><label class="form-label">Moneda</label><select class="form-select" name="moneda" id="fac-moneda">${MONEDAS.map(m=>`<option value="${m.value}" ${(fac.moneda||'ARS')===m.value?'selected':''}>${m.label}</option>`).join('')}</select></div>
+        </div>
+        <div class="form-group" id="grupo-tipo-cambio" style="display:${(fac.moneda === 'USD') ? 'block' : 'none'}">
+          <label class="form-label">Tipo de cambio <span class="required">*</span> <span style="font-size:11px;font-weight:400;color:var(--color-stone-500)">(1 USD = $ ...)</span></label>
+          <input type="number" class="form-input" name="tipoCambio" id="fac-tipo-cambio" value="${fac.tipoCambio || ''}" min="0.01" step="0.01" placeholder="Ej: 1500">
+          <div style="margin-top:6px;padding:8px 12px;background:var(--color-stone-100);border-radius:var(--radius-md);font-size:13px;display:flex;align-items:center;gap:6px" id="fac-importe-ars-preview">
+            <span style="color:var(--color-stone-500)">Equivalente en ARS:</span>
+            <strong id="fac-ars-value" style="color:var(--color-stone-800)">${fac.tipoCambio && fac.importe ? formatCurrency((parseFloat(fac.importe)||0) * (parseFloat(fac.tipoCambio)||0)) : '-'}</strong>
+          </div>
         </div>
         <div class="form-row-2">
           <div class="form-group"><label class="form-label">Categoría</label><select class="form-select" name="categoria"><option value="">-</option>${FACTURA_CATEGORIAS.map(c=>`<option value="${c.value}" ${fac.categoria===c.value?'selected':''}>${c.label}</option>`).join('')}</select></div>
@@ -213,6 +233,34 @@ export function renderFacturas(container, actionsEl) {
       </form>`,
       footer: `<button class="btn btn-secondary" id="drawer-cancel">Cancelar</button><button class="btn btn-primary" id="drawer-save">${isEdit ? 'Guardar' : 'Crear'}</button>`
     });
+
+    // ── Lógica tipo de cambio ──
+    const facMonedaSelect = document.getElementById('fac-moneda');
+    const facImporteInput = document.getElementById('fac-importe');
+    const facTCInput = document.getElementById('fac-tipo-cambio');
+    const grupoTC = document.getElementById('grupo-tipo-cambio');
+    const facArsValue = document.getElementById('fac-ars-value');
+
+    function actualizarPreviewARS() {
+      if (!facArsValue) return;
+      const imp = parseFloat(facImporteInput?.value) || 0;
+      const tc = parseFloat(facTCInput?.value) || 0;
+      facArsValue.textContent = (imp > 0 && tc > 0) ? formatCurrency(imp * tc) : '-';
+    }
+
+    function onMonedaChange() {
+      const isUSD = facMonedaSelect?.value === 'USD';
+      if (grupoTC) grupoTC.style.display = isUSD ? 'block' : 'none';
+      // Si no tiene TC ingresado, pre-rellenar con el global del config
+      if (isUSD && facTCInput && !facTCInput.value) {
+        facTCInput.value = DataService.getCotizacionDolar();
+      }
+      actualizarPreviewARS();
+    }
+
+    facMonedaSelect?.addEventListener('change', onMonedaChange);
+    facImporteInput?.addEventListener('input', actualizarPreviewARS);
+    facTCInput?.addEventListener('input', actualizarPreviewARS);
 
     const zone = document.getElementById('fac-file-zone');
     const fileInput = document.getElementById('fac-file');
@@ -288,12 +336,29 @@ export function renderFacturas(container, actionsEl) {
         Toast.warning('Completá los campos obligatorios');
         return;
       }
+      // Validar tipo de cambio si es USD
+      if (data.moneda === 'USD' && (!data.tipoCambio || parseFloat(data.tipoCambio) <= 0)) {
+        Toast.warning('Ingresá el tipo de cambio para facturas en dólares');
+        return;
+      }
 
       const saveBtn = document.getElementById('drawer-save');
       saveBtn.disabled = true;
       saveBtn.textContent = 'Guardando...';
 
       data.importe = parseFloat(data.importe);
+
+      // ── Calcular y persistir importeARS y tipoCambio ──
+      if (data.moneda === 'USD') {
+        data.tipoCambio = parseFloat(data.tipoCambio) || DataService.getCotizacionDolar();
+        data.importeARS = Math.round((data.importe * data.tipoCambio) * 100) / 100;
+      } else {
+        // ARS: tipo de cambio 1:1, importeARS = importe
+        data.tipoCambio = 1;
+        data.importeARS = data.importe;
+        data.moneda = 'ARS';
+      }
+
       const prov = proveedores.find(p => p.id === data.proveedorId);
       data.proveedorNombre = prov ? prov.nombre : '';
 

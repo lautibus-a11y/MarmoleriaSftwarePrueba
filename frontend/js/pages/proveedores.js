@@ -8,7 +8,9 @@ import { Icons, renderDataTable, renderSearchInput, renderBadge, renderEmptyStat
 import { Drawer } from '../components/drawer.js';
 import { Toast } from '../components/toast.js';
 import { confirmDialog } from '../components/confirmDialog.js';
-import { FACTURA_TIPO_LABELS } from '../utils/constants.js';
+import { FACTURA_TIPO_LABELS, MONEDAS } from '../utils/constants.js';
+
+
 
 export function renderProveedores(container, actionsEl, path = '/proveedores') {
   const parts = path.split('/');
@@ -32,7 +34,9 @@ export function renderProveedores(container, actionsEl, path = '/proveedores') {
       { label: 'Contacto', render: (p) => escapeHtml(p.contacto||'-'), className: 'cell-secondary' },
       { label: 'Saldo', align: 'right', render: (p) => {
         const s = DataService.getProveedorSaldo(p.id);
-        return `<span class="cell-currency" style="color:${s.saldo>0?'var(--color-error)':'var(--color-success)'}">${formatCurrency(s.saldo)}</span>`;
+        const color = s.saldoDisplay > 0 ? 'var(--color-error)' : 'var(--color-success)';
+        const tag = s.monedaDisplay === 'USD' ? '<div style="font-size:10px;color:var(--color-primary);margin-top:1px">en dólares</div>' : '';
+        return `<div style="text-align:right"><span class="cell-currency" style="color:${color}">${formatCurrency(s.saldoDisplay, s.monedaDisplay)}</span>${tag}</div>`;
       }},
       { label: '', align: 'right', className: 'cell-actions', render: (p) => {
         const contact = resolveEntityContact(p);
@@ -126,6 +130,13 @@ export function openProveedorForm(editId=null, onDone=null){
         <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" name="email" value="${escapeHtml(prov.email||'')}"></div>
         <div class="form-group"><label class="form-label">Contacto</label><input type="text" class="form-input" name="contacto" value="${escapeHtml(prov.contacto||'')}"></div>
       </div>
+      <div class="form-group">
+        <label class="form-label">Moneda habitual de facturación</label>
+        <select class="form-select" name="monedaDefault">
+          ${MONEDAS.map(m => `<option value="${m.value}" ${(prov.monedaDefault||'ARS')===m.value?'selected':''}>${m.label}</option>`).join('')}
+        </select>
+        <span class="text-muted" style="font-size:11px;display:block;margin-top:4px">El tipo de cambio se ingresa al crear cada factura o pago.</span>
+      </div>
       <div class="form-group" style="display:none" id="group-prov-deuda-inicial">
         <label class="form-label">Deuda inicial ($)</label>
         <input type="number" step="any" min="0" class="form-input" name="deudaInicial" id="prov-deuda-inicial" value="${prov.deudaInicial !== undefined && prov.deudaInicial !== null ? prov.deudaInicial : ''}" placeholder="0">
@@ -136,6 +147,7 @@ export function openProveedorForm(editId=null, onDone=null){
     </form>`,
     footer:`<button class="btn btn-secondary" id="drawer-cancel">Cancelar</button><button class="btn btn-primary" id="drawer-save">${isEdit?'Guardar':'Crear'}</button>`
   });
+
 
   const telInput = document.getElementById('prov-telefono');
   const waInput = document.getElementById('prov-whatsapp');
@@ -208,15 +220,19 @@ function renderProveedorDetail(container, actionsEl, provId) {
     </div>
 
     <div class="cuenta-corriente-summary">
-      <div class="cc-summary-item"><div class="cc-summary-label">Deuda inicial</div><div class="cc-summary-value" style="color:var(--color-stone-700)">${formatCurrency(saldo.deudaInicial || 0)}</div></div>
-      <div class="cc-summary-item"><div class="cc-summary-label">Total facturado</div><div class="cc-summary-value">${formatCurrency(saldo.totalFacturas)}</div></div>
-      <div class="cc-summary-item"><div class="cc-summary-label">Notas débito</div><div class="cc-summary-value">${formatCurrency(saldo.totalND)}</div></div>
-      <div class="cc-summary-item"><div class="cc-summary-label">Notas crédito</div><div class="cc-summary-value positive">${formatCurrency(saldo.totalNC)}</div></div>
-      <div class="cc-summary-item"><div class="cc-summary-label">Total pagos</div><div class="cc-summary-value positive">${formatCurrency(saldo.totalPagos || 0)}</div></div>
+      <div class="cc-summary-item"><div class="cc-summary-label">Deuda inicial</div><div class="cc-summary-value" style="color:var(--color-stone-700)">${formatCurrency(saldo.deudaInicialDisplay, saldo.monedaDisplay)}</div></div>
+      <div class="cc-summary-item"><div class="cc-summary-label">Total facturado</div><div class="cc-summary-value">${formatCurrency(saldo.totalFacturasDisplay, saldo.monedaDisplay)}</div></div>
+      <div class="cc-summary-item"><div class="cc-summary-label">Notas débito</div><div class="cc-summary-value">${formatCurrency(saldo.totalNDDisplay, saldo.monedaDisplay)}</div></div>
+      <div class="cc-summary-item"><div class="cc-summary-label">Notas crédito</div><div class="cc-summary-value positive">${formatCurrency(saldo.totalNCDisplay, saldo.monedaDisplay)}</div></div>
+      <div class="cc-summary-item"><div class="cc-summary-label">Total pagos</div><div class="cc-summary-value positive">${formatCurrency(saldo.totalPagosDisplay, saldo.monedaDisplay)}</div></div>
       <div class="cc-summary-item">
-        <div class="cc-summary-label">${saldo.saldo > 0 ? 'Saldo pendiente' : (saldo.saldo < 0 ? 'Saldo a favor' : 'Estado de cuenta')}</div>
-        <div class="cc-summary-value ${saldo.saldo > 0 ? 'negative' : 'positive'}">
-          ${saldo.saldo > 0 ? formatCurrency(saldo.saldo) : (saldo.saldo < 0 ? `+${formatCurrency(Math.abs(saldo.saldo))} (a favor)` : 'Al día ($0)')}
+        <div class="cc-summary-label">${saldo.saldoDisplay > 0 ? 'Saldo pendiente' : (saldo.saldoDisplay < 0 ? 'Saldo a favor' : 'Estado de cuenta')}</div>
+        <div class="cc-summary-value ${saldo.saldoDisplay > 0 ? 'negative' : 'positive'}">
+          ${saldo.saldoDisplay > 0
+            ? formatCurrency(saldo.saldoDisplay, saldo.monedaDisplay)
+            : (saldo.saldoDisplay < 0
+              ? `+${formatCurrency(Math.abs(saldo.saldoDisplay), saldo.monedaDisplay)} (a favor)`
+              : `Al día (${saldo.monedaDisplay === 'USD' ? 'US$ 0' : '$ 0'})`)}
         </div>
       </div>
     </div>
@@ -233,7 +249,7 @@ function renderProveedorDetail(container, actionsEl, provId) {
           {label:'Número',render:f=>`<span class="cell-mono">${escapeHtml(f.numero)}</span>`},
           {label:'Fecha',render:f=>formatDate(f.fecha)},
           {label:'Vencimiento',render:f=>formatDate(f.vencimiento)},
-          {label:'Importe',align:'right',render:f=>`<span class="cell-currency">${formatCurrency(f.importe)}</span>`},
+          {label:'Importe',align:'right',render:f=>`<span class="cell-currency">${formatCurrency(f.importe, f.moneda||'ARS')}</span>`},
           {label:'Estado',render:f=>renderBadge(f.estado,{pendiente:'warning',pagada:'success',vencida:'error',parcial:'info'}[f.estado])}
         ],data:facturas.sort(compareNewestFirst)}):'<p class="text-muted" style="padding:var(--space-6)">No hay facturas</p>'}
       </div>
@@ -241,7 +257,7 @@ function renderProveedorDetail(container, actionsEl, provId) {
         ${pagos.length>0?renderDataTable({columns:[
           {label:'Fecha',render:p=>formatDate(p.fecha)},
           {label:'Concepto',render:p=>escapeHtml(p.concepto)},
-          {label:'Importe',align:'right',render:p=>`<span class="cell-currency">${formatCurrency(p.importe)}</span>`},
+          {label:'Importe',align:'right',render:p=>`<span class="cell-currency">${formatCurrency(p.importe, p.moneda||'ARS')}</span>`},
           {label:'Método',render:p=>escapeHtml(p.metodoPago)},
           {label:'Estado',render:p=>renderBadge(p.estado,{pendiente:'warning',pagado:'success',vencido:'error'}[p.estado])}
         ],data:pagos.sort(compareNewestFirst)}):'<p class="text-muted" style="padding:var(--space-6)">No hay pagos</p>'}
@@ -251,6 +267,8 @@ function renderProveedorDetail(container, actionsEl, provId) {
           <span class="detail-label">Nombre</span><span class="detail-value">${escapeHtml(prov.nombre)}</span>
           <span class="detail-label">Razón Social</span><span class="detail-value">${escapeHtml(prov.razonSocial||'-')}</span>
           <span class="detail-label">CUIT</span><span class="detail-value">${escapeHtml(prov.cuit||'-')}</span>
+          <span class="detail-label">Moneda habitual</span><span class="detail-value">${prov.monedaDefault === 'USD' ? 'Dólares (USD)' : 'Pesos (ARS)'}</span>
+
           <span class="detail-label">Deuda inicial</span><span class="detail-value" style="font-weight:var(--font-semibold)">${formatCurrency(prov.deudaInicial || 0)}</span>
           <span class="detail-label">Teléfono</span><span class="detail-value">${escapeHtml(prov.telefono||'-')}</span>
           <span class="detail-label">WhatsApp</span>
