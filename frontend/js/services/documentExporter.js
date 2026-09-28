@@ -61,8 +61,8 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
     { label: 'Provisión e instalación de bacha', val: adic.bacha },
     { label: 'Zócalos perimetrales', val: adic.zocalos },
     { label: 'Ménsulas', val: adic.mensulas },
-    { label: 'Acarreo', val: adic.acarreo },
-    { label: 'Por escalera', val: adic.porEscalera },
+    { label: 'Acarreo por escalera', val: adic.acarreoPorEscalera ?? (Number(adic.acarreo) + Number(adic.porEscalera) || 0) },
+    { label: 'Trafóro de grifería', val: adic.traforoGriferia },
     { label: 'Trafóro bacha y/o anafe', val: adic.traforoBachaAnafe },
     { label: 'Trafóro cajas de luz y/o gas', val: adic.traforoCajasLuzGas },
     { label: 'Trafóro de desagüe', val: adic.traforoDesague },
@@ -258,7 +258,7 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
           <span>Firma y Sello Autorizado</span>
         </div>
         <div class="doc-signature-line">
-          <span class="doc-signature-name">${cliente ? escapeHtml(`${cliente.nombre} ${cliente.apellido || ''}`) : 'Aceptación del Cliente'}</span>
+          <span class="doc-signature-name">&nbsp;</span>
           <span>Firma, Aclaración y DNI</span>
         </div>
       </div>
