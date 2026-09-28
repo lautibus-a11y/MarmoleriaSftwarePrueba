@@ -35,6 +35,7 @@ export function openDescontarStockObraModal({ obra, presupuesto, onDone = null }
                  || materiales.find(m => m.nombre.toLowerCase().includes(g.materialNombre.toLowerCase()))
                  || materiales.find(m => g.materialNombre.toLowerCase().includes(m.nombre.toLowerCase()));
     const stockActual = matched ? DataService.getStockActual(matched.id) : 0;
+    const lotes = matched ? DataService.getLotesDisponibles(matched.id) : [];
     const unidad = matched ? (matched.unidad === 'm2' ? 'm²' : (matched.unidad === 'metros' ? 'ml' : (matched.unidad === 'unidades' ? 'un' : matched.unidad))) : 'm²';
     const sugerido = g.m2Total > 0 ? Number(g.m2Total.toFixed(2)) : g.piezasTotal;
 
@@ -42,6 +43,7 @@ export function openDescontarStockObraModal({ obra, presupuesto, onDone = null }
       ...g,
       matchedMaterial: matched,
       stockActual,
+      lotes,
       unidad,
       sugerido
     };
@@ -102,10 +104,23 @@ export function openDescontarStockObraModal({ obra, presupuesto, onDone = null }
               </div>
 
               ${r.matchedMaterial ? `
-                <div style="display:flex;align-items:center;gap:6px">
-                  <span style="font-size:var(--text-xs);color:var(--color-stone-500)">Descontar:</span>
-                  <input type="number" class="form-input item-stock-qty" data-idx="${idx}" value="${r.sugerido}" step="0.01" min="0.01" style="width:90px;text-align:right;padding:4px 8px;font-weight:var(--font-bold)">
-                  <span style="font-size:var(--text-xs);font-weight:var(--font-bold);color:var(--color-stone-700)">${r.unidad}</span>
+                <div style="display:flex;align-items:flex-end;gap:12px">
+                  ${r.lotes && r.lotes.length > 0 ? `
+                    <div style="display:flex;flex-direction:column;gap:4px">
+                      <span style="font-size:10px;color:var(--color-stone-500);text-transform:uppercase;font-weight:bold;">Usar lote / placa específica</span>
+                      <select class="form-select item-stock-lote" data-idx="${idx}" style="max-width:180px;font-size:var(--text-xs);padding:4px;height:32px">
+                        <option value="">A granel (Global)</option>
+                        ${r.lotes.map(l => `<option value="${l.id}">Placa ${l.largo}x${l.ancho}cm (Disp: ${l.cantidadDisponible})</option>`).join('')}
+                      </select>
+                    </div>
+                  ` : ''}
+                  <div style="display:flex;flex-direction:column;gap:4px">
+                    <span style="font-size:10px;color:var(--color-stone-500);text-transform:uppercase;font-weight:bold;">Cantidad a descontar</span>
+                    <div style="display:flex;align-items:center;gap:6px">
+                      <input type="number" class="form-input item-stock-qty" data-idx="${idx}" value="${r.sugerido}" step="0.01" min="0.01" style="height:32px;width:90px;text-align:right;padding:4px 8px;font-weight:var(--font-bold)">
+                      <span style="font-size:var(--text-xs);font-weight:var(--font-bold);color:var(--color-stone-700)">${r.unidad}</span>
+                    </div>
+                  </div>
                 </div>
               ` : ''}
             </div>
@@ -137,18 +152,22 @@ export function openDescontarStockObraModal({ obra, presupuesto, onDone = null }
     rows.forEach((r, idx) => {
       const chk = document.querySelector(`.item-stock-chk[data-idx="${idx}"]`);
       const qtyInput = document.querySelector(`.item-stock-qty[data-idx="${idx}"]`);
+      const loteSelect = document.querySelector(`.item-stock-lote[data-idx="${idx}"]`);
 
       if (chk && chk.checked && r.matchedMaterial && qtyInput) {
         const qty = parseFloat(qtyInput.value) || 0;
+        const loteId = loteSelect ? loteSelect.value : null;
         if (qty > 0) {
-          DataService.create('stockMovimientos', {
+          const mov = {
             materialId: r.matchedMaterial.id,
             tipo: 'salida',
             cantidad: qty,
             fecha: new Date().toISOString().split('T')[0],
             referencia: `Obra #${obra.id} — ${obra.descripcion || 'Sin descripción'}`,
             obraId: obra.id
-          });
+          };
+          if (loteId) mov.loteId = loteId;
+          DataService.create('stockMovimientos', mov);
           descontadosCount++;
         }
       }

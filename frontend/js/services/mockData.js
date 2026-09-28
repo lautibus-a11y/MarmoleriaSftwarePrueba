@@ -526,6 +526,36 @@ export const DataService = {
     }, 0);
   },
 
+  getLotesDisponibles(materialId) {
+    const movs = store.stockMovimientos.filter(m => m.materialId === materialId);
+    const lotes = [];
+    
+    // Entradas/devoluciones que definen un lote físico
+    const entradas = movs.filter(m => (m.tipo === 'entrada' || m.tipo === 'devolucion') && m.largo && m.ancho);
+    
+    entradas.forEach(entrada => {
+      // Salidas que referencian explícitamente este lote
+      const salidas = movs.filter(m => m.loteId === entrada.id);
+      const consumido = salidas.reduce((sum, s) => {
+        if (s.tipo === 'salida') return sum + s.cantidad;
+        if (s.tipo === 'ajuste') return sum - s.cantidad;
+        return sum;
+      }, 0);
+      
+      const disponible = entrada.cantidad - consumido;
+      if (disponible > 0) {
+        lotes.push({
+          ...entrada,
+          cantidadOriginal: entrada.cantidad,
+          cantidadDisponible: disponible,
+          consumido
+        });
+      }
+    });
+    return lotes.sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+  },
+
+
   getProveedorSaldo(proveedorId) {
     const facturas = store.facturas.filter(f => f.proveedorId === proveedorId);
     const pagos = store.pagos.filter(p => p.proveedorId === proveedorId);

@@ -18,96 +18,172 @@ export function renderStock(container, actionsEl) {
     <button class="btn btn-primary" id="btn-new-mat">${Icons.plus} Nuevo material</button>
   `;
 
-  let materiales = DataService.getAll('materiales');
-  let searchTerm = '', filterCat = '';
+  let materiales = [];
+  let searchTerm = '', filterCat = '', activeTab = 'catalogo';
 
   function render() {
+    materiales = DataService.getAll('materiales');
     let filtered = materiales;
     if (filterCat) filtered = filtered.filter(m => m.categoria === filterCat || (filterCat === 'purastone' && m.categoria === 'cuarzo'));
     if (searchTerm) filtered = searchFilter(filtered, searchTerm, ['nombre', 'categoria', 'tipo']);
 
-    const columns = [
-      {
-        label: 'Material',
-        render: (m) => `
-          <span class="cell-primary">${escapeHtml(m.nombre)}</span><br>
-          <span class="cell-secondary" style="font-size:var(--text-xs)">${escapeHtml(m.tipo || 'Nacional')}</span>
-        `
-      },
-      {
-        label: 'Medidas',
-        render: (m) => {
-          if (m.largo && m.ancho) {
-            return `<span class="cell-mono" style="font-weight:var(--font-semibold)">${m.largo} × ${m.ancho} cm</span>`;
-          }
-          if (m.largo) return `<span class="cell-mono">${m.largo} cm</span>`;
-          return `<span class="cell-secondary">-</span>`;
-        }
-      },
-      {
-        label: 'Espesor',
-        render: (m) => escapeHtml(m.espesor || '20 mm'),
-        className: 'cell-secondary'
-      },
-      {
-        label: 'Precio por m²',
-        render: (m) => {
-          const precio = m.precioM2 ?? m.precioVenta ?? 0;
-          const mon = (m.moneda || 'ARS').toUpperCase();
-          const tc = DataService.getCotizacionDolar();
-          const equiv = mon === 'USD'
-            ? `≈ ${formatCurrency(precio * tc, 'ARS')}`
-            : `≈ ${formatCurrency(tc > 0 ? precio / tc : 0, 'USD')}`;
-          return `
-            <div style="display:flex;flex-direction:column;gap:2px">
-              <div style="display:flex;align-items:baseline;gap:4px">
-                <span class="cell-mono" style="font-weight:var(--font-bold);color:var(--color-primary-700);font-size:var(--text-sm)">
-                  ${formatCurrency(precio, mon)}
-                </span>
-                <span class="cell-secondary" style="font-size:var(--text-xs)">/ m²</span>
-              </div>
-              <span style="font-size:10.5px;color:var(--color-stone-500)">${equiv}</span>
-            </div>
-          `;
-        }
-      },
-      {
-        label: 'Cantidad/Stock',
-        render: (m) => {
-          const actual = DataService.getStockActual(m.id);
-          const isBajo = actual <= m.stockMinimo;
-          const unitSuffix = m.unidad === 'm2' ? ' m²' : (m.unidad === 'metros' ? ' ml' : (m.unidad === 'unidades' ? ' un' : (m.unidad === 'placas' ? ' pl' : '')));
-          return `
-            <span style="font-weight:var(--font-bold);font-size:var(--text-sm);color:${isBajo ? 'var(--color-error)' : 'var(--color-stone-800)'}">
-              ${actual}${unitSuffix}
-            </span>
-            <span class="cell-secondary" style="font-size:var(--text-xs);margin-left:4px">
-              / mín: ${m.stockMinimo}${unitSuffix}
-            </span>
-            ${isBajo ? `<span style="margin-left:4px;color:var(--color-error);display:inline-flex;vertical-align:middle">${Icons['alert-triangle']}</span>` : ''}
-          `;
-        }
-      },
-      {
-        label: '', align: 'right', className: 'cell-actions',
-        render: (m) => `
-          <button class="btn btn-ghost btn-icon btn-sm" data-action="history" data-id="${m.id}" title="Historial">${Icons.clock}</button>
-          <button class="btn btn-ghost btn-icon btn-sm" data-action="edit" data-id="${m.id}" title="Editar">${Icons.edit}</button>
-          <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-id="${m.id}" title="Eliminar">${Icons.trash}</button>
-        `
-      }
-    ];
+    let contentHtml = '';
 
-    container.innerHTML = `
-      <div class="table-container">
+    if (activeTab === 'catalogo') {
+      const columns = [
+        {
+          label: 'Material',
+          render: (m) => `
+            <span class="cell-primary">${escapeHtml(m.nombre)}</span><br>
+            <span class="cell-secondary" style="font-size:var(--text-xs)">${escapeHtml(m.tipo || 'Nacional')}</span>
+          `
+        },
+        {
+          label: 'Catálogo (Ref.)',
+          render: (m) => {
+            if (m.largo && m.ancho) {
+              return `<span class="cell-mono" style="font-weight:var(--font-semibold)">${m.largo} × ${m.ancho} cm</span>`;
+            }
+            if (m.largo) return `<span class="cell-mono">${m.largo} cm</span>`;
+            return `<span class="cell-secondary">-</span>`;
+          }
+        },
+        {
+          label: 'Espesor',
+          render: (m) => escapeHtml(m.espesor || '20 mm'),
+          className: 'cell-secondary'
+        },
+        {
+          label: 'Precio por m²',
+          render: (m) => {
+            const precio = m.precioM2 ?? m.precioVenta ?? 0;
+            const mon = (m.moneda || 'ARS').toUpperCase();
+            const tc = DataService.getCotizacionDolar();
+            const equiv = mon === 'USD'
+              ? `≈ ${formatCurrency(precio * tc, 'ARS')}`
+              : `≈ ${formatCurrency(tc > 0 ? precio / tc : 0, 'USD')}`;
+            return `
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <div style="display:flex;align-items:baseline;gap:4px">
+                  <span class="cell-mono" style="font-weight:var(--font-bold);color:var(--color-primary-700);font-size:var(--text-sm)">
+                    ${formatCurrency(precio, mon)}
+                  </span>
+                  <span class="cell-secondary" style="font-size:var(--text-xs)">/ m²</span>
+                </div>
+                <span style="font-size:10.5px;color:var(--color-stone-500)">${equiv}</span>
+              </div>
+            `;
+          }
+        },
+        {
+          label: 'Stock Global',
+          render: (m) => {
+            const actual = DataService.getStockActual(m.id);
+            const isBajo = actual <= m.stockMinimo;
+            const unitSuffix = m.unidad === 'm2' ? ' m²' : (m.unidad === 'metros' ? ' ml' : (m.unidad === 'unidades' ? ' un' : (m.unidad === 'placas' ? ' pl' : '')));
+            return `
+              <span style="font-weight:var(--font-bold);font-size:var(--text-sm);color:${isBajo ? 'var(--color-error)' : 'var(--color-stone-800)'}">
+                ${actual}${unitSuffix}
+              </span>
+              <span class="cell-secondary" style="font-size:var(--text-xs);margin-left:4px">
+                / mín: ${m.stockMinimo}${unitSuffix}
+              </span>
+              ${isBajo ? `<span style="margin-left:4px;color:var(--color-error);display:inline-flex;vertical-align:middle">${Icons['alert-triangle']}</span>` : ''}
+            `;
+          }
+        },
+        {
+          label: '', align: 'right', className: 'cell-actions',
+          render: (m) => `
+            <button class="btn btn-ghost btn-icon btn-sm" data-action="history" data-id="${m.id}" title="Historial">${Icons.clock}</button>
+            <button class="btn btn-ghost btn-icon btn-sm" data-action="edit" data-id="${m.id}" title="Editar">${Icons.edit}</button>
+            <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-id="${m.id}" title="Eliminar">${Icons.trash}</button>
+          `
+        }
+      ];
+
+      contentHtml = `
         <div class="table-toolbar">
           <div class="table-toolbar-left">
             ${renderSearchInput('Buscar material por nombre o tipo...')}
             <select class="filter-select" id="filter-cat"><option value="">Todas las categorías</option>${MATERIAL_CATEGORIAS.map(c=>`<option value="${c.value}" ${filterCat===c.value?'selected':''}>${c.label}</option>`).join('')}</select>
           </div>
-          <div class="table-toolbar-right"><span class="text-muted" style="font-size:var(--text-sm)">${filtered.length} materiales</span></div>
+          <div class="table-toolbar-right"><span class="text-muted" style="font-size:var(--text-sm)">${filtered.length} materiales maestros</span></div>
         </div>
-        ${renderDataTable({ columns, data: filtered.sort(compareNewestFirst), emptyMessage: 'No hay materiales registrados' })}
+        ${renderDataTable({ columns, data: filtered.sort(compareNewestFirst), emptyMessage: 'No hay materiales en el catálogo' })}
+      `;
+
+    } else {
+      // TAB LOTES
+      const lotesData = [];
+      filtered.forEach(m => {
+        const lotes = DataService.getLotesDisponibles(m.id);
+        const stockGlobal = DataService.getStockActual(m.id);
+        const unitSuffix = m.unidad === 'm2' ? 'm²' : (m.unidad === 'metros' ? 'ml' : (m.unidad === 'unidades' ? 'un' : m.unidad));
+        if (stockGlobal > 0 || lotes.length > 0) {
+          lotesData.push({ material: m, lotes, stockGlobal, unitSuffix });
+        }
+      });
+
+      if (lotesData.length === 0) {
+        contentHtml = renderEmptyState(Icons.box, 'No hay stock disponible', 'Los materiales con stock aparecerán aquí');
+      } else {
+        contentHtml = `
+          <div class="table-toolbar">
+            <div class="table-toolbar-left">
+              ${renderSearchInput('Filtrar stock...')}
+              <select class="filter-select" id="filter-cat"><option value="">Todas las categorías</option>${MATERIAL_CATEGORIAS.map(c=>`<option value="${c.value}" ${filterCat===c.value?'selected':''}>${c.label}</option>`).join('')}</select>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            ${lotesData.map(item => `
+              <div style="border:1px solid var(--color-stone-200);border-radius:var(--radius-md);background:#fff;overflow:hidden">
+                <div style="background:var(--color-stone-50);padding:12px 16px;border-bottom:1px solid var(--color-stone-200);display:flex;justify-content:space-between;align-items:center">
+                  <div>
+                    <h3 style="margin:0;font-size:var(--text-base);color:var(--color-stone-900)">${escapeHtml(item.material.nombre)}</h3>
+                    <span style="font-size:var(--text-xs);color:var(--color-stone-500)">Stock total (Global): <strong>${item.stockGlobal} ${item.unitSuffix}</strong></span>
+                  </div>
+                </div>
+                <div style="padding:12px 16px;">
+                  ${item.lotes.length === 0 
+                    ? `<div style="font-size:var(--text-sm);color:var(--color-stone-500);font-style:italic">Stock a granel (sin placas específicas)</div>`
+                    : `<table class="data-table" style="margin:0;font-size:var(--text-sm)">
+                        <thead>
+                          <tr>
+                            <th>Identificador / Fecha</th>
+                            <th>Medidas Físicas</th>
+                            <th style="text-align:right">Disponible</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${item.lotes.map(lote => `
+                            <tr>
+                              <td>
+                                <div style="font-weight:var(--font-semibold);color:var(--color-stone-800)">Lote #${lote.id.slice(-5).toUpperCase()}</div>
+                                <div style="font-size:var(--text-xs);color:var(--color-stone-500)">Ingresó ${formatDate(lote.fecha)}</div>
+                              </td>
+                              <td class="cell-mono">${lote.largo} × ${lote.ancho} cm</td>
+                              <td style="text-align:right;font-weight:var(--font-bold);color:var(--color-success)">${lote.cantidadDisponible} ${item.unitSuffix}</td>
+                            </tr>
+                          `).join('')}
+                        </tbody>
+                      </table>`
+                  }
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+    }
+
+    container.innerHTML = `
+      <div class="tabs-container" style="margin-bottom:var(--space-4);border-bottom:1px solid var(--color-stone-200);padding-bottom:12px;display:flex;gap:12px">
+        <button class="btn ${activeTab === 'catalogo' ? 'btn-primary' : 'btn-secondary'}" data-action="tab" data-tab="catalogo">Catálogo Maestro</button>
+        <button class="btn ${activeTab === 'lotes' ? 'btn-primary' : 'btn-secondary'}" data-action="tab" data-tab="lotes">Stock Físico (Placas / Retazos)</button>
+      </div>
+      <div class="table-container">
+        ${contentHtml}
       </div>
     `;
 
@@ -120,7 +196,8 @@ export function renderStock(container, actionsEl) {
   container.onclick = e => {
     const btn = e.target.closest('[data-action]'); if (!btn) return;
     e.stopPropagation();
-    const { action, id } = btn.dataset;
+    const { action, id, tab } = btn.dataset;
+    if (action === 'tab') { activeTab = tab; render(); return; }
     if (action === 'edit') { openMaterialForm(id); return; }
     if (action === 'delete') { handleDelete(id); return; }
     if (action === 'history') { showHistory(id); return; }
@@ -154,15 +231,15 @@ export function renderStock(container, actionsEl) {
 
         <div style="background:var(--color-stone-50);border:1px solid var(--color-stone-200);border-radius:var(--radius-lg);padding:var(--space-3);margin-bottom:var(--space-4)">
           <div style="font-size:var(--text-xs);font-weight:var(--font-bold);color:var(--color-stone-700);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:var(--space-2)">
-            Medidas y Dimensiones
+            Medidas Referenciales (Catálogo)
           </div>
           <div class="form-row-3">
             <div class="form-group mb-0">
-              <label class="form-label">Largo (cm)</label>
+              <label class="form-label">Largo ref. (cm)</label>
               <input type="number" class="form-input" name="largo" value="${mat.largo || ''}" min="0" placeholder="Ej: 300">
             </div>
             <div class="form-group mb-0">
-              <label class="form-label">Ancho (cm)</label>
+              <label class="form-label">Ancho ref. (cm)</label>
               <input type="number" class="form-input" name="ancho" value="${mat.ancho || ''}" min="0" placeholder="Ej: 180">
             </div>
             <div class="form-group mb-0">
@@ -236,7 +313,6 @@ export function renderStock(container, actionsEl) {
       data.stockMinimo = parseInt(data.stockMinimo) || 0;
       data.unidad = data.unidad || 'm2';
       
-      // Guardar moneda, precio por m² y sincronizar precioVenta
       data.moneda = (data.moneda || 'ARS').toUpperCase();
       const precioM2Val = parseFloat(data.precioM2) || 0;
       data.precioM2 = precioM2Val;
@@ -244,7 +320,7 @@ export function renderStock(container, actionsEl) {
 
       if(isEdit){DataService.update('materiales',editId,data);Toast.success('Material y precio actualizado');}
       else{DataService.create('materiales',data);Toast.success('Material creado exitosamente');}
-      Drawer.close();materiales=DataService.getAll('materiales');render();
+      Drawer.close();render();
     });
   }
 
@@ -259,13 +335,34 @@ export function renderStock(container, actionsEl) {
             ${mats.map(m=>`<option value="${m.id}">${m.nombre} (${m.unidad === 'm2' ? 'm²' : (m.unidad === 'metros' ? 'ml' : (m.unidad === 'unidades' ? 'un' : m.unidad))})</option>`).join('')}
           </select>
         </div>
+        
         <div class="form-row-2">
-          <div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="tipo"><option value="entrada">Entrada</option><option value="salida">Salida</option><option value="ajuste">Ajuste</option><option value="devolucion">Devolución</option></select></div>
+          <div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="tipo" id="mov-tipo-select"><option value="entrada">Entrada</option><option value="salida">Salida</option><option value="ajuste">Ajuste</option><option value="devolucion">Devolución</option></select></div>
           <div class="form-group">
             <label class="form-label">Cantidad <span id="mov-unit-hint" class="text-muted" style="font-size:11px;font-weight:normal">(m²)</span></label>
             <input type="number" step="any" class="form-input" name="cantidad" value="1" min="0.01" required>
           </div>
         </div>
+
+        <!-- BLOQUE EXCLUSIVO DE ENTRADA (Opcional Medidas Físicas) -->
+        <div id="mov-entrada-block" style="background:#f8fafc;padding:12px;border:1px dashed #cbd5e1;border-radius:var(--radius-md);margin-bottom:var(--space-3)">
+          <div style="font-size:var(--text-xs);font-weight:var(--font-bold);color:var(--color-stone-600);margin-bottom:8px">MEDIDAS FÍSICAS DE LA PLACA (Opcional para llevar tracking de lotes)</div>
+          <div class="form-row-2">
+            <div class="form-group mb-0"><label class="form-label" style="font-size:var(--text-xs)">Largo (cm)</label><input type="number" class="form-input" name="largoLote" placeholder="Ej: 320"></div>
+            <div class="form-group mb-0"><label class="form-label" style="font-size:var(--text-xs)">Ancho (cm)</label><input type="number" class="form-input" name="anchoLote" placeholder="Ej: 180"></div>
+          </div>
+        </div>
+
+        <!-- BLOQUE EXCLUSIVO DE SALIDA (Elección de lote) -->
+        <div id="mov-salida-block" style="display:none;background:#fff1f2;padding:12px;border:1px dashed #fecdd3;border-radius:var(--radius-md);margin-bottom:var(--space-3)">
+          <div class="form-group mb-0">
+            <label class="form-label" style="font-size:var(--text-xs);color:#9f1239">¿Descontar de alguna placa específica?</label>
+            <select class="form-select" name="loteId" id="mov-lote-select">
+              <option value="">Descuento a granel (Global)</option>
+            </select>
+          </div>
+        </div>
+
         <div class="form-group"><label class="form-label">Fecha</label><input type="date" class="form-input" name="fecha" value="${new Date().toISOString().split('T')[0]}"></div>
         <div class="form-group"><label class="form-label">Referencia</label><input type="text" class="form-input" name="referencia" placeholder="Ej: Compra proveedor, Obra X..."></div>
       </form>`,
@@ -273,18 +370,48 @@ export function renderStock(container, actionsEl) {
     });
 
     const matSel = document.getElementById('mov-material-select');
+    const tipoSel = document.getElementById('mov-tipo-select');
     const unitHint = document.getElementById('mov-unit-hint');
-    matSel?.addEventListener('change', (e) => {
-      const selected = mats.find(m => m.id === e.target.value);
-      if (unitHint) {
-        if (selected) {
-          const uText = selected.unidad === 'm2' ? 'm²' : (selected.unidad === 'metros' ? 'ml' : (selected.unidad === 'unidades' ? 'un' : selected.unidad));
-          unitHint.textContent = `(${uText})`;
-        } else {
-          unitHint.textContent = '';
-        }
+    const entradaBlock = document.getElementById('mov-entrada-block');
+    const salidaBlock = document.getElementById('mov-salida-block');
+    const loteSel = document.getElementById('mov-lote-select');
+
+    function updateFields() {
+      const selectedId = matSel.value;
+      const tipo = tipoSel.value;
+      const selectedMat = mats.find(m => m.id === selectedId);
+
+      if (selectedMat && unitHint) {
+        const uText = selectedMat.unidad === 'm2' ? 'm²' : (selectedMat.unidad === 'metros' ? 'ml' : (selectedMat.unidad === 'unidades' ? 'un' : selectedMat.unidad));
+        unitHint.textContent = `(${uText})`;
       }
-    });
+
+      if (tipo === 'entrada' || tipo === 'devolucion') {
+        entradaBlock.style.display = 'block';
+        salidaBlock.style.display = 'none';
+      } else if (tipo === 'salida') {
+        entradaBlock.style.display = 'none';
+        salidaBlock.style.display = 'block';
+        
+        // Cargar lotes
+        loteSel.innerHTML = '<option value="">Descuento a granel (Global)</option>';
+        if (selectedId) {
+          const lotes = DataService.getLotesDisponibles(selectedId);
+          lotes.forEach(l => {
+            const opt = document.createElement('option');
+            opt.value = l.id;
+            opt.textContent = `Placa ${l.largo}x${l.ancho}cm (${l.cantidadDisponible} disponible)`;
+            loteSel.appendChild(opt);
+          });
+        }
+      } else {
+        entradaBlock.style.display = 'none';
+        salidaBlock.style.display = 'none';
+      }
+    }
+
+    matSel?.addEventListener('change', updateFields);
+    tipoSel?.addEventListener('change', updateFields);
 
     document.getElementById('modal-cancel').addEventListener('click',()=>Modal.close());
     document.getElementById('modal-save').addEventListener('click',()=>{
@@ -292,6 +419,20 @@ export function renderStock(container, actionsEl) {
       if(!data.materialId){Toast.warning('Seleccioná un material');return;}
       data.cantidad=parseFloat(data.cantidad)||0;
       if(data.cantidad<=0){Toast.warning('La cantidad debe ser mayor a 0');return;}
+
+      // Parse lotes info
+      if (data.tipo === 'entrada' || data.tipo === 'devolucion') {
+        data.largo = parseFloat(data.largoLote) || null;
+        data.ancho = parseFloat(data.anchoLote) || null;
+        delete data.largoLote;
+        delete data.anchoLote;
+        delete data.loteId;
+      } else if (data.tipo === 'salida') {
+        delete data.largoLote;
+        delete data.anchoLote;
+        if (!data.loteId) delete data.loteId;
+      }
+
       DataService.create('stockMovimientos',data);
       Toast.success('Movimiento registrado');Modal.close();render();
     });
@@ -306,16 +447,24 @@ export function renderStock(container, actionsEl) {
 
     Modal.open({title:`Historial — ${mat.nombre || 'Material'}`,size:'lg',
       content:`
-        <p style="margin-bottom:var(--space-4)">Stock actual: <strong>${actual} ${uText}</strong></p>
-        ${movs.length > 0 ? `<table class="data-table"><thead><tr><th>Fecha</th><th>Tipo</th><th style="text-align:right">Cantidad</th><th>Referencia</th></tr></thead><tbody>
-        ${movs.map(m=>`<tr><td>${formatDate(m.fecha)}</td><td>${renderBadge(MOVIMIENTO_TIPO_LABELS[m.tipo],MOVIMIENTO_TIPO_COLORS[m.tipo])}</td><td style="text-align:right;font-weight:var(--font-semibold);color:${m.tipo==='entrada'||m.tipo==='devolucion'?'var(--color-success)':'var(--color-error)'}">${m.tipo==='salida'?'-':''}${m.cantidad} ${uText}</td><td class="cell-secondary">${escapeHtml(m.referencia||'-')}</td></tr>`).join('')}
+        <p style="margin-bottom:var(--space-4)">Stock actual global: <strong>${actual} ${uText}</strong></p>
+        ${movs.length > 0 ? `<table class="data-table"><thead><tr><th>Fecha / Lote</th><th>Tipo</th><th style="text-align:right">Cantidad</th><th>Referencia</th></tr></thead><tbody>
+        ${movs.map(m=>`<tr>
+          <td>${formatDate(m.fecha)}<br><span style="font-size:10px;color:var(--color-stone-400)">${m.id.slice(-5)}</span></td>
+          <td>${renderBadge(MOVIMIENTO_TIPO_LABELS[m.tipo],MOVIMIENTO_TIPO_COLORS[m.tipo])}
+              ${(m.largo && m.ancho) ? `<br><span style="font-size:10px;color:var(--color-stone-500)">${m.largo}x${m.ancho}</span>` : ''}
+              ${m.loteId ? `<br><span style="font-size:10px;color:#9f1239">De lote: ${m.loteId.slice(-5)}</span>` : ''}
+          </td>
+          <td style="text-align:right;font-weight:var(--font-semibold);color:${m.tipo==='entrada'||m.tipo==='devolucion'?'var(--color-success)':'var(--color-error)'}">${m.tipo==='salida'?'-':''}${m.cantidad} ${uText}</td>
+          <td class="cell-secondary">${escapeHtml(m.referencia||'-')}</td>
+        </tr>`).join('')}
         </tbody></table>` : '<p class="text-muted">Sin movimientos registrados</p>'}`
     });
   }
 
   async function handleDelete(id){
     const confirmed=await confirmDialog({title:'Eliminar material',message:'¿Estás seguro?',confirmText:'Eliminar',type:'danger'});
-    if(confirmed){DataService.remove('materiales',id);Toast.success('Material eliminado');materiales=DataService.getAll('materiales');render();}
+    if(confirmed){DataService.remove('materiales',id);Toast.success('Material eliminado');render();}
   }
 
   function openActualizarPreciosModal() {
@@ -520,7 +669,6 @@ export function renderStock(container, actionsEl) {
 
       Toast.success(`¡Se actualizaron los precios de ${updatedCount} materiales!`);
       Modal.close();
-      materiales = DataService.getAll('materiales');
       render();
     });
   }
