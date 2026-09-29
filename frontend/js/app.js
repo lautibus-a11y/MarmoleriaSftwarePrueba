@@ -143,6 +143,9 @@ class App {
     updateSidebarActive(path);
     updateMobileNav(path);
 
+    // Forzar el scroll hacia arriba (muy útil en Windows/PC cuando se navega entre pestañas largas)
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+
     // Route matching
     const routes = {
       '/dashboard': { title: 'Inicio', render: renderDashboard },
