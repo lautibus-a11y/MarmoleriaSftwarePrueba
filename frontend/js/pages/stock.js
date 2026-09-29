@@ -121,7 +121,7 @@ export function renderStock(container, actionsEl) {
         const stockGlobal = DataService.getStockActual(m.id);
         const unitSuffix = m.unidad === 'm2' ? 'm²' : (m.unidad === 'metros' ? 'ml' : (m.unidad === 'unidades' ? 'un' : m.unidad));
         if (stockGlobal > 0 || lotes.length > 0) {
-          lotesData.push({ material: m, lotes, stockGlobal, unitSuffix });
+          lotesData.push({ material: m, lotes, stockGlobal: Math.round(stockGlobal * 100) / 100, unitSuffix });
         }
       });
 
@@ -153,6 +153,7 @@ export function renderStock(container, actionsEl) {
                             <th>Identificador / Fecha</th>
                             <th>Medidas Físicas</th>
                             <th style="text-align:right">Disponible</th>
+                            <th></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -164,6 +165,9 @@ export function renderStock(container, actionsEl) {
                               </td>
                               <td class="cell-mono">${lote.largo} × ${lote.ancho} cm</td>
                               <td style="text-align:right;font-weight:var(--font-bold);color:var(--color-success)">${lote.cantidadDisponible} ${item.unitSuffix}</td>
+                              <td style="text-align:right;width:40px">
+                                <button class="btn btn-ghost btn-icon btn-sm" data-action="deleteLote" data-id="${lote.id}" title="Eliminar placa/lote">${Icons.trash}</button>
+                              </td>
                             </tr>
                           `).join('')}
                         </tbody>
@@ -201,6 +205,22 @@ export function renderStock(container, actionsEl) {
     if (action === 'edit') { openMaterialForm(id); return; }
     if (action === 'delete') { handleDelete(id); return; }
     if (action === 'history') { showHistory(id); return; }
+    if (action === 'deleteLote') {
+      (async () => {
+        const confirmed = await confirmDialog({
+          title: 'Eliminar lote',
+          message: '¿Estás seguro de eliminar esta placa o lote del stock? Esta acción no se puede deshacer.',
+          confirmText: 'Eliminar',
+          type: 'danger'
+        });
+        if (confirmed) {
+          DataService.remove('stockMovimientos', id);
+          Toast.success('Lote eliminado correctamente');
+          render();
+        }
+      })();
+      return;
+    }
   };
 
   function openMaterialForm(editId=null){
