@@ -482,28 +482,64 @@ export function renderStock(container, actionsEl) {
     });
   }
 
-  function showHistory(materialId){
+  function showHistory(materialId) {
     const mat = DataService.getById('materiales', materialId);
     if (!mat) return;
-    const movs = DataService.getAll('stockMovimientos').filter(m => m.materialId === materialId).sort(compareNewestFirst);
-    const actual = DataService.getStockActual(materialId);
     const uText = (mat.unidad === 'm2' ? 'm²' : (mat.unidad === 'metros' ? 'ml' : (mat.unidad === 'unidades' ? 'un' : mat.unidad))) || 'm²';
 
-    Modal.open({title:`Historial — ${mat.nombre || 'Material'}`,size:'lg',
-      content:`
+    function renderContent() {
+      const movs = DataService.getAll('stockMovimientos').filter(m => m.materialId === materialId).sort(compareNewestFirst);
+      const actual = DataService.getStockActual(materialId);
+      
+      return `
         <p style="margin-bottom:var(--space-4)">Stock actual global: <strong>${actual} ${uText}</strong></p>
-        ${movs.length > 0 ? `<table class="data-table"><thead><tr><th>Fecha / Lote</th><th>Tipo</th><th style="text-align:right">Cantidad</th><th>Referencia</th></tr></thead><tbody>
-        ${movs.map(m=>`<tr>
+        ${movs.length > 0 ? `<table class="data-table"><thead><tr><th>Fecha / Lote</th><th>Tipo</th><th style="text-align:right">Cantidad</th><th>Referencia</th><th></th></tr></thead><tbody>
+        ${movs.map(m => `<tr>
           <td>${formatDate(m.fecha)}<br><span style="font-size:10px;color:var(--color-stone-400)">${m.id.slice(-5)}</span></td>
-          <td>${renderBadge(MOVIMIENTO_TIPO_LABELS[m.tipo],MOVIMIENTO_TIPO_COLORS[m.tipo])}
+          <td>${renderBadge(MOVIMIENTO_TIPO_LABELS[m.tipo], MOVIMIENTO_TIPO_COLORS[m.tipo])}
               ${(m.largo && m.ancho) ? `<br><span style="font-size:10px;color:var(--color-stone-500)">${m.largo}x${m.ancho}</span>` : ''}
               ${m.loteId ? `<br><span style="font-size:10px;color:#9f1239">De lote: ${m.loteId.slice(-5)}</span>` : ''}
           </td>
-          <td style="text-align:right;font-weight:var(--font-semibold);color:${m.tipo==='entrada'||m.tipo==='devolucion'?'var(--color-success)':'var(--color-error)'}">${m.tipo==='salida'?'-':''}${m.cantidad} ${uText}</td>
-          <td class="cell-secondary">${escapeHtml(m.referencia||'-')}</td>
+          <td style="text-align:right;font-weight:var(--font-semibold);color:${m.tipo === 'entrada' || m.tipo === 'devolucion' ? 'var(--color-success)' : 'var(--color-error)'}">${m.tipo === 'salida' ? '-' : ''}${m.cantidad} ${uText}</td>
+          <td class="cell-secondary">${escapeHtml(m.referencia || '-')}</td>
+          <td style="text-align:right;width:40px">
+            <button class="btn btn-ghost btn-icon btn-sm btn-delete-mov" data-id="${m.id}" title="Eliminar movimiento">${Icons.trash}</button>
+          </td>
         </tr>`).join('')}
-        </tbody></table>` : '<p class="text-muted">Sin movimientos registrados</p>'}`
+        </tbody></table>` : '<p class="text-muted">Sin movimientos registrados</p>'}`;
+    }
+
+    Modal.open({
+      title: `Historial — ${mat.nombre || 'Material'}`,
+      size: 'lg',
+      content: renderContent()
     });
+
+    function bindEvents() {
+      document.querySelectorAll('.btn-delete-mov').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const movId = btn.dataset.id;
+          const confirmed = await confirmDialog({
+            title: 'Eliminar movimiento',
+            message: '¿Estás seguro de eliminar este movimiento de stock? Esta acción restará o sumará las cantidades correspondientes y no se puede deshacer.',
+            confirmText: 'Eliminar',
+            type: 'danger'
+          });
+          if (confirmed) {
+            DataService.remove('stockMovimientos', movId);
+            Toast.success('Movimiento eliminado');
+            const body = Modal.getBody();
+            if (body) {
+              body.innerHTML = renderContent();
+              bindEvents();
+            }
+            render(); // Refrescar la tabla de atrás
+          }
+        });
+      });
+    }
+    
+    bindEvents();
   }
 
   async function handleDelete(id){
