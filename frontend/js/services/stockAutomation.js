@@ -82,6 +82,7 @@ export function openDescontarStockObraModal({ obra, presupuesto, onDone = null }
       <div style="display:flex;flex-direction:column;gap:8px">
         ${rows.map((r, idx) => {
           const isInsuficiente = r.matchedMaterial && r.stockActual < (r.sugerido - 0.001);
+          const stockActualFormatted = r.matchedMaterial ? Math.round(r.stockActual * 100) / 100 : 0;
           return `
             <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1px solid ${isInsuficiente ? '#FCA5A5' : 'var(--color-stone-200)'};border-radius:var(--radius-md);background:${isInsuficiente ? '#FEF2F2' : 'var(--color-stone-50)'};gap:12px;flex-wrap:wrap">
               <div style="display:flex;align-items:center;gap:10px;min-width:180px;flex:1">
@@ -92,7 +93,7 @@ export function openDescontarStockObraModal({ obra, presupuesto, onDone = null }
                   </label>
                   ${r.matchedMaterial ? `
                     <div style="font-size:var(--text-xs);color:${isInsuficiente ? '#DC2626' : 'var(--color-stone-500)'}">
-                      Stock disponible: <strong>${r.stockActual} ${r.unidad}</strong>
+                      Stock global disponible: <strong>${stockActualFormatted} ${r.unidad}</strong>
                       ${isInsuficiente ? ' · ⚠️ Stock bajo o insuficiente' : ''}
                     </div>
                   ` : `
