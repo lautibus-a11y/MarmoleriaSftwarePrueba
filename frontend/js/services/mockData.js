@@ -518,15 +518,26 @@ export const DataService = {
   },
 
   getStockActual(materialId) {
+    const mat = this.getById('materiales', materialId);
+    const isM2 = mat && mat.unidad === 'm2';
+
     const movs = store.stockMovimientos.filter(m => m.materialId === materialId);
     return movs.reduce((stock, mov) => {
-      if (mov.tipo === 'entrada' || mov.tipo === 'devolucion') return stock + mov.cantidad;
-      if (mov.tipo === 'salida') return stock - mov.cantidad;
-      return stock + mov.cantidad; // ajuste can be positive or negative
+      let qty = mov.cantidad;
+      // Usar m2 real calculado desde la medida física de la placa si está disponible
+      if (isM2 && (mov.tipo === 'entrada' || mov.tipo === 'devolucion') && mov.largo && mov.ancho) {
+        qty = (mov.largo / 100) * (mov.ancho / 100);
+      }
+
+      if (mov.tipo === 'entrada' || mov.tipo === 'devolucion') return stock + qty;
+      if (mov.tipo === 'salida') return stock - qty;
+      return stock + qty; // ajuste can be positive or negative
     }, 0);
   },
 
   getLotesDisponibles(materialId) {
+    const mat = this.getById('materiales', materialId);
+    const isM2 = mat && mat.unidad === 'm2';
     const movs = store.stockMovimientos.filter(m => m.materialId === materialId);
     const lotes = [];
     
@@ -542,13 +553,19 @@ export const DataService = {
         return sum;
       }, 0);
       
-      const disponible = entrada.cantidad - consumido;
-      if (disponible > 0) {
+      let areaInicial = entrada.cantidad;
+      // Validar si el lote es una placa y se mide en m2, usar su area real
+      if (isM2 && entrada.largo && entrada.ancho) {
+        areaInicial = (entrada.largo / 100) * (entrada.ancho / 100);
+      }
+      
+      const disponible = areaInicial - consumido;
+      if (disponible > 0.001) { // Evitar errores de coma flotante
         lotes.push({
           ...entrada,
-          cantidadOriginal: entrada.cantidad,
-          cantidadDisponible: disponible,
-          consumido
+          cantidadOriginal: areaInicial,
+          cantidadDisponible: Math.round(disponible * 10000) / 10000,
+          consumido: Math.round(consumido * 10000) / 10000
         });
       }
     });

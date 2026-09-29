@@ -81,7 +81,7 @@ export function openDescontarStockObraModal({ obra, presupuesto, onDone = null }
 
       <div style="display:flex;flex-direction:column;gap:8px">
         ${rows.map((r, idx) => {
-          const isInsuficiente = r.matchedMaterial && r.stockActual < r.sugerido;
+          const isInsuficiente = r.matchedMaterial && r.stockActual < (r.sugerido - 0.001);
           return `
             <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1px solid ${isInsuficiente ? '#FCA5A5' : 'var(--color-stone-200)'};border-radius:var(--radius-md);background:${isInsuficiente ? '#FEF2F2' : 'var(--color-stone-50)'};gap:12px;flex-wrap:wrap">
               <div style="display:flex;align-items:center;gap:10px;min-width:180px;flex:1">
@@ -147,8 +147,39 @@ export function openDescontarStockObraModal({ obra, presupuesto, onDone = null }
   });
 
   document.getElementById('btn-confirm-stock-modal')?.addEventListener('click', () => {
+    let hasErrors = false;
     let descontadosCount = 0;
 
+    // Validación estricta primero
+    rows.forEach((r, idx) => {
+      const chk = document.querySelector(`.item-stock-chk[data-idx="${idx}"]`);
+      const qtyInput = document.querySelector(`.item-stock-qty[data-idx="${idx}"]`);
+      const loteSelect = document.querySelector(`.item-stock-lote[data-idx="${idx}"]`);
+
+      if (chk && chk.checked && r.matchedMaterial && qtyInput) {
+        const qty = parseFloat(qtyInput.value) || 0;
+        const loteId = loteSelect ? loteSelect.value : null;
+
+        if (qty > 0) {
+          if (loteId) {
+            const lote = r.lotes.find(l => l.id === loteId);
+            if (!lote || lote.cantidadDisponible < (qty - 0.001)) {
+              Toast.error(`Stock insuficiente en la placa seleccionada para ${r.materialNombre}`);
+              hasErrors = true;
+            }
+          } else {
+            if (r.stockActual < (qty - 0.001)) {
+              Toast.error(`Stock global insuficiente para ${r.materialNombre}. (Disponible: ${r.stockActual} ${r.unidad})`);
+              hasErrors = true;
+            }
+          }
+        }
+      }
+    });
+
+    if (hasErrors) return; // Impedir el descuento si hay error de stock
+
+    // Si todo está OK, generar los movimientos
     rows.forEach((r, idx) => {
       const chk = document.querySelector(`.item-stock-chk[data-idx="${idx}"]`);
       const qtyInput = document.querySelector(`.item-stock-qty[data-idx="${idx}"]`);
