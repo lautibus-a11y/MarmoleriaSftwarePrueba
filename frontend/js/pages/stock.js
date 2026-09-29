@@ -330,6 +330,7 @@ export function renderStock(container, actionsEl) {
       content:`<form id="mov-form">
         <div class="form-group">
           <label class="form-label">Material <span class="required">*</span></label>
+          <input type="text" id="mov-material-search" class="form-input" placeholder="🔍 Buscar material por nombre..." style="margin-bottom:8px; background-color:#f8fafc;" autocomplete="off">
           <select class="form-select" name="materialId" id="mov-material-select">
             <option value="">Seleccionar material...</option>
             ${mats.map(m=>`<option value="${m.id}">${m.nombre} (${m.unidad === 'm2' ? 'm²' : (m.unidad === 'metros' ? 'ml' : (m.unidad === 'unidades' ? 'un' : m.unidad))})</option>`).join('')}
@@ -340,16 +341,16 @@ export function renderStock(container, actionsEl) {
           <div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="tipo" id="mov-tipo-select"><option value="entrada">Entrada</option><option value="salida">Salida</option><option value="ajuste">Ajuste</option><option value="devolucion">Devolución</option></select></div>
           <div class="form-group">
             <label class="form-label">Cantidad <span id="mov-unit-hint" class="text-muted" style="font-size:11px;font-weight:normal">(m²)</span></label>
-            <input type="number" step="any" class="form-input" name="cantidad" value="1" min="0.01" required>
+            <input type="number" step="any" class="form-input" name="cantidad" id="mov-cantidad-input" value="1" min="0.01" required>
           </div>
         </div>
 
         <!-- BLOQUE EXCLUSIVO DE ENTRADA (Opcional Medidas Físicas) -->
         <div id="mov-entrada-block" style="background:#f8fafc;padding:12px;border:1px dashed #cbd5e1;border-radius:var(--radius-md);margin-bottom:var(--space-3)">
-          <div style="font-size:var(--text-xs);font-weight:var(--font-bold);color:var(--color-stone-600);margin-bottom:8px">MEDIDAS FÍSICAS DE LA PLACA (Opcional para llevar tracking de lotes)</div>
+          <div style="font-size:var(--text-xs);font-weight:var(--font-bold);color:var(--color-stone-600);margin-bottom:8px">MEDIDAS FÍSICAS DE LA PLACA (Autocalcula m²)</div>
           <div class="form-row-2">
-            <div class="form-group mb-0"><label class="form-label" style="font-size:var(--text-xs)">Largo (cm)</label><input type="number" class="form-input" name="largoLote" placeholder="Ej: 320"></div>
-            <div class="form-group mb-0"><label class="form-label" style="font-size:var(--text-xs)">Ancho (cm)</label><input type="number" class="form-input" name="anchoLote" placeholder="Ej: 180"></div>
+            <div class="form-group mb-0"><label class="form-label" style="font-size:var(--text-xs)">Largo (m)</label><input type="number" class="form-input" name="largoLote" id="mov-largo-input" step="0.01" min="0" placeholder="Ej: 3.20"></div>
+            <div class="form-group mb-0"><label class="form-label" style="font-size:var(--text-xs)">Ancho (m)</label><input type="number" class="form-input" name="anchoLote" id="mov-ancho-input" step="0.01" min="0" placeholder="Ej: 1.60"></div>
           </div>
         </div>
 
@@ -370,11 +371,46 @@ export function renderStock(container, actionsEl) {
     });
 
     const matSel = document.getElementById('mov-material-select');
+    const searchInput = document.getElementById('mov-material-search');
     const tipoSel = document.getElementById('mov-tipo-select');
     const unitHint = document.getElementById('mov-unit-hint');
     const entradaBlock = document.getElementById('mov-entrada-block');
     const salidaBlock = document.getElementById('mov-salida-block');
     const loteSel = document.getElementById('mov-lote-select');
+    const qtyInput = document.getElementById('mov-cantidad-input');
+    const largoInput = document.getElementById('mov-largo-input');
+    const anchoInput = document.getElementById('mov-ancho-input');
+
+    // Lógica del buscador de materiales
+    const allOptions = Array.from(matSel.options);
+    searchInput?.addEventListener('input', (e) => {
+      const term = e.target.value.toLowerCase().trim();
+      matSel.innerHTML = '';
+      allOptions.forEach(opt => {
+        if (opt.value === '' || opt.text.toLowerCase().includes(term)) {
+          matSel.appendChild(opt);
+        }
+      });
+      // Autoseleccionar si hay coincidencia única
+      if (term && matSel.options.length === 2) {
+        matSel.selectedIndex = 1;
+      } else {
+        matSel.selectedIndex = 0;
+      }
+      updateFields();
+    });
+
+    // Lógica del cálculo automático de m2
+    function calculateM2() {
+      const l = parseFloat(largoInput.value);
+      const a = parseFloat(anchoInput.value);
+      if (!isNaN(l) && !isNaN(a) && l >= 0 && a >= 0) {
+        const m2 = Math.round((l * a) * 10000) / 10000;
+        qtyInput.value = m2;
+      }
+    }
+    largoInput?.addEventListener('input', calculateM2);
+    anchoInput?.addEventListener('input', calculateM2);
 
     function updateFields() {
       const selectedId = matSel.value;
@@ -422,8 +458,16 @@ export function renderStock(container, actionsEl) {
 
       // Parse lotes info
       if (data.tipo === 'entrada' || data.tipo === 'devolucion') {
-        data.largo = parseFloat(data.largoLote) || null;
-        data.ancho = parseFloat(data.anchoLote) || null;
+        const l = parseFloat(data.largoLote);
+        const a = parseFloat(data.anchoLote);
+        if (!isNaN(l) && !isNaN(a) && l > 0 && a > 0) {
+          // Convertimos de metros (ej: 3.20) a cm (ej: 320) para guardar en la base y mantener compatibilidad
+          data.largo = Math.round(l * 100);
+          data.ancho = Math.round(a * 100);
+        } else {
+          data.largo = null;
+          data.ancho = null;
+        }
         delete data.largoLote;
         delete data.anchoLote;
         delete data.loteId;
