@@ -68,6 +68,7 @@ export function renderObras(container, actionsEl, path = '/obras') {
       `}
     ];
 
+    const wasFocused = document.activeElement && document.activeElement.id === 'search-input';
     container.innerHTML = `
       <div class="table-container">
         <div class="table-toolbar">
@@ -85,7 +86,11 @@ export function renderObras(container, actionsEl, path = '/obras') {
     `;
 
     const si = container.querySelector('#search-input');
-    if (si) { si.value = searchTerm; si.oninput = debounce(e => { searchTerm = e.target.value; render(); }, 300); }
+    if (si) { 
+      si.value = searchTerm; 
+      si.oninput = debounce(e => { searchTerm = e.target.value; render(); }, 300); 
+      if (wasFocused) { si.focus(); const len = si.value.length; si.setSelectionRange(len, len); }
+    }
     const filterEl = container.querySelector('#filter-estado');
     if (filterEl) { filterEl.onchange = e => { filterEstado = e.target.value; render(); }; }
   }

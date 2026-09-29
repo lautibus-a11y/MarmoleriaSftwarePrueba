@@ -89,6 +89,7 @@ export function renderPagos(container, actionsEl, path = '/pagos') {
     const totalPendiente = pagos.filter(p => p.estado === 'pendiente')
       .reduce((s, p) => s + (parseFloat(p.importeARS ?? p.importe) || 0), 0);
 
+    const wasFocused = document.activeElement && document.activeElement.id === 'search-input';
     container.innerHTML = `
       <div class="stats-grid" style="margin-bottom:var(--space-4)">
         ${renderStatsCard({ icon: 'credit-card', iconColor: 'error', value: formatCurrency(totalPagado), label: 'Total pagado' })}
@@ -107,7 +108,11 @@ export function renderPagos(container, actionsEl, path = '/pagos') {
     </div>`;
 
     const si = container.querySelector('#search-input');
-    if (si) { si.value = searchTerm; si.oninput = debounce(e => { searchTerm = e.target.value; render(); }, 300); }
+    if (si) { 
+      si.value = searchTerm; 
+      si.oninput = debounce(e => { searchTerm = e.target.value; render(); }, 300); 
+      if (wasFocused) { si.focus(); const len = si.value.length; si.setSelectionRange(len, len); }
+    }
     const fe = container.querySelector('#filter-estado');
     if (fe) fe.onchange = e => { filterEstado = e.target.value; render(); };
     const fm = container.querySelector('#filter-metodo');

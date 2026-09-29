@@ -54,6 +54,7 @@ export function renderProveedores(container, actionsEl, path = '/proveedores') {
       }}
     ];
 
+    const wasFocused = document.activeElement && document.activeElement.id === 'search-input';
     container.innerHTML = `<div class="table-container">
       <div class="table-toolbar"><div class="table-toolbar-left">${renderSearchInput('Buscar proveedor...')}</div>
       <div class="table-toolbar-right"><span class="text-muted" style="font-size:var(--text-sm)">${filtered.length} proveedores</span></div></div>
@@ -61,7 +62,11 @@ export function renderProveedores(container, actionsEl, path = '/proveedores') {
     </div>`;
 
     const si = container.querySelector('#search-input');
-    if (si) { si.value = searchTerm; si.oninput = debounce(e => { searchTerm = e.target.value; render(); }, 300); }
+    if (si) { 
+      si.value = searchTerm; 
+      si.oninput = debounce(e => { searchTerm = e.target.value; render(); }, 300); 
+      if (wasFocused) { si.focus(); const len = si.value.length; si.setSelectionRange(len, len); }
+    }
   }
 
   container.onclick = e => {

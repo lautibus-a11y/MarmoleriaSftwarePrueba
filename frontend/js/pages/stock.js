@@ -181,6 +181,8 @@ export function renderStock(container, actionsEl) {
       }
     }
 
+    const wasFocused = document.activeElement && document.activeElement.id === 'search-input';
+
     container.innerHTML = `
       <div class="tabs-container" style="margin-bottom:var(--space-4);border-bottom:1px solid var(--color-stone-200);padding-bottom:12px;display:flex;gap:12px">
         <button class="btn ${activeTab === 'catalogo' ? 'btn-primary' : 'btn-secondary'}" data-action="tab" data-tab="catalogo">Catálogo Maestro</button>
@@ -192,7 +194,15 @@ export function renderStock(container, actionsEl) {
     `;
 
     const si = container.querySelector('#search-input');
-    if (si) { si.value = searchTerm; si.oninput = debounce(e => { searchTerm = e.target.value; render(); }, 300); }
+    if (si) { 
+      si.value = searchTerm; 
+      si.oninput = debounce(e => { searchTerm = e.target.value; render(); }, 300); 
+      if (wasFocused) {
+        si.focus();
+        const len = si.value.length;
+        si.setSelectionRange(len, len);
+      }
+    }
     const fc = container.querySelector('#filter-cat');
     if (fc) fc.onchange = e => { filterCat = e.target.value; render(); };
   }

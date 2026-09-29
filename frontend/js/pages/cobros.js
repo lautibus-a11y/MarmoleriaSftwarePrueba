@@ -73,6 +73,7 @@ export function renderCobros(container, actionsEl) {
     const totalCobrado = cobros.filter(c => c.estado === 'cobrado').reduce((s, c) => s + c.importe, 0);
     const totalPendiente = cobros.filter(c => c.estado === 'pendiente').reduce((s, c) => s + c.importe, 0);
 
+    const wasFocused = document.activeElement && document.activeElement.id === 'search-input';
     container.innerHTML = `
       <div class="stats-grid" style="margin-bottom:var(--space-4)">
         ${renderStatsCard({ icon: 'hand-coins', iconColor: 'success', value: formatCurrency(totalCobrado), label: 'Total cobrado' })}
@@ -91,7 +92,11 @@ export function renderCobros(container, actionsEl) {
     `;
 
     const si = container.querySelector('#search-input');
-    if (si) { si.value = searchTerm; si.oninput = debounce(e => { searchTerm = e.target.value; render(); }, 300); }
+    if (si) { 
+      si.value = searchTerm; 
+      si.oninput = debounce(e => { searchTerm = e.target.value; render(); }, 300); 
+      if (wasFocused) { si.focus(); const len = si.value.length; si.setSelectionRange(len, len); }
+    }
     const fe = container.querySelector('#filter-estado');
     if (fe) fe.onchange = e => { filterEstado = e.target.value; render(); };
   }

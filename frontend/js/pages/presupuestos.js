@@ -200,6 +200,7 @@ export function renderPresupuestos(container, actionsEl, path = '/presupuestos')
       `}
     ];
 
+    const wasFocused = document.activeElement && document.activeElement.id === 'search-input';
     container.innerHTML = `
       <div class="table-container">
         <div class="table-toolbar">
@@ -220,9 +221,10 @@ export function renderPresupuestos(container, actionsEl, path = '/presupuestos')
 
     // Events
     const searchInput = container.querySelector('#search-input');
-    if (searchInput) {
-      searchInput.value = searchTerm;
-      searchInput.oninput = debounce((e) => { searchTerm = e.target.value; render(); }, 300);
+    if (searchInput) { 
+      searchInput.value = searchTerm; 
+      searchInput.oninput = debounce((e) => { searchTerm = e.target.value; render(); }, 300); 
+      if (wasFocused) { searchInput.focus(); const len = searchInput.value.length; searchInput.setSelectionRange(len, len); }
     }
 
     const filterEl = container.querySelector('#filter-estado');

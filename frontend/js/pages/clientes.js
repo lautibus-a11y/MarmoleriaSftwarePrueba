@@ -76,6 +76,7 @@ export function renderClientes(container, actionsEl, path = '/clientes') {
       }
     ];
 
+    const wasFocused = document.activeElement && document.activeElement.id === 'search-input';
     container.innerHTML = `
       <div class="table-container">
         <div class="table-toolbar">
@@ -98,6 +99,7 @@ export function renderClientes(container, actionsEl, path = '/clientes') {
         searchTerm = e.target.value;
         render();
       }, 300);
+      if (wasFocused) { searchInput.focus(); const len = searchInput.value.length; searchInput.setSelectionRange(len, len); }
     }
   }
 
