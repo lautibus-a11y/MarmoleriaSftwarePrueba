@@ -27,7 +27,8 @@ export function getCompanyInfo() {
       telefono: cfg.empresa_telefono || '+54 9 351 555-0192',
       email: cfg.empresa_email || 'contacto@marmoleriabenjamin.com.ar',
       logoSrc: cfg.empresa_logo || LOGO_BASE64,
-      logoText: 'MB'
+      logoText: 'MB',
+      condiciones: cfg.condiciones
     };
   } catch (e) {
     return {
@@ -241,7 +242,7 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
       <!-- Condiciones Comerciales -->
       <div class="doc-conditions-block">
         <div class="doc-conditions-title">Condiciones Comerciales y de Garantía</div>
-        <pre class="doc-conditions-content">${escapeHtml(pres.condiciones || '• Anticipo del 50% para inicio de obra y congelamiento de precio.\n• Saldo restante contra entrega o colocación final.\n• Materiales naturales sujetos a tonalidades y vetas propias de la piedra.\n• Presupuesto válido por 15 días corridos a partir de la fecha de emisión.')}</pre>
+        <pre class="doc-conditions-content">${escapeHtml(pres.condiciones || company.condiciones || '• Anticipo del 50% para inicio de obra y congelamiento de precio.\n• Saldo restante contra entrega o colocación final.\n• Materiales naturales sujetos a tonalidades y vetas propias de la piedra.\n• Presupuesto válido por 15 días corridos a partir de la fecha de emisión.')}</pre>
       </div>
 
       ${pres.observaciones ? `

@@ -359,7 +359,7 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
     },
     descuento: prefill?.descuento || 0,
     impuestos: prefill?.impuestos !== undefined ? prefill.impuestos : 21,
-    condiciones: prefill?.condiciones || CONDICIONES_COMERCIALES_DEFAULT.join('\n'),
+    condiciones: prefill?.condiciones || configData.condiciones || CONDICIONES_COMERCIALES_DEFAULT.join('\n'),
     ...(prefill || {})
   };
   if (!pres.cotizacionDolar) pres.cotizacionDolar = parseFloat(found?.usdRateUsed) || defaultCotizacion;
