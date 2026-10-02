@@ -358,13 +358,14 @@ export function renderStock(container, actionsEl) {
     const mats=DataService.getAll('materiales');
     Modal.open({title:'Nuevo movimiento de stock',size:'md',
       content:`<form id="mov-form">
-        <div class="form-group">
+        <div class="form-group mb-2">
           <label class="form-label">Material <span class="required">*</span></label>
-          <input type="text" id="mov-material-search" class="form-input" placeholder="🔍 Buscar material por nombre..." style="margin-bottom:8px; background-color:#f8fafc;" autocomplete="off">
-          <select class="form-select" name="materialId" id="mov-material-select">
-            <option value="">Seleccionar material...</option>
-            ${mats.map(m=>`<option value="${m.id}">${m.nombre} (${m.unidad === 'm2' ? 'm²' : (m.unidad === 'metros' ? 'ml' : (m.unidad === 'unidades' ? 'un' : m.unidad))})</option>`).join('')}
-          </select>
+          <div class="material-autocomplete-wrapper">
+            <input type="text" id="mov-material-search-input" class="material-autocomplete-input" placeholder="Buscar material por nombre..." autocomplete="off">
+            <input type="hidden" name="materialId" id="mov-material-select">
+            ${Icons.search ? `<span class="material-autocomplete-icon">${Icons.search}</span>` : ''}
+            <div class="material-autocomplete-dropdown" id="mov-mat-dropdown"></div>
+          </div>
         </div>
         
         <div class="form-row-2">
@@ -401,33 +402,139 @@ export function renderStock(container, actionsEl) {
     });
 
     const matSel = document.getElementById('mov-material-select');
-    const searchInput = document.getElementById('mov-material-search');
-    const tipoSel = document.getElementById('mov-tipo-select');
-    const unitHint = document.getElementById('mov-unit-hint');
-    const entradaBlock = document.getElementById('mov-entrada-block');
-    const salidaBlock = document.getElementById('mov-salida-block');
-    const loteSel = document.getElementById('mov-lote-select');
-    const qtyInput = document.getElementById('mov-cantidad-input');
-    const largoInput = document.getElementById('mov-largo-input');
-    const anchoInput = document.getElementById('mov-ancho-input');
+    const searchInput = document.getElementById('mov-material-search-input');
+    const matDropdown = document.getElementById('mov-mat-dropdown');
+    
+    // Lógica del buscador de materiales autocomplete
+    const removeAccents = (str) => typeof str === 'string' ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
+    let activeIndex = -1;
+    let currentMatches = [];
 
-    // Lógica del buscador de materiales
-    const allOptions = Array.from(matSel.options);
-    searchInput?.addEventListener('input', (e) => {
-      const term = e.target.value.toLowerCase().trim();
-      matSel.innerHTML = '';
-      allOptions.forEach(opt => {
-        if (opt.value === '' || opt.text.toLowerCase().includes(term)) {
-          matSel.appendChild(opt);
-        }
+    const renderMatDropdown = (query) => {
+      const q = removeAccents(query.toLowerCase().trim());
+      
+      currentMatches = mats.filter(m => {
+        const name = removeAccents(m.nombre.toLowerCase());
+        if (!q) return true;
+        const words = q.split(' ').filter(Boolean);
+        return words.every(w => name.includes(w));
       });
-      // Autoseleccionar si hay coincidencia única
-      if (term && matSel.options.length === 2) {
-        matSel.selectedIndex = 1;
-      } else {
-        matSel.selectedIndex = 0;
+
+      if (currentMatches.length === 0) {
+        matDropdown.innerHTML = '<div class="material-autocomplete-empty">No se encontraron materiales</div>';
+        matDropdown.classList.add('open');
+        return;
       }
+
+      matDropdown.innerHTML = currentMatches.map((m, i) => {
+         const stockActual = DataService.getStockActual(m.id);
+         const esp = escapeHtml(m.espesor || '20 mm');
+         const uText = m.unidad === 'm2' ? 'm²' : (m.unidad === 'metros' ? 'ml' : (m.unidad === 'unidades' ? 'un' : m.unidad));
+         return `<div class="material-autocomplete-item" data-index="${i}">
+           <div style="display:flex;align-items:center;gap:6px;min-width:0">
+             <span class="material-autocomplete-item-name" title="${escapeHtml(m.nombre)}">${escapeHtml(m.nombre)}</span>
+             <span class="material-autocomplete-item-thickness">${esp}</span>
+           </div>
+           <div style="text-align:right">
+             <div class="material-autocomplete-item-price" style="font-weight:var(--font-semibold)">${stockActual} ${uText}</div>
+             <div style="font-size:10px;color:var(--color-stone-400);margin-top:2px;">Stock disp.</div>
+           </div>
+         </div>`;
+      }).join('');
+      
+      activeIndex = -1;
+      matDropdown.classList.add('open');
+    };
+
+    const selectMaterial = (mat) => {
+      searchInput.value = mat.nombre;
+      matSel.value = mat.id;
+      matDropdown.classList.remove('open');
       updateFields();
+    };
+
+    searchInput?.addEventListener('input', (e) => {
+      renderMatDropdown(e.target.value);
+    });
+
+    searchInput?.addEventListener('focus', (e) => {
+      renderMatDropdown(e.target.value);
+    });
+
+    searchInput?.addEventListener('blur', () => {
+      setTimeout(() => {
+        matDropdown.classList.remove('open');
+        const selectedMat = mats.find(m => m.id === matSel.value);
+        if (selectedMat && searchInput.value !== selectedMat.nombre) {
+          searchInput.value = selectedMat.nombre;
+        } else if (!selectedMat) {
+          searchInput.value = '';
+        }
+      }, 200);
+    });
+
+    matDropdown?.addEventListener('mousedown', (e) => {
+      e.preventDefault(); 
+    });
+
+    matDropdown?.addEventListener('click', (e) => {
+      const itemEl = e.target.closest('.material-autocomplete-item');
+      if (itemEl) {
+        const matchIndex = parseInt(itemEl.dataset.index);
+        const mat = currentMatches[matchIndex];
+        if (mat) selectMaterial(mat);
+      }
+    });
+
+    searchInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') e.stopPropagation();
+
+      if (!matDropdown.classList.contains('open')) {
+        if (e.key === 'ArrowDown' || e.key === 'Enter') {
+          e.preventDefault();
+          renderMatDropdown(searchInput.value);
+        }
+        return;
+      }
+      
+      const itemsEls = matDropdown.querySelectorAll('.material-autocomplete-item');
+      if (itemsEls.length === 0) {
+        if (e.key === 'Escape' || e.key === 'Enter') {
+          e.preventDefault();
+          matDropdown.classList.remove('open');
+          const selectedMat = mats.find(m => m.id === matSel.value);
+          searchInput.value = selectedMat ? selectedMat.nombre : '';
+        }
+        return;
+      }
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeIndex = (activeIndex + 1) % itemsEls.length;
+        itemsEls.forEach((el, i) => el.classList.toggle('active', i === activeIndex));
+        itemsEls[activeIndex].scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeIndex = (activeIndex - 1 + itemsEls.length) % itemsEls.length;
+        itemsEls.forEach((el, i) => el.classList.toggle('active', i === activeIndex));
+        itemsEls[activeIndex].scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (activeIndex >= 0 && activeIndex < currentMatches.length) {
+          selectMaterial(currentMatches[activeIndex]);
+        } else if (currentMatches.length === 1) {
+          selectMaterial(currentMatches[0]);
+        } else {
+          matDropdown.classList.remove('open');
+          const selectedMat = mats.find(m => m.id === matSel.value);
+          searchInput.value = selectedMat ? selectedMat.nombre : '';
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        matDropdown.classList.remove('open');
+        const selectedMat = mats.find(m => m.id === matSel.value);
+        searchInput.value = selectedMat ? selectedMat.nombre : '';
+      }
     });
 
     // Lógica del cálculo automático de m2
@@ -476,7 +583,6 @@ export function renderStock(container, actionsEl) {
       }
     }
 
-    matSel?.addEventListener('change', updateFields);
     tipoSel?.addEventListener('change', updateFields);
 
     document.getElementById('modal-cancel').addEventListener('click',()=>Modal.close());
