@@ -1180,12 +1180,16 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
           dropdown.innerHTML = currentMatches.map((m, i) => {
              const pM2 = getMaterialPrice(m.nombre, curMoneda, curTC);
              const esp = escapeHtml(m.espesor || '20 mm');
+             const stockLabel = `${(m.moneda || 'ARS').toUpperCase()} ${m.precioM2 ?? m.precioVenta ?? 0}`;
              return `<div class="material-autocomplete-item" data-index="${i}">
                <div style="display:flex;align-items:center;gap:6px;min-width:0">
                  <span class="material-autocomplete-item-name" title="${escapeHtml(m.nombre)}">${escapeHtml(m.nombre)}</span>
                  <span class="material-autocomplete-item-thickness">${esp}</span>
                </div>
-               <span class="material-autocomplete-item-price">${formatCurrency(pM2, curMoneda)}/m²</span>
+               <div style="text-align:right">
+                 <div class="material-autocomplete-item-price">${formatCurrency(pM2, curMoneda)}/m²</div>
+                 <div style="font-size:10px;color:var(--color-stone-400);margin-top:2px;">(Stock: ${stockLabel})</div>
+               </div>
              </div>`;
           }).join('');
           
