@@ -3,7 +3,7 @@
    ======================================== */
 
 import { DataService } from '../services/mockData.js';
-import { formatCurrency, formatDate, searchFilter, escapeHtml, debounce, generateAutoNumber, compareNewestFirst, resolveEntityContact } from '../utils/helpers.js';
+import { formatCurrency, formatDate, searchFilter, escapeHtml, debounce, generateAutoNumber, compareNewestFirst, resolveEntityContact, replaceHTMLPreservingScroll } from '../utils/helpers.js';
 import { Icons, renderDataTable, renderSearchInput, renderBadge, renderEmptyState } from '../components/ui.js';
 import { Drawer } from '../components/drawer.js';
 import { Modal } from '../components/modal.js';
@@ -971,11 +971,11 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
       });
 
       const groupEntries = Object.entries(matGroups);
-      if (groupEntries.length === 0) { box.innerHTML = ''; return; }
+      if (groupEntries.length === 0) { replaceHTMLPreservingScroll(box, ''); return; }
 
       const totalM2 = items.reduce((s, i) => s + (i.m2 || 0), 0);
 
-      box.innerHTML = `
+      const summaryHtml = `
         <div class="material-breakdown-box">
           <div class="material-breakdown-header">
             <span>Materiales seleccionados (${groupEntries.length})</span>
@@ -997,6 +997,7 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
           </div>
         </div>
       `;
+      replaceHTMLPreservingScroll(box, summaryHtml);
     }
 
     function renderItems() {
@@ -1005,7 +1006,7 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
       const curMoneda = qEl('#pres-moneda-select')?.value || pres.moneda || 'ARS';
       const curTC = parseFloat(qEl('#pres-cotizacion-input')?.value) || pres.cotizacionDolar || defaultCotizacion;
 
-      bodyEl.innerHTML = items.map((item, idx) => `
+      const newHtml = items.map((item, idx) => `
         <div class="pres-item-card" data-idx="${idx}">
           <div class="pres-item-header">
             <div class="pres-item-title-wrap">
@@ -1019,18 +1020,14 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
             ` : ''}
           </div>
 
-          <!-- Selector de Material independiente por cada ítem -->
+          <!-- Buscador Autocomplete de Material independiente por cada ítem -->
           <div class="form-group mb-2">
             <label class="form-label-sm">Material <span class="required">*</span></label>
-            <select class="form-select item-field item-material-select" data-field="material">
-              <option value="">Seleccionar material del catálogo...</option>
-              ${materiales.map(m => {
-                const isSel = (item.material === m.nombre);
-                const pM2 = getMaterialPrice(m.nombre, curMoneda, curTC);
-                const stockLabel = `${(m.moneda || 'ARS').toUpperCase()} ${m.precioM2 ?? m.precioVenta ?? 0}`;
-                return `<option value="${escapeHtml(m.nombre)}" ${isSel ? 'selected' : ''}>${escapeHtml(m.nombre)} — ${formatCurrency(pM2, curMoneda)} / m² (Stock: ${stockLabel})</option>`;
-              }).join('')}
-            </select>
+            <div class="material-autocomplete-wrapper">
+              <input type="text" class="material-autocomplete-input" data-idx="${idx}" value="${escapeHtml(item.material || '')}" placeholder="Buscar material por nombre..." autocomplete="off">
+              ${Icons.search ? `<span class="material-autocomplete-icon">${Icons.search}</span>` : ''}
+              <div class="material-autocomplete-dropdown" id="mat-dropdown-${idx}"></div>
+            </div>
           </div>
 
           <!-- Selector de Unidad: cm o m + Medidas: Largo, Ancho y Cantidad -->
@@ -1120,6 +1117,8 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
         </div>
       `).join('');
 
+      replaceHTMLPreservingScroll(bodyEl, newHtml);
+
       // Unit toggle handler: converts values smoothly between cm and m
       bodyEl.querySelectorAll('[data-action="toggle-unit"]').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -1151,6 +1150,151 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
         });
       });
 
+      // Material Autocomplete events
+      const removeAccents = (str) => typeof str === 'string' ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
+
+      bodyEl.querySelectorAll('.material-autocomplete-input').forEach(input => {
+        const dropdown = input.parentElement.querySelector('.material-autocomplete-dropdown');
+        const idx = parseInt(input.dataset.idx);
+        const curMoneda = qEl('#pres-moneda-select')?.value || pres.moneda || 'ARS';
+        const curTC = parseFloat(qEl('#pres-cotizacion-input')?.value) || pres.cotizacionDolar || defaultCotizacion;
+        let activeIndex = -1;
+        let currentMatches = [];
+
+        const renderDropdown = (query) => {
+          const q = removeAccents(query.toLowerCase().trim());
+          
+          currentMatches = materiales.filter(m => {
+            const name = removeAccents(m.nombre.toLowerCase());
+            if (!q) return true;
+            const words = q.split(' ').filter(Boolean);
+            return words.every(w => name.includes(w));
+          });
+
+          if (currentMatches.length === 0) {
+            dropdown.innerHTML = '<div class="material-autocomplete-empty">No se encontraron materiales</div>';
+            dropdown.classList.add('open');
+            return;
+          }
+
+          dropdown.innerHTML = currentMatches.map((m, i) => {
+             const pM2 = getMaterialPrice(m.nombre, curMoneda, curTC);
+             const esp = escapeHtml(m.espesor || '20 mm');
+             return `<div class="material-autocomplete-item" data-index="${i}">
+               <div style="display:flex;align-items:center;gap:6px;min-width:0">
+                 <span class="material-autocomplete-item-name" title="${escapeHtml(m.nombre)}">${escapeHtml(m.nombre)}</span>
+                 <span class="material-autocomplete-item-thickness">${esp}</span>
+               </div>
+               <span class="material-autocomplete-item-price">${formatCurrency(pM2, curMoneda)}/m²</span>
+             </div>`;
+          }).join('');
+          
+          activeIndex = -1;
+          dropdown.classList.add('open');
+        };
+
+        const selectMaterial = (mat) => {
+          input.value = mat.nombre;
+          dropdown.classList.remove('open');
+          
+          items[idx].material = mat.nombre;
+          items[idx].precioBase = getMaterialPrice(mat.nombre, curMoneda, curTC);
+          const condTipo = getCurCondTipo();
+          const condPorcentaje = getCurCondPorcentaje();
+          if (condTipo === 'personalizado') {
+            items[idx].precioManual = items[idx].precioBase;
+            items[idx].precioManualMoneda = curMoneda;
+            items[idx].precioUnitario = items[idx].precioBase;
+          } else {
+            items[idx].precioUnitario = applyCondicionToPrice(items[idx].precioBase, condTipo, condPorcentaje);
+          }
+          calculateItem(items[idx]);
+          renderItems();
+          renderMaterialSummary();
+          updateSummary();
+        };
+
+        input.addEventListener('input', (e) => {
+          renderDropdown(e.target.value);
+        });
+
+        input.addEventListener('focus', (e) => {
+          renderDropdown(e.target.value);
+        });
+
+        input.addEventListener('blur', () => {
+          setTimeout(() => {
+            dropdown.classList.remove('open');
+            if (input.value !== items[idx].material) {
+              input.value = escapeHtml(items[idx].material || '');
+            }
+          }, 200);
+        });
+
+        dropdown.addEventListener('mousedown', (e) => {
+          e.preventDefault(); // Prevent blur
+        });
+
+        dropdown.addEventListener('click', (e) => {
+          const itemEl = e.target.closest('.material-autocomplete-item');
+          if (itemEl) {
+            const matchIndex = parseInt(itemEl.dataset.index);
+            const mat = currentMatches[matchIndex];
+            if (mat) selectMaterial(mat);
+          }
+        });
+
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+             e.stopPropagation();
+          }
+
+          if (!dropdown.classList.contains('open')) {
+            if (e.key === 'ArrowDown' || e.key === 'Enter') {
+              e.preventDefault();
+              renderDropdown(input.value);
+            }
+            return;
+          }
+          
+          const itemsEls = dropdown.querySelectorAll('.material-autocomplete-item');
+          if (itemsEls.length === 0) {
+            if (e.key === 'Escape' || e.key === 'Enter') {
+              e.preventDefault();
+              dropdown.classList.remove('open');
+              input.value = escapeHtml(items[idx].material || '');
+            }
+            return;
+          }
+
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeIndex = (activeIndex + 1) % itemsEls.length;
+            itemsEls.forEach((el, i) => el.classList.toggle('active', i === activeIndex));
+            itemsEls[activeIndex].scrollIntoView({ block: 'nearest' });
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeIndex = (activeIndex - 1 + itemsEls.length) % itemsEls.length;
+            itemsEls.forEach((el, i) => el.classList.toggle('active', i === activeIndex));
+            itemsEls[activeIndex].scrollIntoView({ block: 'nearest' });
+          } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (activeIndex >= 0 && activeIndex < currentMatches.length) {
+              selectMaterial(currentMatches[activeIndex]);
+            } else if (currentMatches.length === 1) {
+              selectMaterial(currentMatches[0]);
+            } else {
+              dropdown.classList.remove('open');
+              input.value = escapeHtml(items[idx].material || '');
+            }
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            dropdown.classList.remove('open');
+            input.value = escapeHtml(items[idx].material || '');
+          }
+        });
+      });
+
       // Field events
       bodyEl.querySelectorAll('.item-field').forEach(input => {
         const eventName = input.tagName === 'SELECT' ? 'change' : 'input';
@@ -1163,23 +1307,7 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
           const curMoneda = qEl('#pres-moneda-select')?.value || pres.moneda || 'ARS';
           const curTC = parseFloat(qEl('#pres-cotizacion-input')?.value) || pres.cotizacionDolar || defaultCotizacion;
 
-          if (field === 'material') {
-            items[idx].material = val;
-            items[idx].precioBase = getMaterialPrice(val, curMoneda, curTC);
-            const condTipo = getCurCondTipo();
-            const condPorcentaje = getCurCondPorcentaje();
-            if (condTipo === 'personalizado') {
-              items[idx].precioManual = items[idx].precioBase;
-              items[idx].precioManualMoneda = curMoneda;
-              items[idx].precioUnitario = items[idx].precioBase;
-            } else {
-              items[idx].precioUnitario = applyCondicionToPrice(items[idx].precioBase, condTipo, condPorcentaje);
-            }
-            calculateItem(items[idx]);
-            renderItems();
-            renderMaterialSummary();
-            updateSummary();
-          } else if (field === 'precioManual') {
+          if (field === 'precioManual') {
             const manualPrice = Math.max(0, parseFloat(val) || 0);
             items[idx].precioManual = manualPrice;
             const manualMon = (items[idx].precioManualMoneda || curMoneda).toUpperCase();
