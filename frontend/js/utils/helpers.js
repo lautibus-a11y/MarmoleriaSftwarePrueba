@@ -398,3 +398,116 @@ export function resolveFileUrl(urlOrKey) {
   return `${workerBase}/api/uploads/${urlOrKey}`;
 }
 
+/**
+ * Reemplaza el innerHTML de un elemento preservando el scroll global y de contenedores, 
+ * y restaurando el foco del elemento activo (inputs, selects, etc).
+ * Ideal para solucionar saltos de scroll al re-renderizar listas.
+ */
+export function replaceHTMLPreservingScroll(element, newHTML) {
+  if (!element) return;
+  
+  // 1. Guardar estado de scroll global
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
+  
+  // 2. Guardar estado de scroll de contenedores
+  const scrollingContainers = [];
+  let parent = element.parentElement;
+  while (parent && parent !== document.body) {
+    if (parent.scrollHeight > parent.clientHeight || parent.scrollWidth > parent.clientWidth) {
+      scrollingContainers.push({
+        element: parent,
+        scrollTop: parent.scrollTop,
+        scrollLeft: parent.scrollLeft
+      });
+    }
+    parent = parent.parentElement;
+  }
+
+  // 3. Guardar estado de foco
+  const activeEl = document.activeElement;
+  let focusInfo = null;
+  if (activeEl && element.contains(activeEl)) {
+    focusInfo = {
+      id: activeEl.id,
+      name: activeEl.name,
+      className: activeEl.className,
+      tagName: activeEl.tagName.toLowerCase(),
+      dataset: { ...activeEl.dataset },
+      selectionStart: activeEl.selectionStart,
+      selectionEnd: activeEl.selectionEnd,
+      value: activeEl.value
+    };
+    
+    // Si el elemento está dentro de una tarjeta con data-idx, guardamos ese índice
+    const parentRow = activeEl.closest('[data-idx]');
+    if (parentRow && parentRow.dataset.idx) {
+      focusInfo.parentRowIdx = parentRow.dataset.idx;
+    }
+  }
+
+  // 4. Reemplazar DOM
+  element.innerHTML = newHTML;
+
+  // 5. Restaurar scroll de contenedores
+  scrollingContainers.forEach(c => {
+    c.element.scrollTop = c.scrollTop;
+    c.element.scrollLeft = c.scrollLeft;
+  });
+
+  // 6. Restaurar scroll global
+  window.scrollTo({ left: scrollX, top: scrollY, behavior: 'instant' });
+
+  // 7. Restaurar foco sin causar saltos (preventScroll: true)
+  if (focusInfo) {
+    let target = null;
+    
+    // Buscar por ID
+    if (focusInfo.id) {
+      target = element.querySelector(`#${focusInfo.id}`);
+    } 
+    
+    // Buscar por dataset de campo (ej: data-field y data-idx)
+    if (!target && focusInfo.dataset && focusInfo.dataset.field) {
+      let selector = `${focusInfo.tagName}[data-field="${focusInfo.dataset.field}"]`;
+      let candidates = [];
+      
+      // Si estaba dentro de una fila indexada
+      if (focusInfo.parentRowIdx !== undefined) {
+        const rowSelector = `[data-idx="${focusInfo.parentRowIdx}"] ${selector}`;
+        candidates = element.querySelectorAll(rowSelector);
+      }
+      
+      if (!candidates.length) {
+        candidates = element.querySelectorAll(selector);
+      }
+      
+      if (candidates.length === 1) target = candidates[0];
+      else if (candidates.length > 1) {
+        // Desempate por valor
+        target = Array.from(candidates).find(el => el.value === focusInfo.value) || candidates[0];
+      }
+    }
+    
+    // Búsqueda genérica por nombre
+    if (!target && focusInfo.name) {
+       target = element.querySelector(`[name="${focusInfo.name}"]`);
+    }
+    
+    // Fallback por tag y clase
+    if (!target && focusInfo.className) {
+      target = element.querySelector(`${focusInfo.tagName}[class="${focusInfo.className}"]`);
+    }
+    
+    if (target && typeof target.focus === 'function') {
+      target.focus({ preventScroll: true }); 
+      try {
+        if (typeof target.setSelectionRange === 'function' && focusInfo.selectionStart !== null && focusInfo.selectionStart !== undefined) {
+          target.setSelectionRange(focusInfo.selectionStart, focusInfo.selectionEnd);
+        }
+      } catch(e) {
+        // Silenciar error (ej. input type="number" no soporta setSelectionRange)
+      }
+    }
+  }
+}

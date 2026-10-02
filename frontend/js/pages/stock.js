@@ -3,7 +3,7 @@
    ======================================== */
 
 import { DataService } from '../services/mockData.js';
-import { formatCurrency, formatDate, escapeHtml, debounce, searchFilter, compareNewestFirst } from '../utils/helpers.js';
+import { formatCurrency, formatDate, escapeHtml, debounce, searchFilter, compareNewestFirst, replaceHTMLPreservingScroll } from '../utils/helpers.js';
 import { Icons, renderDataTable, renderSearchInput, renderBadge, renderEmptyState } from '../components/ui.js';
 import { Drawer } from '../components/drawer.js';
 import { Modal } from '../components/modal.js';
@@ -560,7 +560,7 @@ export function renderStock(container, actionsEl) {
             Toast.success('Movimiento eliminado');
             const body = Modal.getBody();
             if (body) {
-              body.innerHTML = renderContent();
+              replaceHTMLPreservingScroll(body, renderContent());
               bindEvents();
             }
             render(); // Refrescar la tabla de atrás
