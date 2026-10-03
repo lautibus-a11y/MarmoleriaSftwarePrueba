@@ -16,24 +16,28 @@ export function openDescontarStockObraModal({ obra, presupuesto, onDone = null }
   items.forEach(it => {
     const matName = (it.material || '').trim();
     if (!matName) return;
-    if (!grouped[matName]) {
-      grouped[matName] = {
+    const key = it.materialId || matName;
+    if (!grouped[key]) {
+      grouped[key] = {
         materialNombre: matName,
+        materialId: it.materialId,
         m2Total: 0,
         piezasTotal: 0,
         descripciones: []
       };
     }
-    grouped[matName].m2Total += Number(it.m2) || 0;
-    grouped[matName].piezasTotal += Number(it.cantidad) || 1;
-    if (it.descripcion) grouped[matName].descripciones.push(it.descripcion);
+    grouped[key].m2Total += Number(it.m2) || 0;
+    grouped[key].piezasTotal += Number(it.cantidad) || 1;
+    if (it.descripcion) grouped[key].descripciones.push(it.descripcion);
   });
 
   const materiales = DataService.getAll('materiales');
   const rows = Object.values(grouped).map(g => {
-    const matched = materiales.find(m => m.nombre.toLowerCase().trim() === g.materialNombre.toLowerCase().trim())
-                 || materiales.find(m => m.nombre.toLowerCase().includes(g.materialNombre.toLowerCase()))
-                 || materiales.find(m => g.materialNombre.toLowerCase().includes(m.nombre.toLowerCase()));
+    const matched = g.materialId 
+                  ? materiales.find(m => String(m.id) === String(g.materialId))
+                  : (materiales.find(m => m.nombre.toLowerCase().trim() === g.materialNombre.toLowerCase().trim())
+                  || materiales.find(m => m.nombre.toLowerCase().includes(g.materialNombre.toLowerCase()))
+                  || materiales.find(m => g.materialNombre.toLowerCase().includes(m.nombre.toLowerCase())));
     const stockActual = matched ? DataService.getStockActual(matched.id) : 0;
     const lotes = matched ? DataService.getLotesDisponibles(matched.id) : [];
     const unidad = matched ? (matched.unidad === 'm2' ? 'm²' : (matched.unidad === 'metros' ? 'ml' : (matched.unidad === 'unidades' ? 'un' : matched.unidad))) : 'm²';

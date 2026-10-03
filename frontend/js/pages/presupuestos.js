@@ -822,14 +822,14 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
     const initialMoneda = (pres.moneda || 'ARS').toUpperCase();
     const initialTC = parseFloat(pres.cotizacionDolar || pres.usdRateUsed) || defaultCotizacion;
     let currentBudgetMoneda = initialMoneda;
-    const defaultFirstMatPrice = getMaterialPrice(defaultFirstMat, initialMoneda, initialTC);
+    const defaultFirstMatPrice = defaultFirstMat ? getMaterialPrice(defaultFirstMat, initialMoneda, initialTC) : 0;
 
     let items = (pres.items && pres.items.length > 0)
       ? pres.items.map((it, idx) => {
           const matName = it.material || pres.material || defaultFirstMat;
           const baseP = (it.precioBase !== undefined && it.precioBase !== null && it.precioBase > 0)
             ? it.precioBase
-            : getMaterialPrice(matName, initialMoneda, initialTC);
+            : (it.materialId ? getMaterialPrice(DataService.getById('materiales', it.materialId) || matName, initialMoneda, initialTC) : getMaterialPrice(matName, initialMoneda, initialTC));
           const pM2 = (it.precioUnitario !== undefined && it.precioUnitario !== null && it.precioUnitario > 0)
             ? it.precioUnitario
             : baseP;
@@ -920,7 +920,7 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
       const curTC = parseFloat(qEl('#pres-cotizacion-input')?.value) || pres.cotizacionDolar || defaultCotizacion;
 
       if (it.material && (!it.precioBase || it.precioBase === 0)) {
-        it.precioBase = getMaterialPrice(it.material, curMoneda, curTC);
+        it.precioBase = getMaterialPrice(it.materialId ? DataService.getById('materiales', it.materialId) || it.material : it.material, curMoneda, curTC);
       }
 
       const condTipo = getCurCondTipo();
@@ -1178,7 +1178,7 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
           }
 
           dropdown.innerHTML = currentMatches.map((m, i) => {
-             const pM2 = getMaterialPrice(m.nombre, curMoneda, curTC);
+             const pM2 = getMaterialPrice(m, curMoneda, curTC);
              const esp = escapeHtml(m.espesor || '20 mm');
              const stockLabel = `${(m.moneda || 'ARS').toUpperCase()} ${m.precioM2 ?? m.precioVenta ?? 0}`;
              return `<div class="material-autocomplete-item" data-index="${i}">
@@ -1202,7 +1202,8 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
           dropdown.classList.remove('open');
           
           items[idx].material = mat.nombre;
-          items[idx].precioBase = getMaterialPrice(mat.nombre, curMoneda, curTC);
+          items[idx].materialId = mat.id;
+          items[idx].precioBase = getMaterialPrice(mat, curMoneda, curTC);
           const condTipo = getCurCondTipo();
           const condPorcentaje = getCurCondPorcentaje();
           if (condTipo === 'personalizado') {
@@ -1383,7 +1384,7 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
       const defaultMat = materiales.find(m => m.nombre === defaultMatName) || materiales[0];
       const curMoneda = qEl('#pres-moneda-select')?.value || pres.moneda || 'ARS';
       const curTC = parseFloat(qEl('#pres-cotizacion-input')?.value) || pres.cotizacionDolar || defaultCotizacion;
-      const baseP = defaultMat ? getMaterialPrice(defaultMat.nombre, curMoneda, curTC) : 0;
+      const baseP = defaultMat ? getMaterialPrice(defaultMat, curMoneda, curTC) : 0;
       const condTipo = getCurCondTipo();
       const condPorcentaje = getCurCondPorcentaje();
       const appliedP = applyCondicionToPrice(baseP, condTipo, condPorcentaje, null);
@@ -1393,6 +1394,7 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
         id: Date.now().toString(),
         descripcion: `Ítem ${items.length + 1}`,
         material: defaultMatName,
+        materialId: defaultMat ? defaultMat.id : null,
         unidadMedida: defaultUnit,
         cantidad: 1,
         largo: '',
@@ -1462,7 +1464,7 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
         // Recalcular precios unitarios según la nueva moneda seleccionada sin doble conversión
         items.forEach(it => {
           if (it.material) {
-            it.precioBase = getMaterialPrice(it.material, newMoneda, curTC);
+            it.precioBase = getMaterialPrice(it.materialId ? DataService.getById('materiales', it.materialId) || it.material : it.material, newMoneda, curTC);
             const condTipo = getCurCondTipo();
             const condPorcentaje = getCurCondPorcentaje();
             if (condTipo === 'personalizado') {
@@ -1500,7 +1502,7 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
         const curMoneda = (monedaSelect?.value || 'ARS').toUpperCase();
         items.forEach(it => {
           if (it.material) {
-            it.precioBase = getMaterialPrice(it.material, curMoneda, curTC);
+            it.precioBase = getMaterialPrice(it.materialId ? DataService.getById('materiales', it.materialId) || it.material : it.material, curMoneda, curTC);
             const condTipo = getCurCondTipo();
             const condPorcentaje = getCurCondPorcentaje();
             if (condTipo === 'personalizado') {
