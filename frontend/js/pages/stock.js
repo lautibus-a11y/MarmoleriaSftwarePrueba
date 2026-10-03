@@ -404,6 +404,14 @@ export function renderStock(container, actionsEl) {
     const matSel = document.getElementById('mov-material-select');
     const searchInput = document.getElementById('mov-material-search-input');
     const matDropdown = document.getElementById('mov-mat-dropdown');
+    const tipoSel = document.getElementById('mov-tipo-select');
+    const unitHint = document.getElementById('mov-unit-hint');
+    const entradaBlock = document.getElementById('mov-entrada-block');
+    const salidaBlock = document.getElementById('mov-salida-block');
+    const loteSel = document.getElementById('mov-lote-select');
+    const qtyInput = document.getElementById('mov-cantidad-input');
+    const largoInput = document.getElementById('mov-largo-input');
+    const anchoInput = document.getElementById('mov-ancho-input');
     
     // Lógica del buscador de materiales autocomplete
     const removeAccents = (str) => typeof str === 'string' ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
