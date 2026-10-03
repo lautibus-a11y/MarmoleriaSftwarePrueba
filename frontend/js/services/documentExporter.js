@@ -166,6 +166,12 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
 
         <div class="doc-info-card">
           <div class="doc-info-card-title">Datos del Proyecto</div>
+          ${pres.descripcion && pres.descripcion.trim() !== '' ? `
+          <div class="doc-info-row">
+            <span class="doc-info-label">Proyecto:</span>
+            <span class="doc-info-val">${escapeHtml(pres.descripcion)}</span>
+          </div>
+          ` : ''}
           <div class="doc-info-row">
             <span class="doc-info-label">Dirección:</span>
             <span class="doc-info-val">${escapeHtml(pres.direccion || cliente?.direccion || 'A coordinar')}</span>
@@ -375,9 +381,9 @@ export function generateObraHtml(obra, cliente = null, pres = null, cobros = [])
         <div class="doc-info-card">
           <div class="doc-info-card-title">Estado Contable</div>
           <div class="doc-info-row"><span class="doc-info-label">Presupuesto:</span><span class="doc-info-val">${pres ? pres.numero : '-'}</span></div>
-          <div class="doc-info-row"><span class="doc-info-label">Total pactado:</span><span class="doc-info-val">${formatCurrency(total)}</span></div>
-          <div class="doc-info-row"><span class="doc-info-label">Cobrado:</span><span class="doc-info-val" style="color:#059669">${formatCurrency(cobrado)}</span></div>
-          <div class="doc-info-row"><span class="doc-info-label">Saldo a cobrar:</span><span class="doc-info-val" style="color:#D97706">${formatCurrency(saldo)}</span></div>
+          <div class="doc-info-row"><span class="doc-info-label">Total pactado:</span><span class="doc-info-val">${formatCurrency(total, cobro.moneda)}</span></div>
+          <div class="doc-info-row"><span class="doc-info-label">Cobrado:</span><span class="doc-info-val" style="color:#059669">${formatCurrency(cobrado, cobro.moneda)}</span></div>
+          <div class="doc-info-row"><span class="doc-info-label">Saldo a cobrar:</span><span class="doc-info-val" style="color:#D97706">${formatCurrency(saldo, cobro.moneda)}</span></div>
         </div>
 
         <div class="doc-info-card">
@@ -460,7 +466,7 @@ export function generateCobroHtml(cobro, cliente = null, obra = null) {
 
       <div class="doc-grand-total" style="margin:24px 0">
         <span class="doc-grand-total-label">IMPORTE RECIBIDO</span>
-        <span class="doc-grand-total-amount">${formatCurrency(cobro.importe)}</span>
+        <span class="doc-grand-total-amount">${formatCurrency(cobro.importe, cobro.moneda)}</span>
       </div>
 
       <div class="doc-conditions-block">

@@ -1809,7 +1809,8 @@ function attachStepActions({ activeStep, proc, processId, total = null, cobrado 
         openCobroForm(null, {
           clienteId: proc.cliente?.id || obra?.clienteId || presupuesto?.clienteId || '',
           obraId: obra?.id || '',
-          importe: sugerido > 0 ? sugerido : ''
+          importe: sugerido > 0 ? sugerido : '',
+          moneda: presupuesto?.moneda || obra?.moneda || 'ARS'
         }, () => {
           Toast.success('Cobro registrado');
           onRefresh();
@@ -1853,7 +1854,8 @@ function attachStepActions({ activeStep, proc, processId, total = null, cobrado 
         openCobroForm(null, {
           clienteId: proc.cliente?.id || obra?.clienteId || presupuesto?.clienteId || '',
           obraId: obra?.id || '',
-          importe: saldo
+          importe: saldo,
+          moneda: presupuesto?.moneda || obra?.moneda || 'ARS'
         }, () => {
           Toast.success('Cobro de saldo registrado');
           onRefresh();

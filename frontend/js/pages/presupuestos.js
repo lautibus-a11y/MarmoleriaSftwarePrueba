@@ -646,6 +646,11 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
               <button type="button" class="btn btn-primary" id="btn-inline-save" style="flex:1;justify-content:center;font-weight:var(--font-semibold)">
                 ${Icons.check} Guardar
               </button>
+              ${editId ? `
+              <button type="button" class="btn btn-outline-primary" id="btn-inline-save-new" style="flex:1;justify-content:center;font-weight:var(--font-semibold)">
+                Guardar como nuevo
+              </button>
+              ` : ''}
               <button type="button" class="btn btn-secondary" id="btn-inline-preview" style="flex:1;justify-content:center">
                 ${Icons.eye} Vista previa
               </button>
@@ -656,12 +661,14 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
       headerActions: `
         <button type="button" class="btn btn-outline-success btn-sm" id="drawer-header-approve" style="color:#059669;border-color:#059669;font-weight:var(--font-bold)">${Icons.check} Aprobar</button>
         <button type="button" class="btn btn-primary btn-sm" id="drawer-header-save" style="font-weight:var(--font-semibold)">${Icons.check} Guardar</button>
+        ${editId ? `<button type="button" class="btn btn-outline-primary btn-sm" id="drawer-header-save-new" style="font-weight:var(--font-semibold)">Guardar como nuevo</button>` : ''}
       `,
       footer: `
         <button type="button" class="btn btn-secondary" id="drawer-cancel">Cancelar</button>
         <button type="button" class="btn btn-secondary" id="drawer-preview-btn">${Icons.eye} Vista previa</button>
         <button type="button" class="btn btn-outline-success" id="drawer-approve" style="color:#059669;border-color:#059669;font-weight:var(--font-bold)">${Icons.check} Aprobar</button>
         <button type="button" class="btn btn-primary" id="drawer-save">${Icons.check} Guardar</button>
+        ${editId ? `<button type="button" class="btn btn-outline-primary" id="drawer-save-new" style="font-weight:var(--font-semibold)">Guardar como nuevo</button>` : ''}
         <button type="button" class="btn btn-success btn-full-mobile" id="drawer-save-share" style="background:#25D366;color:#fff;border-color:#25D366;font-weight:var(--font-bold)">${Icons.whatsapp} Guardar y Compartir</button>
       `
     });
@@ -1638,7 +1645,7 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
       });
     }
 
-    function savePresupuesto(andShare = false, forceEstado = null) {
+    function savePresupuesto(andShare = false, forceEstado = null, isSaveAsNew = false) {
       const form = qEl('#pres-form');
       if (!form) return;
       const fd = new FormData(form);
@@ -1788,9 +1795,15 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
       };
 
       let saved;
-      if (editId) {
+      if (editId && !isSaveAsNew) {
         saved = DataService.update('presupuestos', editId, record);
       } else {
+        if (isSaveAsNew) {
+          delete record.id;
+          const allPresupuestos = DataService.getAll('presupuestos');
+          record.numero = generateAutoNumber('PRES', allPresupuestos);
+          record.fecha = new Date().toISOString().split('T')[0];
+        }
         saved = DataService.create('presupuestos', record);
       }
       Drawer.close();
@@ -1819,7 +1832,11 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
       } else if (createdClient) {
         Toast.success('Cliente creado', `Se dio de alta a "${data.clienteNombre}" en Clientes.`);
       } else {
-        Toast.success(editId ? 'Presupuesto actualizado' : 'Presupuesto guardado con éxito');
+        if (isSaveAsNew) {
+          Toast.success('Presupuesto duplicado exitosamente', `Se guardó como el nuevo presupuesto Nº ${saved.numero}`);
+        } else {
+          Toast.success(editId ? 'Presupuesto actualizado' : 'Presupuesto guardado con éxito');
+        }
       }
       if (onSaved) {
         onSaved(saved);
@@ -1839,8 +1856,11 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
 
     attachBtn('drawer-cancel', () => Drawer.close());
     attachBtn('drawer-save', () => savePresupuesto(false));
+    attachBtn('drawer-save-new', () => savePresupuesto(false, null, true));
     attachBtn('drawer-header-save', () => savePresupuesto(false));
+    attachBtn('drawer-header-save-new', () => savePresupuesto(false, null, true));
     attachBtn('btn-inline-save', () => savePresupuesto(false));
+    attachBtn('btn-inline-save-new', () => savePresupuesto(false, null, true));
     attachBtn('drawer-approve', () => savePresupuesto(false, 'aprobado'));
     attachBtn('drawer-header-approve', () => savePresupuesto(false, 'aprobado'));
     attachBtn('btn-inline-approve', () => savePresupuesto(false, 'aprobado'));

@@ -49,7 +49,7 @@ export function renderCobros(container, actionsEl) {
       { label: 'Obra', render: (c) => { const o = obras.find(x => x.id === c.obraId); return o ? `<span class="text-truncate" style="max-width:150px;display:inline-block">${escapeHtml(o.direccion)}</span>` : '-'; }, className: 'cell-secondary' },
       { label: 'Fecha', render: (c) => formatDate(c.fecha) },
       { label: 'Método', render: (c) => { const m = METODOS_PAGO.find(x => x.value === c.metodoPago); return escapeHtml(m?.label || c.metodoPago); }},
-      { label: 'Importe', align: 'right', render: (c) => `<span class="cell-currency">${formatCurrency(c.importe)}</span>` },
+      { label: 'Importe', align: 'right', render: (c) => `<span class="cell-currency">${formatCurrency(c.importe, c.moneda)}</span>` },
       { label: 'Estado', render: (c) => renderBadge(COBRO_ESTADO_LABELS[c.estado] || c.estado, COBRO_ESTADO_COLORS[c.estado] || 'neutral') },
       {
         label: 'Comprobante',
@@ -70,14 +70,21 @@ export function renderCobros(container, actionsEl) {
     ];
 
     // Summary
-    const totalCobrado = cobros.filter(c => c.estado === 'cobrado').reduce((s, c) => s + c.importe, 0);
-    const totalPendiente = cobros.filter(c => c.estado === 'pendiente').reduce((s, c) => s + c.importe, 0);
+    const cobrados = cobros.filter(c => c.estado === 'cobrado');
+    const pendientes = cobros.filter(c => c.estado === 'pendiente');
+    
+    const totalCobradoARS = cobrados.filter(c => !c.moneda || c.moneda === 'ARS').reduce((s, c) => s + c.importe, 0);
+    const totalCobradoUSD = cobrados.filter(c => c.moneda === 'USD').reduce((s, c) => s + c.importe, 0);
+    const totalPendienteARS = pendientes.filter(c => !c.moneda || c.moneda === 'ARS').reduce((s, c) => s + c.importe, 0);
+    const totalPendienteUSD = pendientes.filter(c => c.moneda === 'USD').reduce((s, c) => s + c.importe, 0);
 
     const wasFocused = document.activeElement && document.activeElement.id === 'search-input';
     container.innerHTML = `
       <div class="stats-grid" style="margin-bottom:var(--space-4)">
-        ${renderStatsCard({ icon: 'hand-coins', iconColor: 'success', value: formatCurrency(totalCobrado), label: 'Total cobrado' })}
-        ${renderStatsCard({ icon: 'file-clock', iconColor: 'warning', value: formatCurrency(totalPendiente), label: 'Pendiente de cobro' })}
+        ${renderStatsCard({ icon: 'hand-coins', iconColor: 'success', value: formatCurrency(totalCobradoARS, 'ARS'), label: 'Total cobrado (ARS)' })}
+        ${renderStatsCard({ icon: 'circle-dollar', iconColor: 'success', value: formatCurrency(totalCobradoUSD, 'USD'), label: 'Total cobrado (USD)' })}
+        ${renderStatsCard({ icon: 'file-clock', iconColor: 'warning', value: formatCurrency(totalPendienteARS, 'ARS'), label: 'Pendiente (ARS)' })}
+        ${renderStatsCard({ icon: 'circle-dollar', iconColor: 'warning', value: formatCurrency(totalPendienteUSD, 'USD'), label: 'Pendiente (USD)' })}
       </div>
       <div class="table-container">
         <div class="table-toolbar">
@@ -182,7 +189,8 @@ export function openCobroForm(editId = null, prefill = {}, onSaved = null) {
         <div class="form-group"><label class="form-label">Cliente <span class="required">*</span></label><select class="form-select" name="clienteId" id="cobro-cliente"><option value="">Seleccionar...</option>${clientes.map(c=>`<option value="${c.id}" ${cobro.clienteId===c.id?'selected':''}>${c.nombre} ${c.apellido||''}</option>`).join('')}</select></div>
         <div class="form-group"><label class="form-label">Obra</label><select class="form-select" name="obraId" id="cobro-obra"><option value="">Sin asociar</option>${obrasDisp.map(o=>{const cl=clientes.find(c=>c.id===o.clienteId);return`<option value="${o.id}" ${cobro.obraId===o.id?'selected':''}>${escapeHtml(o.direccion)} (${cl?.nombre||''})</option>`;}).join('')}</select></div>
         <div id="cobro-saldo-info" style="display:none;margin-bottom:var(--space-4)"></div>
-        <div class="form-row-2">
+        <div class="form-row-3" style="display:grid;grid-template-columns:1fr 2fr 2fr;gap:var(--space-4)">
+          <div class="form-group"><label class="form-label">Moneda</label><select class="form-select" name="moneda"><option value="ARS" ${(cobro.moneda||'ARS')==='ARS'?'selected':''}>ARS ($)</option><option value="USD" ${(cobro.moneda||'ARS')==='USD'?'selected':''}>USD (U$D)</option></select></div>
           <div class="form-group"><label class="form-label">Importe <span class="required">*</span></label><input type="number" class="form-input" name="importe" value="${cobro.importe||''}" min="0" step="0.01"></div>
           <div class="form-group"><label class="form-label">Fecha</label><input type="date" class="form-input" name="fecha" value="${cobro.fecha||new Date().toISOString().split('T')[0]}"></div>
         </div>
@@ -204,10 +212,16 @@ export function openCobroForm(editId = null, prefill = {}, onSaved = null) {
     function updateSaldoInfo() {
       const obraId = obraSelect.value;
       if (obraId) {
+        const obra = DataService.getById('obras', obraId);
         const total = DataService.getObraTotal(obraId);
         const cobrado = DataService.getObraCobrado(obraId);
+        const mon = obra?.moneda || 'ARS';
         saldoInfo.style.display = 'block';
-        saldoInfo.innerHTML = `<div class="alert alert-info"><span class="alert-icon">${Icons.info || ''}</span><span>Total obra: ${formatCurrency(total)} · Cobrado: ${formatCurrency(cobrado)} · <strong>Pendiente: ${formatCurrency(total-cobrado)}</strong></span></div>`;
+        saldoInfo.innerHTML = `<div class="alert alert-info"><span class="alert-icon">${Icons.info || ''}</span><span>Total obra: ${formatCurrency(total, mon)} · Cobrado: ${formatCurrency(cobrado, mon)} · <strong>Pendiente: ${formatCurrency(total-cobrado, mon)}</strong></span></div>`;
+        
+        // Auto update moneda selector if present
+        const monSelect = document.querySelector('select[name="moneda"]');
+        if (monSelect && !isEdit) { monSelect.value = mon; }
       } else { saldoInfo.style.display = 'none'; }
     }
     obraSelect?.addEventListener('change', updateSaldoInfo);
