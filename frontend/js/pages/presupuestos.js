@@ -1069,20 +1069,20 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
               const condTipo = getCurCondTipo();
               const condPct = getCurCondPorcentaje();
               if (condTipo === 'personalizado') {
-                const manualVal = item.precioManual !== undefined ? item.precioManual : (item.precioUnitario || 0);
+                const manualVal = item.precioManualRaw !== undefined ? item.precioManualRaw : (item.precioManual !== undefined ? item.precioManual : (item.precioUnitario || 0));
                 const manualMon = (item.precioManualMoneda || curMoneda).toUpperCase();
                 const isDiff = manualMon !== curMoneda;
                 return `
                   <div class="pres-item-stat-pill" style="min-width:210px">
                     <span class="pres-item-stat-label">Precio m² manual con moneda</span>
                     <div style="display:flex;align-items:center;gap:4px;margin-top:2px">
-                      <input type="number" step="any" min="0" class="form-input item-field item-manual-price-input" data-field="precioManual" value="${manualVal}" style="padding:2px 6px;font-size:12px;font-weight:var(--font-bold);height:28px;width:95px" placeholder="Precio">
+                      <input type="text" inputmode="decimal" class="form-input item-field item-manual-price-input" data-field="precioManual" value="${manualVal}" style="padding:2px 6px;font-size:12px;font-weight:var(--font-bold);height:28px;width:95px" placeholder="Precio">
                       <select class="form-select item-field item-manual-curr-select" data-field="precioManualMoneda" style="padding:2px 4px;font-size:11px;font-weight:var(--font-bold);height:28px;width:75px">
                         <option value="ARS" ${manualMon === 'ARS' ? 'selected' : ''}>ARS</option>
                         <option value="USD" ${manualMon === 'USD' ? 'selected' : ''}>USD</option>
                       </select>
                     </div>
-                    ${isDiff ? `<span style="font-size:10px;color:var(--color-stone-600);display:block;margin-top:2px">≈ ${formatCurrency(item.precioUnitario, curMoneda)} en pres.</span>` : ''}
+                    ${isDiff ? `<span class="item-converted-price-label" style="font-size:10px;color:var(--color-stone-600);display:block;margin-top:2px">≈ ${formatCurrency(item.precioUnitario, curMoneda)} en pres.</span>` : ''}
                   </div>
                 `;
               }
@@ -1312,12 +1312,20 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
           const curTC = parseFloat(qEl('#pres-cotizacion-input')?.value) || pres.cotizacionDolar || defaultCotizacion;
 
           if (field === 'precioManual') {
+            val = val.replace(',', '.'); // Soporte para coma decimal
+            items[idx].precioManualRaw = val; // Guardar valor raw para no perder comas mientras escribe
             const manualPrice = Math.max(0, parseFloat(val) || 0);
             items[idx].precioManual = manualPrice;
             const manualMon = (items[idx].precioManualMoneda || curMoneda).toUpperCase();
             items[idx].precioUnitario = DataService.convertCurrency(manualPrice, manualMon, curMoneda, curTC);
             calculateItem(items[idx]);
-            renderItems();
+            
+            // Actualizar DOM parcial sin re-renderizar todo
+            const subEl = card.querySelector('.item-subtotal-val');
+            if (subEl) subEl.textContent = formatCurrency(items[idx].subtotal || 0, curMoneda);
+            const convLabel = card.querySelector('.item-converted-price-label');
+            if (convLabel) convLabel.textContent = `≈ ${formatCurrency(items[idx].precioUnitario, curMoneda)} en pres.`;
+            
             renderMaterialSummary();
             updateSummary();
           } else if (field === 'precioManualMoneda') {
