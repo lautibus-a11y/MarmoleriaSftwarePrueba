@@ -19,13 +19,15 @@ export function renderPagos(container, actionsEl, path = '/pagos') {
   DataService.recalcularTodasLasFacturas();
 
   let pagos = DataService.getAll('pagos');
-  let searchTerm = '', filterEstado = '', filterMetodo = '';
+  let searchTerm = '', filterEstado = '', filterMetodo = '', filterFechaDesde = '', filterFechaHasta = '';
 
   function render() {
     pagos = DataService.getAll('pagos');
     let filtered = pagos;
     if (filterEstado) filtered = filtered.filter(p => p.estado === filterEstado);
     if (filterMetodo) filtered = filtered.filter(p => p.metodoPago === filterMetodo);
+    if (filterFechaDesde) filtered = filtered.filter(p => (p.fecha || '').split('T')[0] >= filterFechaDesde);
+    if (filterFechaHasta) filtered = filtered.filter(p => (p.fecha || '').split('T')[0] <= filterFechaHasta);
     if (searchTerm) {
       const provs = DataService.getAll('proveedores');
       filtered = filtered.filter(p => {
@@ -57,7 +59,7 @@ export function renderPagos(container, actionsEl, path = '/pagos') {
           `;
         }
       },
-      { label: 'Fecha', render: (p) => formatDate(p.fecha), className: 'cell-secondary' },
+      { label: 'Fecha', render: (p) => `<strong>${formatDate(p.fecha)}</strong>`, className: 'cell-secondary' },
       { label: 'Método', render: (p) => { const m = METODOS_PAGO.find(x => x.value === p.metodoPago); return escapeHtml(m?.label || p.metodoPago); }},
       { label: 'Importe', align: 'right', render: (p) => {
         const moneda = p.moneda || 'ARS';
@@ -101,6 +103,8 @@ export function renderPagos(container, actionsEl, path = '/pagos') {
           ${renderSearchInput('Buscar por destinatario o concepto...')}
           <select class="filter-select" id="filter-estado"><option value="">Todos los estados</option>${Object.entries(PAGO_ESTADO_LABELS).map(([k,v])=>`<option value="${k}" ${filterEstado===k?'selected':''}>${v}</option>`).join('')}</select>
           <select class="filter-select" id="filter-metodo"><option value="">Todos los métodos</option>${METODOS_PAGO.map(m=>`<option value="${m.value}" ${filterMetodo===m.value?'selected':''}>${m.label}</option>`).join('')}</select>
+          <input type="date" class="filter-select" id="filter-fecha-desde" value="${filterFechaDesde}" title="Fecha desde">
+          <input type="date" class="filter-select" id="filter-fecha-hasta" value="${filterFechaHasta}" title="Fecha hasta">
         </div>
         <div class="table-toolbar-right"><span class="text-muted" style="font-size:var(--text-sm)">${filtered.length} pagos</span></div>
       </div>
@@ -117,6 +121,10 @@ export function renderPagos(container, actionsEl, path = '/pagos') {
     if (fe) fe.onchange = e => { filterEstado = e.target.value; render(); };
     const fm = container.querySelector('#filter-metodo');
     if (fm) fm.onchange = e => { filterMetodo = e.target.value; render(); };
+    const fd = container.querySelector('#filter-fecha-desde');
+    if (fd) fd.onchange = e => { filterFechaDesde = e.target.value; render(); };
+    const fh = container.querySelector('#filter-fecha-hasta');
+    if (fh) fh.onchange = e => { filterFechaHasta = e.target.value; render(); };
   }
 
   // Escuchar eventos de cambios de datos en tiempo real
