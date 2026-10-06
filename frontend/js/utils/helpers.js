@@ -48,7 +48,9 @@ export function formatNumber(num, decimals = 2) {
  */
 export function formatDate(date) {
   if (!date) return '-';
-  const d = new Date(date);
+  // Fix for Timezone offset parsing issue
+  const safeDate = typeof date === 'string' && date.length <= 10 ? date.replace(/-/g, '/') : date;
+  const d = new Date(safeDate);
   if (isNaN(d.getTime())) return '-';
   return d.toLocaleDateString('es-AR', {
     day: '2-digit',
@@ -62,7 +64,9 @@ export function formatDate(date) {
  */
 export function formatDateShort(date) {
   if (!date) return '-';
-  const d = new Date(date);
+  // Fix for Timezone offset parsing issue
+  const safeDate = typeof date === 'string' && date.length <= 10 ? date.replace(/-/g, '/') : date;
+  const d = new Date(safeDate);
   if (isNaN(d.getTime())) return '-';
   return d.toLocaleDateString('es-AR', {
     day: 'numeric',
@@ -75,7 +79,9 @@ export function formatDateShort(date) {
  */
 export function formatRelativeDate(date) {
   if (!date) return '-';
-  const d = new Date(date);
+  // Fix for Timezone offset parsing issue
+  const safeDate = typeof date === 'string' && date.length <= 10 ? date.replace(/-/g, '/') : date;
+  const d = new Date(safeDate);
   const now = new Date();
   const diffMs = now - d;
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
