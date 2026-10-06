@@ -103,8 +103,14 @@ export function renderPagos(container, actionsEl, path = '/pagos') {
           ${renderSearchInput('Buscar por destinatario o concepto...')}
           <select class="filter-select" id="filter-estado"><option value="">Todos los estados</option>${Object.entries(PAGO_ESTADO_LABELS).map(([k,v])=>`<option value="${k}" ${filterEstado===k?'selected':''}>${v}</option>`).join('')}</select>
           <select class="filter-select" id="filter-metodo"><option value="">Todos los métodos</option>${METODOS_PAGO.map(m=>`<option value="${m.value}" ${filterMetodo===m.value?'selected':''}>${m.label}</option>`).join('')}</select>
-          <input type="date" class="filter-select" id="filter-fecha-desde" value="${filterFechaDesde}" title="Fecha desde">
-          <input type="date" class="filter-select" id="filter-fecha-hasta" value="${filterFechaHasta}" title="Fecha hasta">
+          <div style="display:flex; align-items:center; gap: 6px;">
+            <span style="font-size:13px; color:var(--color-stone-600); font-weight:500;">Desde:</span>
+            <input type="date" class="filter-select" id="filter-fecha-desde" value="${filterFechaDesde}" title="Fecha desde" style="padding-left: 8px;">
+          </div>
+          <div style="display:flex; align-items:center; gap: 6px;">
+            <span style="font-size:13px; color:var(--color-stone-600); font-weight:500;">Hasta:</span>
+            <input type="date" class="filter-select" id="filter-fecha-hasta" value="${filterFechaHasta}" title="Fecha hasta" style="padding-left: 8px;">
+          </div>
         </div>
         <div class="table-toolbar-right"><span class="text-muted" style="font-size:var(--text-sm)">${filtered.length} pagos</span></div>
       </div>
@@ -144,7 +150,7 @@ export function renderPagos(container, actionsEl, path = '/pagos') {
     if (action === 'view-file') {
       const p = DataService.getById('pagos', id);
       if (p && (p.comprobanteUrl || p.comprobanteKey)) {
-        previewAttachment({ url: p.comprobanteUrl, key: p.comprobanteKey, filename: `Comprobante_Pago_${p.destinatarioConcepto || p.id}` });
+        previewAttachment({ url: p.comprobanteUrl, key: p.comprobanteKey, filename: `Comprobante - ${p.destinatarioConcepto || 'Pago'} (${formatDate(p.fecha)})` });
       }
       return;
     }
