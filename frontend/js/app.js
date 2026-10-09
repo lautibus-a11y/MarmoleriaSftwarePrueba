@@ -22,6 +22,8 @@ import { Drawer } from './components/drawer.js';
 import { Modal } from './components/modal.js';
 import { DocumentModal } from './components/documentModal.js';
 import { getSystemAlerts, openNotificationsModal } from './components/notificationsModal.js';
+import { Auth } from './services/auth.js';
+import { renderLogin } from './pages/login.js';
 
 import { escapeHtml } from './utils/helpers.js';
 
@@ -33,6 +35,12 @@ class App {
   }
 
   init() {
+    if (!Auth.isAuthenticated()) {
+      window.location.hash = '#/login';
+      renderLogin(this.appContainer);
+      return;
+    }
+
     this.renderApp();
     this.setupRouter();
     this.navigate();
@@ -96,6 +104,9 @@ class App {
 
   getCurrentPath() {
     const hash = window.location.hash.replace('#', '') || '/dashboard';
+    if (!Auth.isAuthenticated()) {
+      return '/login';
+    }
     if (hash === '/' || hash === '/login') {
       return '/dashboard';
     }
@@ -103,6 +114,12 @@ class App {
   }
 
   navigate() {
+    if (!Auth.isAuthenticated()) {
+      window.location.hash = '#/login';
+      renderLogin(this.appContainer);
+      return;
+    }
+
     let path = this.getCurrentPath();
     if (!window.location.hash || window.location.hash === '#/login' || window.location.hash === '#/') {
       window.location.hash = '#/dashboard';

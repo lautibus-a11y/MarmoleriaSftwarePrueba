@@ -16,6 +16,7 @@ import { openEventoForm } from './calendario.js';
 import { openDescontarStockObraModal } from '../services/stockAutomation.js';
 import { openClienteForm } from './clientes.js';
 import { openObraForm } from './obras.js';
+import { MODO_MEDIDA, computeItemM2, describeItemMeasure, isManualMeasure } from '../utils/itemMeasure.js';
 
 let isApprovingPresupuesto = false;
 
@@ -24,6 +25,7 @@ export const PRESUPUESTO_ADICIONALES_KEYS = [
   'manoDeObra',
   'inglete',
   'bacha',
+  'bachaConformada',
   'zocalos',
   'mensulas',
   'acarreoPorEscalera',
@@ -348,6 +350,7 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
       manoDeObra: 0,
       inglete: 0,
       bacha: 0,
+      bachaConformada: 0,
       zocalos: 0,
       mensulas: 0,
       acarreoPorEscalera: 0,
@@ -569,6 +572,10 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
               <div class="form-group">
                 <label class="form-label">Bacha</label>
                 <input type="number" class="form-input calc-field" name="adic_bacha" value="${pres.adicionales?.bacha || 0}" min="0">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Bacha Conformada</label>
+                <input type="number" class="form-input calc-field" name="adic_bachaConformada" value="${pres.adicionales?.bachaConformada || 0}" min="0">
               </div>
               <div class="form-group">
                 <label class="form-label">Zócalos</label>
@@ -866,6 +873,9 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
             largo: lVal,
             ancho: aVal,
             m2: parseFloat(it.m2) || 0,
+            modoMedida: it.modoMedida === MODO_MEDIDA.MANUAL ? MODO_MEDIDA.MANUAL : MODO_MEDIDA.AUTO,
+            m2Manual: it.m2Manual ?? '',
+            detalleMedida: it.detalleMedida ?? '',
             precioBase: baseP,
             precioUnitario: pM2,
             precioManual: manualP,
@@ -892,36 +902,11 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
         ];
 
     function calculateItem(it) {
-      const cant = Math.max(1, parseFloat(it.cantidad) || 1);
       const unidad = it.unidadMedida === 'm' ? 'm' : 'cm';
       it.unidadMedida = unidad;
 
-      const rawLargo = parseFloat(String(it.largo || '').replace(',', '.')) || 0;
-      const rawAncho = parseFloat(String(it.ancho || '').replace(',', '.')) || 0;
-
-      // Conversión automática a metros según la unidad elegida
-      let largoM = 0;
-      let anchoM = 0;
-
-      if (unidad === 'cm') {
-        largoM = rawLargo / 100;
-        anchoM = rawAncho / 100;
-      } else {
-        largoM = rawLargo;
-        anchoM = rawAncho;
-      }
-
-      // Cálculo de superficie en m²
-      if (largoM > 0 && anchoM > 0) {
-        it.m2 = (largoM * anchoM) * cant;
-      } else if (largoM > 0 && anchoM === 0) {
-        it.m2 = largoM * cant;
-      } else {
-        it.m2 = 0;
-      }
-
-      // Redondeo limpio a 4 decimales
-      it.m2 = Math.round((it.m2 + Number.EPSILON) * 10000) / 10000;
+      // Superficie en m² según el modo de medida del ítem (auto: largo × ancho × cant / manual: m² ingresados)
+      it.m2 = computeItemM2(it);
 
       const curMoneda = (qEl('#pres-moneda-select')?.value || pres.moneda || 'ARS').toUpperCase();
       const curTC = parseFloat(qEl('#pres-cotizacion-input')?.value) || pres.cotizacionDolar || defaultCotizacion;
@@ -947,6 +932,12 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
 
 
     function getItemPreviewHtml(item) {
+      if (isManualMeasure(item)) {
+        const m2Str = (item.m2 || 0).toFixed(2).replace('.', ',');
+        return item.m2 > 0
+          ? `✍️ ${escapeHtml(describeItemMeasure(item))} → Superficie: <strong style="color:var(--color-primary)">${m2Str} m²</strong> <span class="text-muted">(manual)</span>`
+          : `<span class="text-muted">Escribí los <strong>m² totales</strong> de la pieza</span>`;
+      }
       const u = item.unidadMedida || 'cm';
       const rawL = parseFloat(String(item.largo || '').replace(',', '.'));
       const rawA = parseFloat(String(item.ancho || '').replace(',', '.'));
@@ -1037,6 +1028,28 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
             </div>
           </div>
 
+          <!-- Modo de cálculo de superficie: por medidas o m² manual -->
+          <div class="form-group mb-2">
+            <label class="form-label-sm">Superficie</label>
+            <div class="unit-toggle-group measure-mode-toggle">
+              <button type="button" class="unit-toggle-btn ${!isManualMeasure(item) ? 'active' : ''}" data-action="toggle-measure-mode" data-mode="${MODO_MEDIDA.AUTO}">📐 Por medidas</button>
+              <button type="button" class="unit-toggle-btn ${isManualMeasure(item) ? 'active' : ''}" data-action="toggle-measure-mode" data-mode="${MODO_MEDIDA.MANUAL}">✍️ m² manual</button>
+            </div>
+          </div>
+
+          ${isManualMeasure(item) ? `
+          <!-- Modo manual: detalle libre + m² totales -->
+          <div class="pres-item-measures-grid is-manual">
+            <div class="form-group mb-0">
+              <label class="form-label-sm">Detalle / medidas (texto libre)</label>
+              <input type="text" class="form-input item-field" data-field="detalleMedida" value="${escapeHtml(item.detalleMedida || '')}" placeholder="Ej: Bacha 50x40 + zócalos">
+            </div>
+            <div class="form-group mb-0">
+              <label class="form-label-sm">m² totales <span class="required">*</span></label>
+              <input type="text" inputmode="decimal" class="form-input item-field" data-field="m2Manual" value="${escapeHtml(String(item.m2Manual ?? ''))}" placeholder="Ej: 2,35">
+            </div>
+          </div>
+          ` : `
           <!-- Selector de Unidad: cm o m + Medidas: Largo, Ancho y Cantidad -->
           <div class="pres-item-measures-grid">
             <div class="form-group mb-0">
@@ -1059,11 +1072,12 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
               <input type="number" step="1" min="1" inputmode="numeric" class="form-input item-field" data-field="cantidad" value="${item.cantidad || 1}">
             </div>
           </div>
+          `}
 
           <!-- Indicador de conversión y cálculo automático en vivo -->
           <div class="pres-item-measure-preview">
             <span class="preview-calc-text">${getItemPreviewHtml(item)}</span>
-            <span class="preview-tag">${item.unidadMedida === 'm' ? 'Metros (m)' : 'Centímetros (cm)'}</span>
+            <span class="preview-tag">${isManualMeasure(item) ? 'Manual' : (item.unidadMedida === 'm' ? 'Metros (m)' : 'Centímetros (cm)')}</span>
           </div>
 
           <!-- Resumen de cálculo del ítem: m², Precio/m², Subtotal -->
@@ -1125,6 +1139,27 @@ export function openPresupuestoForm(editId = null, onSaved = null, prefill = nul
       `).join('');
 
       replaceHTMLPreservingScroll(bodyEl, newHtml);
+
+      // Measure mode toggle: por medidas (auto) <-> m² manual. Conserva los valores de ambos modos.
+      bodyEl.querySelectorAll('[data-action="toggle-measure-mode"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const idx = parseInt(btn.closest('.pres-item-card').dataset.idx);
+          const targetMode = btn.dataset.mode === MODO_MEDIDA.MANUAL ? MODO_MEDIDA.MANUAL : MODO_MEDIDA.AUTO;
+          if ((items[idx].modoMedida || MODO_MEDIDA.AUTO) === targetMode) return;
+
+          // Al pasar a manual por primera vez, se precarga con los m² calculados como punto de partida
+          if (targetMode === MODO_MEDIDA.MANUAL && (items[idx].m2Manual === undefined || items[idx].m2Manual === '') && items[idx].m2 > 0) {
+            items[idx].m2Manual = String(items[idx].m2).replace('.', ',');
+          }
+
+          items[idx].modoMedida = targetMode;
+          calculateItem(items[idx]);
+          renderItems();
+          renderMaterialSummary();
+          updateSummary();
+        });
+      });
 
       // Unit toggle handler: converts values smoothly between cm and m
       bodyEl.querySelectorAll('[data-action="toggle-unit"]').forEach(btn => {
@@ -2061,6 +2096,7 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
     'Mano de obra': Number(adic.manoDeObra) || 0,
     'Inglete – Mano de obra': Number(adic.inglete) || 0,
     Bacha: Number(adic.bacha) || 0,
+    'Bacha Conformada': Number(adic.bachaConformada) || 0,
     Zócalos: Number(adic.zocalos) || 0,
     Ménsulas: Number(adic.mensulas) || 0,
     'Acarreo por escalera': Number(adic.acarreoPorEscalera) || Number(adic.acarreo) || Number(adic.porEscalera) || 0,
@@ -2180,8 +2216,12 @@ function renderPresupuestoDetail(container, actionsEl, presId) {
                 <span class="badge badge-neutral" style="font-weight:var(--font-bold)">${escapeHtml(item.material || 'Sin material')}</span>
               </div>
               <div class="detail-item-card-grid">
+                ${isManualMeasure(item) ? `
+                <div><span class="text-muted">Detalle:</span> <strong>${escapeHtml(describeItemMeasure(item))}</strong> <span class="text-muted" style="font-size:11px">(m² manual)</span></div>
+                ` : `
                 <div><span class="text-muted">Cantidad:</span> <strong>${item.cantidad || 1} ${item.cantidad > 1 ? 'piezas' : 'pieza'}</strong></div>
                 <div><span class="text-muted">Medidas:</span> <strong>${formatMeasure(item.largo)} × ${formatMeasure(item.ancho)}</strong></div>
+                `}
                 <div><span class="text-muted">Superficie total:</span> <strong style="color:var(--color-primary)">${m2Formatted} m²</strong></div>
                 <div><span class="text-muted">Precio por m²:</span> <strong>${formatCurrency(item.precioUnitario || 0, pres.moneda)}</strong>${(item.precioBase && Math.abs(item.precioBase - (item.precioUnitario || 0)) > 0.01) ? ` <span class="text-muted" style="font-size:11px;font-weight:normal">(Base: ${formatCurrency(item.precioBase, pres.moneda)})</span>` : ''}</div>
               </div>

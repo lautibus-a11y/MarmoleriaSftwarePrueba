@@ -18,31 +18,49 @@ class AuthService {
 
   loadSession() {
     try {
-      const data = localStorage.getItem(AUTH_KEY);
-      if (data) {
-        this.user = JSON.parse(data);
-      } else {
-        this.user = DEFAULT_USER;
-      }
+      // Limpiamos el localStorage viejo por si quedó guardado
+      localStorage.removeItem(AUTH_KEY);
+      
+      const data = sessionStorage.getItem(AUTH_KEY);
+      this.isLoggedIn = data === 'true';
     } catch (e) {
-      this.user = DEFAULT_USER;
+      this.isLoggedIn = false;
     }
   }
 
   isAuthenticated() {
-    return true;
+    return this.isLoggedIn;
   }
 
   getUser() {
-    return this.user || DEFAULT_USER;
+    return DEFAULT_USER;
   }
 
-  login(username, password) {
-    return { success: true, user: this.user };
+  // Función de hash simple para no dejar la contraseña en texto plano
+  _hash(str) {
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+      hash = (hash * 33) ^ str.charCodeAt(i);
+    }
+    return hash >>> 0;
+  }
+
+  login(password) {
+    // Hash de la contraseña esperada.
+    // Hash de "leilabenjamin" = 3784978336
+    const EXPECTED_HASH = 3784978336; 
+
+    if (this._hash(password) === EXPECTED_HASH) {
+      this.isLoggedIn = true;
+      sessionStorage.setItem(AUTH_KEY, 'true');
+      return true;
+    }
+    return false;
   }
 
   logout() {
-    this.user = DEFAULT_USER;
+    this.isLoggedIn = false;
+    sessionStorage.removeItem(AUTH_KEY);
   }
 }
 

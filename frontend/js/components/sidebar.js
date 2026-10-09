@@ -5,6 +5,7 @@
 import { Icons } from './ui.js';
 import { NAV_ITEMS } from '../utils/constants.js';
 import { LOGO_URL } from '../utils/logo.js';
+import { Auth } from '../services/auth.js';
 
 export function renderSidebar(activePath = '/dashboard') {
   const navItems = NAV_ITEMS.map(item => {
@@ -43,6 +44,9 @@ export function renderSidebar(activePath = '/dashboard') {
             <div class="sidebar-user-name">Administrador</div>
             <div class="sidebar-user-role">Admin</div>
           </div>
+          <button id="btn-logout" title="Cerrar Sesión" style="background:transparent;border:none;color:var(--color-stone-400);cursor:pointer;padding:8px;border-radius:8px">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          </button>
         </div>
       </div>
     </aside>
@@ -86,6 +90,15 @@ export function initSidebar() {
       }
     });
   });
+
+  const btnLogout = document.getElementById('btn-logout');
+  if (btnLogout) {
+    btnLogout.addEventListener('click', () => {
+      Auth.logout();
+      window.location.hash = '#/login';
+      window.location.reload();
+    });
+  }
 }
 
 export function updateSidebarActive(path) {

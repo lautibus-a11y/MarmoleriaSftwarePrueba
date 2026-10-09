@@ -16,6 +16,7 @@ import { openEventoForm } from './calendario.js';
 import { openCobroForm } from './cobros.js';
 import { openDescontarStockObraModal } from '../services/stockAutomation.js';
 import { OBRA_ESTADO_LABELS, OBRA_ESTADO_COLORS, PRESUPUESTO_ESTADO_LABELS, PRESUPUESTO_ESTADO_COLORS } from '../utils/constants.js';
+import { describeItemMeasure, isManualMeasure } from '../utils/itemMeasure.js';
 
 // ── Pasos del Flujo Guiado ──
 export const PASOS_CONFIG = [
@@ -1091,7 +1092,7 @@ function renderStepContent({ step, proc, cliente, presupuesto, obra, draft, tota
                 <div class="workflow-items-mini-list">
                   ${presupuesto.items.map(it => `
                     <div class="workflow-item-mini-row">
-                      <span><strong>${escapeHtml(it.descripcion || 'Pieza')}</strong> · ${escapeHtml(it.material || '')} (${it.largo || 0}×${it.ancho || 0} ${it.unidadMedida || 'cm'})</span>
+                      <span><strong>${escapeHtml(it.descripcion || 'Pieza')}</strong> · ${escapeHtml(it.material || '')} (${isManualMeasure(it) ? `${escapeHtml(describeItemMeasure(it))} · ${(Number(it.m2) || 0).toFixed(2).replace('.', ',')} m²` : `${it.largo || 0}×${it.ancho || 0} ${it.unidadMedida || 'cm'}`})</span>
                       <span class="font-mono font-bold">${formatCurrency(it.subtotal || 0, presupuesto.moneda)}</span>
                     </div>
                   `).join('')}

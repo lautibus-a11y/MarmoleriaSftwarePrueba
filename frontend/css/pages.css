@@ -330,6 +330,15 @@
   margin-bottom: var(--space-2);
 }
 
+/* Modo m² manual: Detalle (texto libre) + m² totales */
+.pres-item-measures-grid.is-manual {
+  grid-template-columns: 1fr 140px;
+}
+
+.measure-mode-toggle {
+  max-width: 320px;
+}
+
 .unit-toggle-group {
   display: flex;
   background: var(--color-stone-100);

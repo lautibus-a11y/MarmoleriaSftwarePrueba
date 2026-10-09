@@ -11,6 +11,7 @@ import { formatCurrency, formatDate, escapeHtml } from '../utils/helpers.js';
 import { PRESUPUESTO_ESTADO_LABELS, OBRA_ESTADO_LABELS, COBRO_ESTADO_LABELS, FACTURA_TIPO_LABELS, METODOS_PAGO } from '../utils/constants.js';
 import { LOGO_BASE64 } from '../utils/logo.js';
 import { Toast } from '../components/toast.js';
+import { describeItemMeasure, isManualMeasure } from '../utils/itemMeasure.js';
 
 // Retrieve company information from configuration
 export function getCompanyInfo() {
@@ -60,6 +61,7 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
     { label: 'Mano de obra especializada', val: adic.manoDeObra },
     { label: 'Inglete – Mano de obra', val: adic.inglete },
     { label: 'Provisión e instalación de bacha', val: adic.bacha },
+    { label: 'Provisión e instalación de bacha conformada', val: adic.bachaConformada },
     { label: 'Zócalos perimetrales', val: adic.zocalos },
     { label: 'Ménsulas', val: adic.mensulas },
     { label: 'Acarreo por escalera', val: adic.acarreoPorEscalera ?? (Number(adic.acarreo) + Number(adic.porEscalera) || 0) },
@@ -93,9 +95,11 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
       <td style="text-align:center;width:28px">${idx + 1}</td>
       <td><strong>${escapeHtml(it.descripcion || 'Sin descripción')}</strong></td>
       <td><span style="font-weight:600;color:#1C1917">${escapeHtml(it.material || '-')}</span></td>
-      <td class="num">${it.cantidad || 1}</td>
-      <td class="num">${formatDocMeasure(it.largo, it.unidadMedida)}</td>
-      <td class="num">${formatDocMeasure(it.ancho, it.unidadMedida)}</td>
+      <td class="num">${isManualMeasure(it) ? '-' : (it.cantidad || 1)}</td>
+      ${isManualMeasure(it)
+        ? `<td colspan="2" style="text-align:center;font-style:italic">${escapeHtml(describeItemMeasure(it))}</td>`
+        : `<td class="num">${formatDocMeasure(it.largo, it.unidadMedida)}</td>
+      <td class="num">${formatDocMeasure(it.ancho, it.unidadMedida)}</td>`}
       <td class="num" style="font-weight:600">${(Number(it.m2) || 0).toFixed(2).replace('.', ',')} m²</td>
       <td class="num">${formatCurrency(it.precioUnitario || 0, pres.moneda)}</td>
       <td class="num" style="font-weight:700">${formatCurrency(it.subtotal || 0, pres.moneda)}</td>
@@ -294,9 +298,11 @@ export function generateObraHtml(obra, cliente = null, pres = null, cobros = [])
       <td style="text-align:center">${idx + 1}</td>
       <td><strong>${escapeHtml(it.descripcion || 'Pieza #' + (idx + 1))}</strong></td>
       <td>${escapeHtml(it.material || obra.material || '-')}</td>
-      <td class="num">${it.cantidad || 1}</td>
-      <td class="num">${it.largo ? it.largo + ' ' + u : '-'}</td>
-      <td class="num">${it.ancho ? it.ancho + ' ' + u : '-'}</td>
+      <td class="num">${isManualMeasure(it) ? '-' : (it.cantidad || 1)}</td>
+      ${isManualMeasure(it)
+        ? `<td colspan="2" style="text-align:center;font-style:italic">${escapeHtml(describeItemMeasure(it))}</td>`
+        : `<td class="num">${it.largo ? it.largo + ' ' + u : '-'}</td>
+      <td class="num">${it.ancho ? it.ancho + ' ' + u : '-'}</td>`}
       <td class="num" style="font-weight:600">${m2Formatted} m²</td>
     </tr>
   `;

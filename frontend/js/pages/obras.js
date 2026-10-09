@@ -14,6 +14,7 @@ import { OBRA_ESTADO_LABELS, OBRA_ESTADO_COLORS } from '../utils/constants.js';
 import { openDescontarStockObraModal } from '../services/stockAutomation.js';
 import { openCobroForm } from './cobros.js';
 import { openEventoForm } from './calendario.js';
+import { describeItemMeasure, isManualMeasure } from '../utils/itemMeasure.js';
 
 export function renderObras(container, actionsEl, path = '/obras') {
   const parts = path.split('/');
@@ -448,8 +449,12 @@ function renderObraDetail(container, actionsEl, obraId) {
                       <span class="badge badge-neutral" style="font-weight:var(--font-bold)">${escapeHtml(item.material || obra.material || 'Material s/ diseño')}</span>
                     </div>
                     <div class="detail-item-card-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:10px;font-size:var(--text-sm)">
+                      ${isManualMeasure(item) ? `
+                      <div><span class="text-muted">Detalle:</span> <strong>${escapeHtml(describeItemMeasure(item))}</strong> <span class="text-muted" style="font-size:11px">(m² manual)</span></div>
+                      ` : `
                       <div><span class="text-muted">Cantidad:</span> <strong>${item.cantidad || 1} piezas</strong></div>
                       <div><span class="text-muted">Medidas:</span> <strong>${item.largo ? item.largo + ' ' + u : '-'} × ${item.ancho ? item.ancho + ' ' + u : '-'}</strong></div>
+                      `}
                       <div><span class="text-muted">Superficie:</span> <strong style="color:var(--color-primary)">${m2Formatted} m²</strong></div>
                       ${item.subtotal ? `<div><span class="text-muted">Subtotal:</span> <strong>${formatCurrency(item.subtotal)}</strong></div>` : ''}
                     </div>
