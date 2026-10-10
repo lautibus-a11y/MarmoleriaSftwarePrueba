@@ -285,8 +285,15 @@ export function generatePresupuestoHtml(pres, cliente = null, totalCalc = 0) {
 // ── 2. Obra / Orden de Trabajo HTML Generator ──
 export function generateObraHtml(obra, cliente = null, pres = null, cobros = []) {
   const company = getCompanyInfo();
+  const mon = obra.moneda || pres?.moneda || 'ARS';
   const total = pres ? (pres.items || []).reduce((s, i) => s + (i.subtotal || 0), 0) : (Number(obra.importe) || 0);
-  const cobrado = cobros.reduce((s, c) => s + (Number(c.importe) || 0), 0);
+  const cobrado = cobros.reduce((s, c) => {
+    const cMon = (c.moneda || 'ARS').toUpperCase();
+    const imp = Number(c.importe) || 0;
+    if (cMon === mon) return s + imp;
+    const rate = Number(c.tipoCambio || c.cotizacion || obra.cotizacionDolar || pres?.cotizacionDolar) || 1500;
+    return s + (cMon === 'ARS' && mon === 'USD' ? (rate > 0 ? imp / rate : imp) : (imp * rate));
+  }, 0);
   const saldo = total - cobrado;
 
   const itemsList = (pres && pres.items && pres.items.length > 0) ? pres.items : (obra.items || []);
@@ -387,9 +394,9 @@ export function generateObraHtml(obra, cliente = null, pres = null, cobros = [])
         <div class="doc-info-card">
           <div class="doc-info-card-title">Estado Contable</div>
           <div class="doc-info-row"><span class="doc-info-label">Presupuesto:</span><span class="doc-info-val">${pres ? pres.numero : '-'}</span></div>
-          <div class="doc-info-row"><span class="doc-info-label">Total pactado:</span><span class="doc-info-val">${formatCurrency(total, cobro.moneda)}</span></div>
-          <div class="doc-info-row"><span class="doc-info-label">Cobrado:</span><span class="doc-info-val" style="color:#059669">${formatCurrency(cobrado, cobro.moneda)}</span></div>
-          <div class="doc-info-row"><span class="doc-info-label">Saldo a cobrar:</span><span class="doc-info-val" style="color:#D97706">${formatCurrency(saldo, cobro.moneda)}</span></div>
+          <div class="doc-info-row"><span class="doc-info-label">Total pactado:</span><span class="doc-info-val">${formatCurrency(total, mon)}</span></div>
+          <div class="doc-info-row"><span class="doc-info-label">Cobrado:</span><span class="doc-info-val" style="color:#059669">${formatCurrency(cobrado, mon)}</span></div>
+          <div class="doc-info-row"><span class="doc-info-label">Saldo a cobrar:</span><span class="doc-info-val" style="color:#D97706">${formatCurrency(saldo, mon)}</span></div>
         </div>
 
         <div class="doc-info-card">

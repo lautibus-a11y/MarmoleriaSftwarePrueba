@@ -189,10 +189,20 @@ export function openCobroForm(editId = null, prefill = {}, onSaved = null) {
         <div class="form-group"><label class="form-label">Cliente <span class="required">*</span></label><select class="form-select" name="clienteId" id="cobro-cliente"><option value="">Seleccionar...</option>${clientes.map(c=>`<option value="${c.id}" ${cobro.clienteId===c.id?'selected':''}>${c.nombre} ${c.apellido||''}</option>`).join('')}</select></div>
         <div class="form-group"><label class="form-label">Obra</label><select class="form-select" name="obraId" id="cobro-obra"><option value="">Sin asociar</option>${obrasDisp.map(o=>{const cl=clientes.find(c=>c.id===o.clienteId);return`<option value="${o.id}" ${cobro.obraId===o.id?'selected':''}>${escapeHtml(o.direccion)} (${cl?.nombre||''})</option>`;}).join('')}</select></div>
         <div id="cobro-saldo-info" style="display:none;margin-bottom:var(--space-4)"></div>
-        <div class="form-row-3" style="display:grid;grid-template-columns:1fr 2fr 2fr;gap:var(--space-4)">
-          <div class="form-group"><label class="form-label">Moneda</label><select class="form-select" name="moneda"><option value="ARS" ${(cobro.moneda||'ARS')==='ARS'?'selected':''}>ARS ($)</option><option value="USD" ${(cobro.moneda||'ARS')==='USD'?'selected':''}>USD (U$D)</option></select></div>
-          <div class="form-group"><label class="form-label">Importe <span class="required">*</span></label><input type="number" class="form-input" name="importe" value="${cobro.importe||''}" min="0" step="0.01"></div>
-          <div class="form-group"><label class="form-label">Fecha</label><input type="date" class="form-input" name="fecha" value="${cobro.fecha||new Date().toISOString().split('T')[0]}"></div>
+        <div class="form-row-3" style="display:grid;grid-template-columns:1fr 2fr 2fr;gap:var(--space-4);margin-bottom:var(--space-4)">
+          <div class="form-group" style="margin-bottom:0"><label class="form-label">Moneda</label><select class="form-select" name="moneda"><option value="ARS" ${(cobro.moneda||'ARS')==='ARS'?'selected':''}>ARS ($)</option><option value="USD" ${(cobro.moneda||'ARS')==='USD'?'selected':''}>USD (U$D)</option></select></div>
+          <div class="form-group" style="margin-bottom:0"><label class="form-label">Importe <span class="required">*</span></label><input type="number" class="form-input" name="importe" value="${cobro.importe||''}" min="0" step="0.01"></div>
+          <div class="form-group" style="margin-bottom:0"><label class="form-label">Fecha</label><input type="date" class="form-input" name="fecha" value="${cobro.fecha||new Date().toISOString().split('T')[0]}"></div>
+        </div>
+        <div style="background:rgba(37,99,235,0.05); border:1px dashed rgba(37,99,235,0.3); border-radius:var(--radius-md); padding:var(--space-3); margin-bottom:var(--space-4);">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label" style="color:#1d4ed8; font-weight:600; display:flex; align-items:center; gap:6px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              Cotización del día (Opcional)
+            </label>
+            <input type="number" class="form-input" name="tipoCambio" value="${cobro.tipoCambio||''}" step="0.01" placeholder="Ej: 1350" style="font-size:16px; border-color:rgba(37,99,235,0.3); background:#fff;">
+            <div style="font-size:12px; color:var(--color-stone-600); margin-top:6px; line-height:1.4;">Completá este campo solo si el cliente paga con una moneda diferente a la de la obra (Ej: Paga pesos para una obra en dólares). Si lo dejás vacío se usará la cotización del presupuesto original.</div>
+          </div>
         </div>
         <div class="form-row-2">
           <div class="form-group"><label class="form-label">Método de pago</label><select class="form-select" name="metodoPago">${METODOS_PAGO.map(m=>`<option value="${m.value}" ${cobro.metodoPago===m.value?'selected':''}>${m.label}</option>`).join('')}</select></div>
@@ -215,7 +225,8 @@ export function openCobroForm(editId = null, prefill = {}, onSaved = null) {
         const obra = DataService.getById('obras', obraId);
         const total = DataService.getObraTotal(obraId);
         const cobrado = DataService.getObraCobrado(obraId);
-        const mon = obra?.moneda || 'ARS';
+        const pres = obra?.presupuestoId ? DataService.getById('presupuestos', obra.presupuestoId) : null;
+        const mon = obra?.moneda || pres?.moneda || 'ARS';
         saldoInfo.style.display = 'block';
         saldoInfo.innerHTML = `<div class="alert alert-info"><span class="alert-icon">${Icons.info || ''}</span><span>Total obra: ${formatCurrency(total, mon)} · Cobrado: ${formatCurrency(cobrado, mon)} · <strong>Pendiente: ${formatCurrency(total-cobrado, mon)}</strong></span></div>`;
         
@@ -304,6 +315,11 @@ export function openCobroForm(editId = null, prefill = {}, onSaved = null) {
       saveBtn.textContent = 'Guardando...';
 
       data.importe = parseFloat(data.importe);
+      if (data.tipoCambio) {
+        data.tipoCambio = parseFloat(data.tipoCambio);
+      } else {
+        delete data.tipoCambio; // Don't save empty string
+      }
 
       // Handle file upload to Cloudflare R2
       if (selectedFile) {

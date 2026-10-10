@@ -396,7 +396,7 @@ export function calculateProcessState({ draft, presupuesto, obra, cliente, event
       canAdvance: true,
       isCompleted: false,
       isWaiting: false,
-      summary: `Anticipo pendiente. Total de la obra: ${formatCurrency(totalObra)}. Sin cobros registrados.`
+      summary: `Anticipo pendiente. Total de la obra: ${formatCurrency(totalObra, obra.moneda || 'ARS')}. Sin cobros registrados.`
     };
   }
 
@@ -431,7 +431,7 @@ export function calculateProcessState({ draft, presupuesto, obra, cliente, event
     isCompleted: false,
     isWaiting: false,
     summary: saldoPendiente > 0
-      ? `Obra en ejecución. Saldo restante: ${formatCurrency(saldoPendiente)}.`
+      ? `Obra en ejecución. Saldo restante: ${formatCurrency(saldoPendiente, obra?.moneda || presupuesto?.moneda || 'ARS')}.`
       : 'Obra lista para marcar como finalizada.'
   };
 }
@@ -718,7 +718,7 @@ function renderProcessCard(proc) {
           <span class="workflow-meta-label">💰 Importe</span>
           <span class="workflow-meta-value font-mono">
             ${total > 0 ? formatCurrency(total, presupuesto?.moneda || obra?.moneda || 'ARS') : 'A cotizar'}
-            ${obra && saldo > 0 ? `<span style="color:var(--color-warning);font-size:11px;font-weight:700"> (Resta: ${formatCurrency(saldo)})</span>` : ''}
+            ${obra && saldo > 0 ? `<span style="color:var(--color-warning);font-size:11px;font-weight:700"> (Resta: ${formatCurrency(saldo, presupuesto?.moneda || obra?.moneda || 'ARS')})</span>` : ''}
           </span>
         </div>
       </div>
@@ -852,6 +852,7 @@ export function renderPasoAPasoWorkflow(container, actionsEl, processId) {
     const total = obra ? DataService.getObraTotal(obra.id) : (presupuesto ? DataService.getPresupuestoTotal(presupuesto) : 0);
     const cobrado = obra ? DataService.getObraCobrado(obra.id) : 0;
     const saldo = total - cobrado;
+    const mon = obra?.moneda || presupuesto?.moneda || 'ARS';
 
     container.innerHTML = `
       <div class="paso-container">
@@ -962,6 +963,7 @@ function renderStepContent({ step, proc, cliente, presupuesto, obra, draft, tota
   const nextMeta = step < 8 ? PASOS_CONFIG.find(s => s.step === step + 1) : null;
 
   let bodyHtml = '';
+  const mon = obra?.moneda || presupuesto?.moneda || 'ARS';
 
   switch (step) {
     // ── PASO 1: CLIENTE ──
@@ -1360,19 +1362,19 @@ function renderStepContent({ step, proc, cliente, presupuesto, obra, draft, tota
           <div class="workflow-metric-cards-grid">
             <div class="workflow-metric-card">
               <span class="workflow-metric-label">Total del trabajo</span>
-              <span class="workflow-metric-val">${formatCurrency(total)}</span>
+              <span class="workflow-metric-val">${formatCurrency(total, mon)}</span>
             </div>
             <div class="workflow-metric-card">
               <span class="workflow-metric-label">Seña sugerida (50%)</span>
-              <span class="workflow-metric-val" style="color:var(--color-primary)">${formatCurrency(señaSugerida)}</span>
+              <span class="workflow-metric-val" style="color:var(--color-primary)">${formatCurrency(señaSugerida, mon)}</span>
             </div>
             <div class="workflow-metric-card">
               <span class="workflow-metric-label">Total cobrado</span>
-              <span class="workflow-metric-val" style="color:var(--color-success)">${formatCurrency(cobrado)}</span>
+              <span class="workflow-metric-val" style="color:var(--color-success)">${formatCurrency(cobrado, mon)}</span>
             </div>
             <div class="workflow-metric-card">
               <span class="workflow-metric-label">Saldo restante</span>
-              <span class="workflow-metric-val" style="color:${saldo > 0 ? 'var(--color-warning)' : 'var(--color-success)'}">${formatCurrency(saldo)}</span>
+              <span class="workflow-metric-val" style="color:${saldo > 0 ? 'var(--color-warning)' : 'var(--color-success)'}">${formatCurrency(saldo, mon)}</span>
             </div>
           </div>
 
@@ -1394,7 +1396,7 @@ function renderStepContent({ step, proc, cliente, presupuesto, obra, draft, tota
                     <div>
                       <strong>Recibo #${escapeHtml(String(c.id))}</strong> — ${formatDate(c.fecha)} (${escapeHtml(c.metodoPago || 'Efectivo')})
                     </div>
-                    <span class="font-mono font-bold" style="color:var(--color-success);font-size:14px">${formatCurrency(c.importe)}</span>
+                    <span class="font-mono font-bold" style="color:var(--color-success);font-size:14px">${formatCurrency(c.importe, c.moneda || mon)}</span>
                   </div>
                 `).join('')}
               </div>
@@ -1487,15 +1489,15 @@ function renderStepContent({ step, proc, cliente, presupuesto, obra, draft, tota
           <div class="workflow-metric-cards-grid">
             <div class="workflow-metric-card">
               <span class="workflow-metric-label">Total del trabajo</span>
-              <span class="workflow-metric-val">${formatCurrency(total)}</span>
+              <span class="workflow-metric-val">${formatCurrency(total, mon)}</span>
             </div>
             <div class="workflow-metric-card">
               <span class="workflow-metric-label">Total cobrado</span>
-              <span class="workflow-metric-val" style="color:var(--color-success)">${formatCurrency(cobrado)}</span>
+              <span class="workflow-metric-val" style="color:var(--color-success)">${formatCurrency(cobrado, mon)}</span>
             </div>
             <div class="workflow-metric-card">
               <span class="workflow-metric-label">Saldo a cobrar</span>
-              <span class="workflow-metric-val" style="color:${saldo > 0 ? 'var(--color-warning)' : 'var(--color-success)'}">${formatCurrency(saldo)}</span>
+              <span class="workflow-metric-val" style="color:${saldo > 0 ? 'var(--color-warning)' : 'var(--color-success)'}">${formatCurrency(saldo, mon)}</span>
             </div>
             <div class="workflow-metric-card">
               <span class="workflow-metric-label">Estado actual</span>
@@ -1511,7 +1513,7 @@ function renderStepContent({ step, proc, cliente, presupuesto, obra, draft, tota
               </div>
               ${saldo > 0 ? `
                 <button type="button" class="btn btn-success btn-sm" id="btn-action-add-cobro" style="background:#059669;color:#fff;border-color:#059669;font-weight:700">
-                  ${Icons['hand-coins']} Cobrar saldo (${formatCurrency(saldo)})
+                  ${Icons['hand-coins']} Cobrar saldo (${formatCurrency(saldo, mon)})
                 </button>
               ` : ''}
             </div>

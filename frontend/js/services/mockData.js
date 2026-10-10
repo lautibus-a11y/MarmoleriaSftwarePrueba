@@ -643,20 +643,48 @@ export const DataService = {
   },
 
   getObraCobrado(obraId) {
+    const obra = store.obras?.find(o => String(o.id) === String(obraId));
+    if (!obra) return 0;
+
+    let targetMoneda = (obra.moneda || 'ARS').toUpperCase();
+    let pres = null;
+    if (obra.presupuestoId) {
+      pres = store.presupuestos?.find(p => String(p.id) === String(obra.presupuestoId));
+      if (!obra.moneda && pres?.moneda) {
+        targetMoneda = pres.moneda.toUpperCase();
+      }
+    }
+
+    const defaultRate = parseFloat(obra.cotizacionDolar) || parseFloat(pres?.cotizacionDolar) || parseFloat(pres?.usdRateUsed) || this.getCotizacionDolar();
+
     return (store.cobros || [])
       .filter(c => String(c.obraId) === String(obraId) && (c.estado === 'cobrado' || !c.estado))
-      .reduce((s, c) => s + (parseFloat(c.importe) || 0), 0);
+      .reduce((s, c) => {
+        const imp = parseFloat(c.importe) || 0;
+        const cMoneda = (c.moneda || 'ARS').toUpperCase();
+        const cRate = parseFloat(c.tipoCambio || c.cotizacion) || defaultRate;
+        const converted = this.convertCurrency(imp, cMoneda, targetMoneda, cRate);
+        return s + converted;
+      }, 0);
   },
 
   getClienteSaldo(clienteId) {
     const obras = (store.obras || []).filter(o => String(o.clienteId) === String(clienteId));
     let totalObras = 0;
     let totalCobrado = 0;
+    let hasUSD = false;
+    let hasARS = false;
+
     obras.forEach(o => {
+      const mon = (o.moneda || 'ARS').toUpperCase();
+      if (mon === 'USD') hasUSD = true;
+      else hasARS = true;
       totalObras += this.getObraTotal(o.id);
       totalCobrado += this.getObraCobrado(o.id);
     });
-    return { totalObras, totalCobrado, saldo: totalObras - totalCobrado };
+
+    const moneda = (hasUSD && !hasARS) ? 'USD' : 'ARS';
+    return { totalObras, totalCobrado, saldo: totalObras - totalCobrado, moneda };
   },
 
   // ── Dashboard Computed ──
@@ -666,7 +694,18 @@ export const DataService = {
     const currentYear = now.getFullYear();
 
     const totalPorCobrar = store.obras.reduce((s, o) => {
-      return s + (this.getObraTotal(o.id) - this.getObraCobrado(o.id));
+      const obraTotal = this.getObraTotal(o.id);
+      const obraCobrado = this.getObraCobrado(o.id);
+      const saldo = obraTotal - obraCobrado;
+      if (saldo <= 0) return s;
+
+      const obraMon = (o.moneda || 'ARS').toUpperCase();
+      if (obraMon === 'USD') {
+        const pres = o.presupuestoId ? store.presupuestos?.find(p => String(p.id) === String(o.presupuestoId)) : null;
+        const rate = parseFloat(o.cotizacionDolar) || parseFloat(pres?.cotizacionDolar) || this.getCotizacionDolar();
+        return s + this.convertCurrency(saldo, 'USD', 'ARS', rate);
+      }
+      return s + saldo;
     }, 0);
 
     const totalPorPagar = store.proveedores.reduce((s, p) => {

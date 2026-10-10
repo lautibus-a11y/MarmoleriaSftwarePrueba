@@ -50,11 +50,12 @@ export function renderObras(container, actionsEl, path = '/obras') {
       { label: 'Material', render: (o) => `<span class="text-truncate cell-secondary" style="max-width:140px;display:inline-block" title="${escapeHtml(o.material || '')}">${escapeHtml(o.material || '-')}</span>` },
       { label: 'Estado', render: (o) => renderBadge(OBRA_ESTADO_LABELS[o.estado] || o.estado, OBRA_ESTADO_COLORS[o.estado] || 'neutral') },
       { label: 'Saldo', align: 'right', render: (o) => {
+        const mon = o.moneda || 'ARS';
         const t = DataService.getObraTotal(o.id);
         const c = DataService.getObraCobrado(o.id);
         const saldo = t - c;
         return `<div>
-          <span class="cell-currency" style="font-weight:var(--font-bold);color:${saldo > 0 ? 'var(--color-stone-900)' : 'var(--color-success)'}">${formatCurrency(saldo)}</span>
+          <span class="cell-currency" style="font-weight:var(--font-bold);color:${saldo > 0 ? 'var(--color-stone-900)' : 'var(--color-success)'}">${formatCurrency(saldo, mon)}</span>
           ${t > 0 ? `<div style="font-size:10.5px;color:var(--color-stone-400)">Cobrado: ${Math.round(c / t * 100)}%</div>` : ''}
         </div>`;
       }},
@@ -321,6 +322,7 @@ function renderObraDetail(container, actionsEl, obraId) {
   const cliente = DataService.getById('clientes', obra.clienteId);
   const obraContact = resolveEntityContact(cliente, { clienteNombre: obra.clienteNombre, telefono: obra.contacto || obra.telefono, direccion: obra.direccion });
   const pres = obra.presupuestoId ? DataService.getById('presupuestos', obra.presupuestoId) : null;
+  const mon = obra.moneda || pres?.moneda || 'ARS';
   const total = DataService.getObraTotal(obraId);
   const cobrado = DataService.getObraCobrado(obraId);
   const saldoPendiente = total - cobrado;
@@ -385,7 +387,7 @@ function renderObraDetail(container, actionsEl, obraId) {
         <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:var(--space-3);margin-top:var(--space-4);padding-top:var(--space-4);border-top:1px solid var(--color-stone-200)">
           <div style="background:var(--color-stone-50);padding:14px;border-radius:var(--radius-md);border:1px solid var(--color-stone-200)">
             <div style="font-size:var(--text-xs);color:var(--color-stone-500);font-weight:var(--font-medium);text-transform:uppercase;letter-spacing:0.5px">Total Obra</div>
-            <div style="font-size:var(--text-xl);font-weight:var(--font-bold);color:var(--color-stone-900);margin-top:4px">${formatCurrency(total)}</div>
+            <div style="font-size:var(--text-xl);font-weight:var(--font-bold);color:var(--color-stone-900);margin-top:4px">${formatCurrency(total, mon)}</div>
           </div>
 
           <div style="background:var(--color-stone-50);padding:14px;border-radius:var(--radius-md);border:1px solid var(--color-stone-200)">
@@ -393,7 +395,7 @@ function renderObraDetail(container, actionsEl, obraId) {
               <span style="font-size:var(--text-xs);color:var(--color-stone-500);font-weight:var(--font-medium);text-transform:uppercase;letter-spacing:0.5px">Cobrado</span>
               <span style="font-size:var(--text-xs);font-weight:var(--font-bold);color:var(--color-success)">${porcentajeCobrado}%</span>
             </div>
-            <div style="font-size:var(--text-xl);font-weight:var(--font-bold);color:var(--color-success);margin-top:4px">${formatCurrency(cobrado)}</div>
+            <div style="font-size:var(--text-xl);font-weight:var(--font-bold);color:var(--color-success);margin-top:4px">${formatCurrency(cobrado, mon)}</div>
           </div>
 
           <div style="background:var(--color-stone-50);padding:14px;border-radius:var(--radius-md);border:1px solid var(--color-stone-200)">
@@ -401,7 +403,7 @@ function renderObraDetail(container, actionsEl, obraId) {
               ${saldoPendiente > 0 ? 'Saldo Pendiente' : (saldoPendiente < 0 ? 'Saldo a favor' : 'Estado de Cobro')}
             </div>
             <div style="font-size:var(--text-xl);font-weight:var(--font-bold);color:${saldoPendiente > 0 ? 'var(--color-warning)' : 'var(--color-success)'};margin-top:4px">
-              ${saldoPendiente > 0 ? formatCurrency(saldoPendiente) : (saldoPendiente < 0 ? `+${formatCurrency(Math.abs(saldoPendiente))} (a favor)` : '✓ Al día ($0)')}
+              ${saldoPendiente > 0 ? formatCurrency(saldoPendiente, mon) : (saldoPendiente < 0 ? `+${formatCurrency(Math.abs(saldoPendiente), mon)} (a favor)` : `✓ Al día (${mon === 'USD' ? 'US$ 0' : '$ 0'})`)}
             </div>
           </div>
 
@@ -544,7 +546,7 @@ function renderObraDetail(container, actionsEl, obraId) {
           <div class="card-body">
             <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-2)">
               <span class="text-muted" style="font-size:var(--text-sm)">Avance de cobranza</span>
-              <span style="font-weight:var(--font-bold);font-size:var(--text-sm)">${porcentajeCobrado}% (${formatCurrency(cobrado)} de ${formatCurrency(total)})</span>
+              <span style="font-weight:var(--font-bold);font-size:var(--text-sm)">${porcentajeCobrado}% (${formatCurrency(cobrado, mon)} de ${formatCurrency(total, mon)})</span>
             </div>
             ${renderProgressBar(cobrado, total)}
           </div>
@@ -559,7 +561,20 @@ function renderObraDetail(container, actionsEl, obraId) {
           </div>
           ${cobros.length > 0 ? renderDataTable({ columns: [
             { label: 'Fecha', render: c => formatDate(c.fecha) },
-            { label: 'Importe', align: 'right', render: c => `<span class="cell-currency">${formatCurrency(c.importe)}</span>` },
+            { label: 'Importe', align: 'right', render: c => {
+              const cMon = c.moneda || 'ARS';
+              const cImp = formatCurrency(c.importe, cMon);
+              if (cMon !== mon) {
+                const defaultRate = parseFloat(obra?.cotizacionDolar) || parseFloat(pres?.cotizacionDolar) || parseFloat(pres?.usdRateUsed) || DataService.getCotizacionDolar();
+                const rate = parseFloat(c.tipoCambio || c.cotizacion) || defaultRate;
+                const equiv = DataService.convertCurrency(c.importe, cMon, mon, rate);
+                return `<div style="text-align:right">
+                  <span class="cell-currency" style="font-weight:var(--font-bold)">${cImp}</span>
+                  <div style="font-size:11px;color:var(--color-stone-500)">≈ ${formatCurrency(equiv, mon)}</div>
+                </div>`;
+              }
+              return `<span class="cell-currency">${cImp}</span>`;
+            }},
             { label: 'Método', render: c => escapeHtml(c.metodoPago) },
             { label: 'Observaciones', render: c => escapeHtml(c.observaciones || '-'), className: 'cell-secondary' }
           ], data: cobros }) : '<div class="card-body text-center text-muted" style="padding:var(--space-6)">No hay cobros registrados para esta obra</div>'}

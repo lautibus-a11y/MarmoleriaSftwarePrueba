@@ -62,9 +62,10 @@ export function renderClientes(container, actionsEl, path = '/clientes') {
         label: 'Saldo pendiente', field: 'saldo', align: 'right',
         render: (item) => {
           const saldo = DataService.getClienteSaldo(item.id);
+          const mon = saldo.moneda || 'ARS';
           return saldo.saldo > 0
-            ? `<span class="cell-currency" style="color: var(--color-success)">${formatCurrency(saldo.saldo)}</span>`
-            : `<span class="cell-currency">${formatCurrency(0)}</span>`;
+            ? `<span class="cell-currency" style="color: var(--color-success)">${formatCurrency(saldo.saldo, mon)}</span>`
+            : `<span class="cell-currency">${formatCurrency(0, mon)}</span>`;
         }
       },
       {
@@ -377,16 +378,16 @@ function renderClienteDetail(container, actionsEl, clienteId) {
     <div class="detail-stats-row mb-4">
       <div class="detail-stat-mini">
         <span class="detail-stat-mini-label">Total obras</span>
-        <span class="detail-stat-mini-value">${formatCurrency(saldo.totalObras)}</span>
+        <span class="detail-stat-mini-value">${formatCurrency(saldo.totalObras, saldo.moneda || 'ARS')}</span>
       </div>
       <div class="detail-stat-mini">
         <span class="detail-stat-mini-label">Cobrado</span>
-        <span class="detail-stat-mini-value" style="color: var(--color-success)">${formatCurrency(saldo.totalCobrado)}</span>
+        <span class="detail-stat-mini-value" style="color: var(--color-success)">${formatCurrency(saldo.totalCobrado, saldo.moneda || 'ARS')}</span>
       </div>
       <div class="detail-stat-mini">
         <span class="detail-stat-mini-label">${saldo.saldo > 0 ? 'Saldo pendiente' : (saldo.saldo < 0 ? 'Saldo a favor' : 'Estado')}</span>
         <span class="detail-stat-mini-value" style="color: ${saldo.saldo > 0 ? 'var(--color-warning)' : 'var(--color-success)'}">
-          ${saldo.saldo > 0 ? formatCurrency(saldo.saldo) : (saldo.saldo < 0 ? `+${formatCurrency(Math.abs(saldo.saldo))} (a favor)` : 'Al día ($0)')}
+          ${saldo.saldo > 0 ? formatCurrency(saldo.saldo, saldo.moneda || 'ARS') : (saldo.saldo < 0 ? `+${formatCurrency(Math.abs(saldo.saldo), saldo.moneda || 'ARS')} (a favor)` : `Al día (${saldo.moneda === 'USD' ? 'US$ 0' : '$ 0'})`)}
         </span>
       </div>
       <div class="detail-stat-mini">
